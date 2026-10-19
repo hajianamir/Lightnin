@@ -1,1 +1,1 @@
-# Lightnin
+# Lightning
