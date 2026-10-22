@@ -1,0 +1,60 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev --workspace=apps/web",
+    "beforeBuildCommand": "npm run build --workspace=apps/web",
+    "devPath": "http://localhost:5173",
+    "distDir": "../web/dist"
+  },
+  "package": {
+    "productName": "AegisLPS",
+    "version": "1.0.0-draft"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "http": {
+        "all": true,
+        "request": true,
+        "scope": ["http://127.0.0.1:*/*", "http://localhost:*/*"]
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "DeveloperTool",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [
+        "sidecars/aegislps-backend"
+      ],
+      "icon": [],
+      "identifier": "org.aegislps.app",
+      "longDescription": "Provisional AegisLPS Desktop Application",
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": ""
+      },
+      "resources": [],
+      "shortDescription": "Lightning Protection Systems Design & Calculation Workbench",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": "default-src 'self' http://127.0.0.1:* http://localhost:* 'unsafe-inline' 'unsafe-eval'"
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 800,
+        "resizable": true,
+        "title": "AegisLPS Workbench (Provisional)",
+        "width": 1280
+      }
+    ]
+  }
+}
