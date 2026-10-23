@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegislps-api"
+version = "1.0.0a1"
+dependencies = [
+    "fastapi>=0.100.0",
+    "pydantic>=2.0.0",
+    "uvicorn>=0.20.0",
+    "python-multipart>=0.0.6",
+    "httpx>=0.24.0"
+]
