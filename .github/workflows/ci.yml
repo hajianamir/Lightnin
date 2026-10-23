@@ -18,12 +18,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest fastapi pydantic uvicorn sqlalchemy alembic reportlab networkx scipy pint shapely ezdxf python-multipart httpx
+          pip install -r requirements.txt
+          pip install -e packages/standards-data
+          pip install -e packages/domain-model
+          pip install -e packages/geometry
+          pip install -e packages/reporting
+          pip install -e services/calculation-engine
+          pip install -e services/api
       - name: Run Pytest
-        env:
-          PYTHONPATH: packages/standards-data:packages/domain-model:packages/geometry:packages/reporting:services/calculation-engine:services/api
         run: |
-          pytest tests/
+          pytest tests/ --junitxml=junit.xml
 
   frontend-build:
     runs-on: ubuntu-latest
