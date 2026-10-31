@@ -78,4 +78,6 @@ def test_nodal_ring_and_mesh_conservation():
     assert res["converged"]
     assert "down1" in res["kc_factors"]
     assert "down2" in res["kc_factors"]
-    assert res["balance_residual"] >= 0.0
+    assert res["conservation_residual_a"] >= 0.0
+    assert len(res["node_potentials"]) == 6
+    assert res["condition_number_estimate"] > 0
