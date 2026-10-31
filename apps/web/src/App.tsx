@@ -8,6 +8,12 @@ export default function App() {
   const [distance, setDistance] = useState(0.8)
   const [results, setResults] = useState<any>(null)
 
+  // 3D Viewport Controls & Layers
+  const [showBuilding, setShowBuilding] = useState(true)
+  const [showConductors, setShowConductors] = useState(true)
+  const [showProtectionEnvelope, setShowProtectionEnvelope] = useState(true)
+  const [cameraView, setCameraView] = useState<'iso' | 'top' | 'front' | 'side'>('iso')
+
   const runCalculation = async () => {
     const payload = {
       name: "3D Sample Building",
@@ -42,12 +48,58 @@ export default function App() {
     }
   }
 
+  const getCameraPos = (): [number, number, number] => {
+    switch (cameraView) {
+      case 'top': return [0, 50, 0]
+      case 'front': return [0, buildingHeight / 2, 40]
+      case 'side': return [40, buildingHeight / 2, 0]
+      default: return [25, 25, 25]
+    }
+  }
+
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh' }}>
       {/* Sidebar Controls */}
       <div style={{ width: '380px', padding: '20px', backgroundColor: '#1e293b', borderRight: '1px solid #334155', overflowY: 'auto' }}>
         <h2 style={{ color: '#38bdf8', marginTop: 0 }}>AegisLPS Workbench</h2>
-        <p style={{ fontSize: '12px', color: '#94a3b8' }}>Provisional Title | IEC 62305-3:2024</p>
+        <p style={{ fontSize: '12px', color: '#94a3b8' }}>Prototype Version 1.0.0-alpha.1 | IEC 62305-3:2024</p>
+
+        {/* Viewport Presets & Layers */}
+        <div style={{ marginBottom: '15px', padding: '10px', background: '#0f172a', borderRadius: '4px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>Camera Preset:</span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {(['iso', 'top', 'front', 'side'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setCameraView(mode)}
+                style={{
+                  flex: 1,
+                  padding: '5px',
+                  background: cameraView === mode ? '#0284c7' : '#334155',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '3px',
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  fontSize: '11px'
+                }}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+
+          <span style={{ fontSize: '13px', fontWeight: 'bold', display: 'block', margin: '10px 0 6px 0' }}>Display Layers:</span>
+          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
+            <input type="checkbox" checked={showBuilding} onChange={e => setShowBuilding(e.target.checked)} /> Building Geometry
+          </label>
+          <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>
+            <input type="checkbox" checked={showConductors} onChange={e => setShowConductors(e.target.checked)} /> Conductors & Rods
+          </label>
+          <label style={{ display: 'block', fontSize: '12px' }}>
+            <input type="checkbox" checked={showProtectionEnvelope} onChange={e => setShowProtectionEnvelope(e.target.checked)} /> Protection Envelope (20m Sphere)
+          </label>
+        </div>
 
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', fontSize: '14px', marginBottom: '5px' }}>LPS Class:</label>
@@ -85,23 +137,42 @@ export default function App() {
 
       {/* 3D WebGL Viewport */}
       <div style={{ flex: 1, position: 'relative' }}>
-        <Canvas camera={{ position: [25, 25, 25], fov: 50 }}>
+        <Canvas camera={{ position: getCameraPos(), fov: 50 }}>
           <ambientLight intensity={0.7} />
           <directionalLight position={[20, 30, 10]} intensity={1.2} />
           <Grid args={[50, 50]} cellColor="#334155" sectionColor="#0284c7" />
           <OrbitControls />
 
           {/* 3D Parametric Building Box */}
-          <mesh position={[0, buildingHeight / 2, 0]}>
-            <boxGeometry args={[20, buildingHeight, 10]} />
-            <meshStandardMaterial color="#334155" wireframe={false} opacity={0.8} transparent />
-          </mesh>
+          {showBuilding && (
+            <mesh position={[0, buildingHeight / 2, 0]}>
+              <boxGeometry args={[20, buildingHeight, 10]} />
+              <meshStandardMaterial color="#334155" wireframe={false} opacity={0.8} transparent />
+            </mesh>
+          )}
 
-          {/* Air Termination Mast */}
-          <mesh position={[0, buildingHeight + 1.5, 0]}>
-            <cylinderGeometry args={[0.05, 0.05, 3]} />
-            <meshStandardMaterial color="#f59e0b" />
-          </mesh>
+          {/* Air Termination Mast & Down Conductor */}
+          {showConductors && (
+            <group>
+              <mesh position={[0, buildingHeight + 1.5, 0]}>
+                <cylinderGeometry args={[0.05, 0.05, 3]} />
+                <meshStandardMaterial color="#f59e0b" />
+              </mesh>
+              {/* Down conductor trace along building corner */}
+              <mesh position={[10, buildingHeight / 2, 5]}>
+                <cylinderGeometry args={[0.03, 0.03, buildingHeight]} />
+                <meshStandardMaterial color="#38bdf8" />
+              </mesh>
+            </group>
+          )}
+
+          {/* Rolling Sphere Protection Envelope (Semi-transparent sphere) */}
+          {showProtectionEnvelope && (
+            <mesh position={[0, buildingHeight + 3, 0]}>
+              <sphereGeometry args={[20, 32, 16]} />
+              <meshStandardMaterial color="#38bdf8" wireframe={true} opacity={0.2} transparent />
+            </mesh>
+          )}
         </Canvas>
       </div>
     </div>
