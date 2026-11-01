@@ -16,6 +16,9 @@ from aegislps_engine.uq_engine import UncertaintyQuantificationEngine, UQSimulat
 from aegislps_engine.peec_thermal import PEECThermalEngine, ConductorThermalProperties
 from aegislps_geometry.mesh_rolling_sphere import ArbitraryMeshRollingSphereEngine, MeshRollingSphereInput
 from aegislps_engine.comprehensive_risk import ComprehensiveRisk2024Engine, ComprehensiveRiskInput
+from aegislps_geometry.mesh_method import MeshMethodEngine, MeshMethodInput
+from aegislps_engine.hvi_conductor import HVIConductorAssistant, HVIConductorSelectionInput
+from aegislps_engine.bom_engine import BOMAndLifecycleEngine, ProjectBOMResult
 from aegislps_engine.lemp_engine import LEMPEngine, LEMPWaveformSpecification, ShieldingGrid, InternalCableLoop
 from aegislps_engine.cad_export import GLTF3DExporter
 from aegislps_geometry.protective_angle import ProtectiveAngleEngine
@@ -52,6 +55,9 @@ optimization_engine = DesignOptimizationEngine()
 pv_engine = PVEngineeringModule()
 uq_engine = UncertaintyQuantificationEngine()
 lemp_engine = LEMPEngine()
+mesh_method_engine = MeshMethodEngine()
+hvi_assistant = HVIConductorAssistant()
+bom_engine = BOMAndLifecycleEngine()
 peec_engine = PEECThermalEngine()
 mesh_rs_engine = ArbitraryMeshRollingSphereEngine()
 comp_risk_engine = ComprehensiveRisk2024Engine()
@@ -96,6 +102,18 @@ def calculate_risk(inputs: RiskAssessmentInput):
 @app.post("/api/v1/calculations/pv-clearance")
 def calculate_pv_clearance(pv_spec: PVArraySpecification):
     return pv_engine.evaluate_pv_installation(pv_spec)
+
+@app.post("/api/v1/calculations/mesh-method")
+def calculate_mesh_method(inputs: MeshMethodInput):
+    return mesh_method_engine.validate_mesh_design(inputs)
+
+@app.post("/api/v1/calculations/hvi-selection")
+def calculate_hvi_selection(inputs: HVIConductorSelectionInput):
+    return hvi_assistant.evaluate_hvi_selection(inputs)
+
+@app.post("/api/v1/projects/generate-bom")
+def generate_project_bom(project_name: str, lps_class: str, length_m: float, width_m: float, height_m: float):
+    return bom_engine.generate_project_bom(project_name, lps_class, length_m, width_m, height_m)
 
 @app.post("/api/v1/calculations/peec-thermal")
 def calculate_peec_thermal(props: ConductorThermalProperties, lps_class: str = "I"):
