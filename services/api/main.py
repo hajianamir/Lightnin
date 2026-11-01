@@ -3,12 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from aegislps_domain.models import Project, SeparationCalculationResult
+from aegislps_domain.integrity import ProjectIntegrityEngine
 from aegislps_engine.separation import SeparationDistanceEngine
 from aegislps_engine.nodal import NodalCurrentSolver
 from aegislps_engine.risk import RiskManagementEngine, RiskAssessmentInput
 from aegislps_engine.earthing import EarthingEngine, EarthingAssessmentInput
 from aegislps_engine.touch_step import TouchStepEngine, TouchStepAssessmentInput
 from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDEntry
+from aegislps_engine.optimization import DesignOptimizationEngine, OptimizationInput
+from aegislps_engine.pv_module import PVEngineeringModule, PVArraySpecification
+from aegislps_engine.cad_export import GLTF3DExporter
 from aegislps_geometry.protective_angle import ProtectiveAngleEngine
 from aegislps_geometry.rolling_sphere import RollingSphereEngine
 from aegislps_engine.dxf_exporter import DXFExporter
@@ -17,9 +21,9 @@ from aegislps_standards.repository import StandardsRepository
 from aegislps_reporting.report_renderer import ReportRenderer
 
 app = FastAPI(
-    title="AegisLPS Engineering API",
+    title="AegisLPS Advanced Engineering API",
     version="1.0.0-alpha.1",
-    description="AegisLPS Lightning Protection Engineering Suite REST API"
+    description="AegisLPS Lightning Protection Engineering Suite Professional REST API"
 )
 
 app.add_middleware(
@@ -39,6 +43,8 @@ risk_engine = RiskManagementEngine()
 earthing_engine = EarthingEngine()
 touch_step_engine = TouchStepEngine()
 spd_engine = SPDCoordinationEngine()
+optimization_engine = DesignOptimizationEngine()
+pv_engine = PVEngineeringModule()
 
 @app.get("/health")
 def health_check():
@@ -77,6 +83,26 @@ def calculate_spd_coordination(spds: list[SPDEntry]):
 def calculate_risk(inputs: RiskAssessmentInput):
     return risk_engine.evaluate_r1_risk(inputs)
 
+@app.post("/api/v1/calculations/pv-clearance")
+def calculate_pv_clearance(pv_spec: PVArraySpecification):
+    return pv_engine.evaluate_pv_installation(pv_spec)
+
+@app.post("/api/v1/optimization/optimize-rods")
+def optimize_air_terminations(inputs: OptimizationInput):
+    return optimization_engine.optimize_air_terminations(inputs)
+
+@app.post("/api/v1/exports/gltf")
+def export_gltf_3d(project: Project):
+    gltf_str = GLTF3DExporter.export_gltf_scene(
+        project.building.length_m,
+        project.building.width_m,
+        project.building.height_m,
+        [n.model_dump() for n in project.nodes]
+    )
+    return Response(content=gltf_str, media_type="model/gltf+json", headers={
+        "Content-Disposition": f"attachment; filename=AegisLPS_Scene_{project.project_id[:8]}.gltf"
+    })
+
 @app.post("/api/v1/exports/dxf")
 def export_dxf_plan(project: Project):
     dxf_bytes = DXFExporter.export_2d_plan(
@@ -92,6 +118,11 @@ def export_dxf_plan(project: Project):
 async def import_ifc_model(file: UploadFile = File(...)):
     content = await file.read()
     return IFCImporter.parse_ifc_building_elements(content)
+
+@app.post("/api/v1/projects/compute-checksum")
+def compute_checksum(project: Project):
+    checksum = ProjectIntegrityEngine.compute_project_checksum(project.model_dump())
+    return {"project_id": project.project_id, "checksum": checksum}
 
 @app.post("/api/v1/reports/pdf")
 def generate_pdf_report(project: Project):
