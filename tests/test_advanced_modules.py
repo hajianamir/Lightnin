@@ -50,7 +50,7 @@ def test_risk_management_engine():
     )
     res = risk_eng.evaluate_r1_risk(inp)
     assert res.collection_area_ad_m2 > 0
-    assert res.annual_flashes_nd > 0
+    assert res.annual_strikes_nd > 0
     assert isinstance(res.risk_acceptable, bool)
 
 def test_dxf_exporter():
