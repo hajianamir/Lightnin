@@ -9,5 +9,8 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
   }
 }
