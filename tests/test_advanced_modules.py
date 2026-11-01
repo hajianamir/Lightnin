@@ -17,7 +17,8 @@ def test_nodal_solver_current_sharing():
         {"id": "s2", "start_node_id": "n1", "end_node_id": "n3", "cross_section_mm2": 50}
     ]
     solver.build_network(nodes, segments)
-    kc_factors = solver.calculate_current_sharing(injection_node="n1", earth_nodes=["n2", "n3"])
+    res = solver.calculate_current_sharing(injection_node="n1", earth_nodes=["n2", "n3"])
+    kc_factors = res["kc_factors"]
 
     assert "s1" in kc_factors
     assert "s2" in kc_factors
