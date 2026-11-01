@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls, Grid, Line, Text } from '@react-three/drei'
+import { OrbitControls, Grid, Line } from '@react-three/drei'
 
 export default function App() {
   // Navigation & Workspace Tabs
@@ -22,7 +22,7 @@ export default function App() {
   const [showDownConductors, setShowDownConductors] = useState(true)
   const [showSpherePenetration, setShowSpherePenetration] = useState(true)
   const [showCurrentHeatmap, setShowCurrentHeatmap] = useState(true)
-  const [showEquipment, setShowEquipment] = useState(true)
+  const [showEquipment] = useState(true)
 
   // Calculation Results
   const [calcResult, setCalcResult] = useState<any>(null)
@@ -475,6 +475,24 @@ export default function App() {
                 <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
                   Click "Compute All Solvers" in the header to run the stochastic UQ simulation.
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Nodal Tab */}
+          {activeTab === 'nodal' && (
+            <div style={{ padding: '30px', height: '100%', overflowY: 'auto' }}>
+              <h2 style={{ fontSize: '18px', color: '#38bdf8', marginTop: 0 }}>Nodal Current-Sharing & Branch Results</h2>
+              {nodalResult ? (
+                <div style={{ background: '#1e293b', padding: '20px', borderRadius: '8px', marginTop: '16px' }}>
+                  <div>Status: <b>{nodalResult.converged ? 'CONVERGED' : 'WARNING'}</b></div>
+                  <div>Balance Residual: <b>{nodalResult.conservation_residual_a || 0} A</b></div>
+                  <pre style={{ background: '#0f172a', padding: '12px', borderRadius: '6px', fontSize: '12px', color: '#38bdf8', marginTop: '14px' }}>
+                    {JSON.stringify(nodalResult.kc_factors, null, 2)}
+                  </pre>
+                </div>
+              ) : (
+                <div style={{ padding: '20px', color: '#94a3b8' }}>Run 'Compute All Solvers' to view nodal branch currents.</div>
               )}
             </div>
           )}
