@@ -1,15 +1,15 @@
 # Stage Acceptance Matrix
 
 - **Document ID**: DOC-SAM-001
-- **Version**: 1.0.0-prototype
-- **Status**: Implemented Engineering Prototype
+- **Version**: 1.0.0-prototype.3
+- **Status**: Experimental Advanced-Engineering Prototype Modules Implemented
 - **Product Name**: AegisLPS (Provisional Working Title)
 
-| Stage | Stage Description | Target Deliverables | Implementation Status | Engineering Verification Status |
+| Stage | Description | Status | Verification & Review Gate | Notes |
 |---|---|---|---|---|
-| **Stage 0** | Specifications & Architecture Baseline | SRS, SAD, Schema, Traceability, ADRs | Deliverables present | Implemented, unverified |
-| **Stage 1** | Separation Engine & Core Stack | FastAPI, React/R3F, Separation Engine, ReportLab PDF, Tauri Conf | Deliverables present | Implemented, unverified |
-| **Stage 2** | Path Analyzer & DXF Export | 2D plan viewer, DXF export engine | Deliverables present | Implemented, unverified |
-| **Stage 3** | Nodal Graph & 3D Rolling Sphere | Sparse admittance matrix solver, 3D rolling sphere algorithm | Deliverables present | Implemented, unverified |
-| **Stage 4** | Risk, Earthing & BIM Import | IEC 62305-2 risk prototype, IFC parser stub | IFC parser stub only | Interface stub, unverified |
-| **Stage 5** | Production Packaging & Signing | Windows installer, Code signing, Independent review | Pending | Pending independent review |
+| **Stage 0** | Specifications & Architecture | Implemented, unverified | Pending independent standards audit | Controlled docs present |
+| **Stage 1** | Separation Engine & Core Stack | Implemented, unverified | Pending clean-runner release validation | Pure wheel tests implemented |
+| **Stage 2** | Path Analyzer & CAD Exports | Implemented, unverified | Pending external CAD viewer validation | DXF & glTF 2.0 export present |
+| **Stage 3** | Nodal & 3D Rolling Sphere | Experimental, unverified | Mathematical formulation review pending | Single-frequency approximation |
+| **Stage 4** | Risk, Earthing, Touch/Step & SPD | Experimental, unverified | Scope separation & 2024 gap review pending | Unverified standards data |
+| **Stage 5** | Production Packaging & Signing | Not completed | Formal acceptance pending | Alpha pre-release (1.0.0a1) |

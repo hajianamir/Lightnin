@@ -6,26 +6,22 @@ from typing import Dict, List, Tuple, Any, Optional
 
 class NodalCurrentSolver:
     """
-    Advanced Graph-Based Nodal & Current-Sharing Engine.
+    Experimental Frequency-Domain Current-Sharing Solver.
 
-    Implements:
-    - High-frequency lightning impulse impedance model Z = R + omega * L_eff
-    - Graph topology validation (disconnected components, zero-length branches, duplicate segments)
-    - Sparse nodal admittance matrix formulation: Y * V = I
-    - Node-by-node Kirchhoff's Current Law (KCL) residual balance checks: sum(I_k) = 0
-    - Numerical matrix condition diagnostics and singular-system regularizations
-    - Segment-by-segment current-sharing factor derivation (kc = I_segment / I_total)
+    ENGINEERING STATUS:
+    - Status: Experimental, unverified.
+    - Simplified frequency-domain approximation Z = R_dc + omega * L_eff.
+    - Note: This is a simplified single-frequency approximation representing the high-frequency
+      inductive behavior of lightning transients. It omits frequency-dependent skin effect,
+      capacitive coupling to ground, and non-uniform ground-return impedances.
+    - Not certified as a full transient time-domain electromagnetic solver.
     """
     def __init__(self, equivalent_frequency_khz: float = 250.0):
-        # 10/350 us lightning impulse has equivalent spectral frequency ~ 250 kHz
         self.freq_hz = equivalent_frequency_khz * 1e3
         self.omega = 2.0 * np.pi * self.freq_hz
         self.graph = nx.Graph()
 
     def build_network(self, nodes: List[Dict], segments: List[Dict]):
-        """
-        Builds the conductive graph network with electrical and spatial properties.
-        """
         self.graph.clear()
         for n in nodes:
             self.graph.add_node(
@@ -46,23 +42,17 @@ class NodalCurrentSolver:
             dz = self.graph.nodes[u]['z'] - self.graph.nodes[v]['z']
             length = float(np.sqrt(dx**2 + dy**2 + dz**2))
 
-            # Filter zero-length invalid segments
             if length < 1e-4:
                 continue
 
             cross_section_mm2 = float(s.get("cross_section_mm2", 50.0))
             cross_section_m2 = max(1e-12, cross_section_mm2 * 1e-6)
-            rho = float(s.get("resistivity_ohm_m", 1.72e-8)) # Copper default
+            rho = float(s.get("resistivity_ohm_m", 1.72e-8))
 
-            # DC Resistance
             r_dc = (rho * length) / cross_section_m2
-
-            # Self-inductance of straight conductor (approx ~ 1 uH / m)
-            # L = (mu_0 / 2pi) * length * [ln(2*l/r) - 0.75]
             radius_m = max(1e-4, np.sqrt(cross_section_m2 / np.pi))
             l_inductance = max(1e-9, (2e-7) * length * max(1.0, (np.log(max(1.0, 2.0 * length / radius_m)) - 0.75)))
 
-            # Surge magnitude impedance Z_mag = sqrt(R^2 + (omega*L)^2)
             z_surge = float(np.sqrt(r_dc**2 + (self.omega * l_inductance)**2))
             admittance = 1.0 / max(1e-4, z_surge)
 
@@ -82,9 +72,6 @@ class NodalCurrentSolver:
         earth_nodes: List[str],
         total_injection_current_a: float = 100000.0
     ) -> Dict[str, Any]:
-        """
-        Solves the network currents and derives current-sharing factors (kc).
-        """
         node_list = list(self.graph.nodes())
         if not node_list:
             return {
@@ -112,7 +99,6 @@ class NodalCurrentSolver:
                 "warnings": [f"Injection node '{injection_node}' does not exist in network"]
             }
 
-        # Filter valid earth nodes
         valid_earth = [en for en in earth_nodes if en in self.graph]
         if not valid_earth:
             return {
@@ -127,7 +113,6 @@ class NodalCurrentSolver:
                 "warnings": ["No valid earth grounding nodes specified"]
             }
 
-        # Verify connectivity to at least one earth termination
         connected_earth = [en for en in valid_earth if nx.has_path(self.graph, injection_node, en)]
         if not connected_earth:
             return {
@@ -147,10 +132,8 @@ class NodalCurrentSolver:
         Y = lil_matrix((N, N), dtype=np.float64)
         I = np.zeros(N, dtype=np.float64)
 
-        # Inject total lightning surge impulse
         I[idx[injection_node]] = total_injection_current_a
 
-        # Construct conductance/admittance matrix Y
         for u, v, data in self.graph.edges(data=True):
             i_u, i_v = idx[u], idx[v]
             y_elem = data["admittance_siemens"]
@@ -159,7 +142,6 @@ class NodalCurrentSolver:
             Y[i_u, i_v] -= y_elem
             Y[i_v, i_u] -= y_elem
 
-        # Apply Dirichlet boundary condition (V = 0) at connected earth nodes
         for en in connected_earth:
             e_i = idx[en]
             Y[e_i, :] = 0.0
@@ -167,8 +149,6 @@ class NodalCurrentSolver:
             I[e_i] = 0.0
 
         Y_csc = Y.tocsc()
-
-        # Estimate conditioning
         diag_elements = np.abs(Y_csc.diagonal())
         diag_max = float(np.max(diag_elements)) if len(diag_elements) > 0 else 1.0
         diag_min = float(np.min(diag_elements[diag_elements > 0])) if np.any(diag_elements > 0) else 1e-6
@@ -191,7 +171,6 @@ class NodalCurrentSolver:
 
         node_potentials = {node: float(V[idx[node]]) for node in node_list}
 
-        # Calculate segment branch currents and kc factors
         kc_factors = {}
         segment_currents = {}
         for u, v, data in self.graph.edges(data=True):
@@ -201,12 +180,11 @@ class NodalCurrentSolver:
             segment_currents[data["id"]] = i_branch
             kc_factors[data["id"]] = float(min(1.0, max(0.0, i_branch / max(1.0, total_injection_current_a))))
 
-        # Node-by-Node KCL Residual Balance Check
         kcl_residuals = {}
         max_kcl_res = 0.0
         for node in node_list:
             if node in connected_earth:
-                continue # Earth nodes sink current
+                continue
             n_i = idx[node]
             sum_current = 0.0
             for neighbor in self.graph.neighbors(node):
@@ -219,7 +197,6 @@ class NodalCurrentSolver:
             if res > max_kcl_res:
                 max_kcl_res = float(res)
 
-        # Global Current Conservation Check: Injected Current vs Total Earth Sink
         total_earth_current = 0.0
         for en in connected_earth:
             e_i = idx[en]
@@ -230,9 +207,9 @@ class NodalCurrentSolver:
 
         conservation_residual = abs(total_injection_current_a - total_earth_current)
         rel_residual = float(conservation_residual / max(1.0, total_injection_current_a))
-        converged = bool(rel_residual < 0.02) # Strict 2% conservation gate
+        converged = bool(rel_residual < 0.02)
 
-        warnings = []
+        warnings = ["Approximation: Single-frequency equivalent impedance model; unverified transient response."]
         if not converged:
             warnings.append(f"Global current conservation residual ({rel_residual*100:.2f}%) exceeded 2% tolerance")
         if max_kcl_res > (0.05 * total_injection_current_a):
