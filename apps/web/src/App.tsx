@@ -1,3 +1,11 @@
+import ProjectWizard from './components/ProjectWizard'
+import HelpManual from './components/HelpManual'
+import {
+  AegisProjectFile,
+  exportProjectToFile,
+  loadProjectFromFile,
+  saveProjectToLocalStorage,
+} from './utils/projectStorage'
 import { useState, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, Line } from '@react-three/drei'
@@ -12,6 +20,11 @@ export default function App() {
   const [buildingWidth, setBuildingWidth] = useState(20)
   const [buildingHeight, setBuildingHeight] = useState(15)
   const [physicalClearance, setPhysicalClearance] = useState(1.1)
+  // Dialog Modals State
+  const [isWizardOpen, setIsWizardOpen] = useState(false)
+  const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [projectName, setProjectName] = useState('Substation Facility Alpha')
+
   const [soilResistivity, setSoilResistivity] = useState(100.0)
 
   // 3D Viewport Controls & Layer States
@@ -268,6 +281,69 @@ export default function App() {
           ))}
         </div>
 
+        {/* Project I/O and Guided Actions */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={() => setIsWizardOpen(true)}
+            style={{ padding: '6px 12px', background: '#059669', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
+          >
+            + New Project Wizard
+          </button>
+          <label style={{ padding: '6px 12px', background: '#334155', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            Open Project (.lps)
+            <input
+              type="file"
+              accept=".lps,.json"
+              style={{ display: 'none' }}
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  try {
+                    const loaded = await loadProjectFromFile(file)
+                    setProjectName(loaded.name)
+                    setLpsClass(loaded.lps_class as any)
+                    setBuildingLength(loaded.building.length_m)
+                    setBuildingWidth(loaded.building.width_m)
+                    setBuildingHeight(loaded.building.height_m)
+                    setSoilResistivity(loaded.soil_resistivity_ohm_m)
+                    setPhysicalClearance(loaded.physical_clearance_m)
+                    alert(`Loaded project: ${loaded.name}`)
+                  } catch (err: any) {
+                    alert(`Error opening project: ${err.message}`)
+                  }
+                }
+              }}
+            />
+          </label>
+          <button
+            onClick={() => {
+              const projData: AegisProjectFile = {
+                schema_version: "1.0.0",
+                application_version: "1.0.0-alpha.1",
+                standards_baseline: "IEC 62305:2024 Suite",
+                project_id: "aegis-proj-uuid-1",
+                name: projectName,
+                lps_class: lpsClass,
+                building: { length_m: buildingLength, width_m: buildingWidth, height_m: buildingHeight, roof_type: "flat" },
+                soil_resistivity_ohm_m: soilResistivity,
+                physical_clearance_m: physicalClearance,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }
+              exportProjectToFile(projData)
+              saveProjectToLocalStorage(projData)
+            }}
+            style={{ padding: '6px 12px', background: '#334155', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '11px', cursor: 'pointer' }}
+          >
+            Save Project (.lps)
+          </button>
+          <button
+            onClick={() => setIsHelpOpen(true)}
+            style={{ padding: '6px 12px', background: '#475569', color: '#38bdf8', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '11px', cursor: 'pointer' }}
+          >
+            Standards & Help (?)
+          </button>
+        </div>
         <button
           onClick={runAllCalculations}
           style={{
@@ -686,6 +762,27 @@ export default function App() {
           )}
         </main>
       </div>
+      {/* Guided Project Wizard Modal */}
+      <ProjectWizard
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        onComplete={(pData) => {
+          setProjectName(pData.name)
+          setLpsClass(pData.lpsClass)
+          setBuildingLength(pData.length)
+          setBuildingWidth(pData.width)
+          setBuildingHeight(pData.height)
+          setSoilResistivity(pData.soilResistivity)
+          setPhysicalClearance(pData.clearance)
+          runAllCalculations()
+        }}
+      />
+
+      {/* Standards & Help Manual Modal */}
+      <HelpManual
+        isOpen={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
+      />
     </div>
   )
 }
