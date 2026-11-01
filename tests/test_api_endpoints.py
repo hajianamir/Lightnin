@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from services.api.main import app
+from aegislps_api.main import app
 
 client = TestClient(app)
 
