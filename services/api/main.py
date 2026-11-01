@@ -8,7 +8,7 @@ from aegislps_engine.nodal import NodalCurrentSolver
 from aegislps_engine.risk import RiskManagementEngine, RiskAssessmentInput
 from aegislps_engine.earthing import EarthingEngine, EarthingAssessmentInput
 from aegislps_engine.touch_step import TouchStepEngine, TouchStepAssessmentInput
-from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDSpecification
+from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDEntry
 from aegislps_geometry.protective_angle import ProtectiveAngleEngine
 from aegislps_geometry.rolling_sphere import RollingSphereEngine
 from aegislps_engine.dxf_exporter import DXFExporter
@@ -70,7 +70,7 @@ def calculate_touch_step(inputs: TouchStepAssessmentInput):
     return touch_step_engine.evaluate(inputs)
 
 @app.post("/api/v1/calculations/spd-coordination")
-def calculate_spd_coordination(spds: list[SPDSpecification]):
+def calculate_spd_coordination(spds: list[SPDEntry]):
     return spd_engine.evaluate_coordination(spds)
 
 @app.post("/api/v1/calculations/risk")
