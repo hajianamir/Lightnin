@@ -13,6 +13,9 @@ from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDEntry
 from aegislps_engine.optimization import DesignOptimizationEngine, OptimizationInput
 from aegislps_engine.pv_module import PVEngineeringModule, PVArraySpecification
 from aegislps_engine.uq_engine import UncertaintyQuantificationEngine, UQSimulationConfig
+from aegislps_engine.peec_thermal import PEECThermalEngine, ConductorThermalProperties
+from aegislps_geometry.mesh_rolling_sphere import ArbitraryMeshRollingSphereEngine, MeshRollingSphereInput
+from aegislps_engine.comprehensive_risk import ComprehensiveRisk2024Engine, ComprehensiveRiskInput
 from aegislps_engine.lemp_engine import LEMPEngine, LEMPWaveformSpecification, ShieldingGrid, InternalCableLoop
 from aegislps_engine.cad_export import GLTF3DExporter
 from aegislps_geometry.protective_angle import ProtectiveAngleEngine
@@ -49,6 +52,9 @@ optimization_engine = DesignOptimizationEngine()
 pv_engine = PVEngineeringModule()
 uq_engine = UncertaintyQuantificationEngine()
 lemp_engine = LEMPEngine()
+peec_engine = PEECThermalEngine()
+mesh_rs_engine = ArbitraryMeshRollingSphereEngine()
+comp_risk_engine = ComprehensiveRisk2024Engine()
 
 @app.get("/health")
 def health_check():
@@ -90,6 +96,18 @@ def calculate_risk(inputs: RiskAssessmentInput):
 @app.post("/api/v1/calculations/pv-clearance")
 def calculate_pv_clearance(pv_spec: PVArraySpecification):
     return pv_engine.evaluate_pv_installation(pv_spec)
+
+@app.post("/api/v1/calculations/peec-thermal")
+def calculate_peec_thermal(props: ConductorThermalProperties, lps_class: str = "I"):
+    return peec_engine.evaluate_thermal_and_electrodynamic_stress(props, lps_class)
+
+@app.post("/api/v1/calculations/mesh-rolling-sphere")
+def calculate_mesh_rolling_sphere(inputs: MeshRollingSphereInput):
+    return mesh_rs_engine.evaluate_mesh_protection(inputs)
+
+@app.post("/api/v1/calculations/comprehensive-risk-2024")
+def calculate_comprehensive_risk_2024(inputs: ComprehensiveRiskInput):
+    return comp_risk_engine.evaluate_risk(inputs)
 
 @app.post("/api/v1/calculations/lemp-induced-voltage")
 def calculate_lemp_induced_voltage(waveform: LEMPWaveformSpecification, shield: ShieldingGrid, loop: InternalCableLoop):
