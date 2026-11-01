@@ -27,6 +27,7 @@ from aegislps_engine.dxf_exporter import DXFExporter
 from aegislps_engine.ifc_importer import IFCImporter
 from aegislps_standards.repository import StandardsRepository
 from aegislps_reporting.report_renderer import ReportRenderer
+from aegislps_reporting.docx_renderer import DOCXReportRenderer
 
 app = FastAPI(
     title="AegisLPS Advanced Engineering API",
@@ -171,6 +172,18 @@ async def import_ifc_model(file: UploadFile = File(...)):
 def compute_checksum(project: Project):
     checksum = ProjectIntegrityEngine.compute_project_checksum(project.model_dump())
     return {"project_id": project.project_id, "checksum": checksum}
+
+@app.post("/api/v1/reports/docx")
+def generate_docx_report(project: Project):
+    results = calc_engine.calculate_project(project)
+    docx_bytes = DOCXReportRenderer.render_docx_report(project, results)
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={
+            "Content-Disposition": f"attachment; filename=AegisLPS_Report_{project.project_id[:8]}.docx"
+        }
+    )
 
 @app.post("/api/v1/reports/pdf")
 def generate_pdf_report(project: Project):
