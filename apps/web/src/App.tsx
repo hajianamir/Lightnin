@@ -153,6 +153,79 @@ export default function App() {
     }
   }
 
+  const downloadDocxReport = async () => {
+    const payload = {
+      name: `AegisLPS Engineering Project - Class ${lpsClass}`,
+      lps_class: lpsClass,
+      building: { length_m: buildingLength, width_m: buildingWidth, height_m: buildingHeight, roof_type: "flat" },
+      nodes: [{ id: "n1", x: 0, y: 0, z: buildingHeight, node_type: "air_termination" }],
+      segments: [],
+      separation_points: [{
+        id: "sp-hvac",
+        name: "Rooftop HVAC Unit",
+        x: targetEquipment.x,
+        y: targetEquipment.z,
+        z: buildingHeight,
+        associated_node_id: "n1",
+        insulation_medium: "air",
+        physical_distance_m: physicalClearance
+      }]
+    }
+
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/reports/docx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `AegisLPS_Formal_Report_Class_${lpsClass}.docx`
+      a.click()
+    } catch (e) {
+      console.error("DOCX download error:", e)
+    }
+  }
+
+  const downloadPdfReport = async () => {
+    const payload = {
+      name: `AegisLPS Engineering Project - Class ${lpsClass}`,
+      lps_class: lpsClass,
+      building: { length_m: buildingLength, width_m: buildingWidth, height_m: buildingHeight, roof_type: "flat" },
+      nodes: [{ id: "n1", x: 0, y: 0, z: buildingHeight, node_type: "air_termination" }],
+      segments: [],
+      separation_points: [{
+        id: "sp-hvac",
+        name: "Rooftop HVAC Unit",
+        x: targetEquipment.x,
+        y: targetEquipment.z,
+        z: buildingHeight,
+        associated_node_id: "n1",
+        insulation_medium: "air",
+        physical_distance_m: physicalClearance
+      }]
+    }
+
+    try {
+      const res = await fetch('http://localhost:8000/api/v1/reports/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `AegisLPS_Report_Class_${lpsClass}.pdf`
+      a.click()
+    } catch (e) {
+      console.error("PDF download error:", e)
+    }
+  }
+
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh', background: '#0a0f1d', color: '#f1f5f9', fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Top Professional Header & Workspace Nav */}
