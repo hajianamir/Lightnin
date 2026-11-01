@@ -12,6 +12,7 @@ from aegislps_engine.touch_step import TouchStepEngine, TouchStepAssessmentInput
 from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDEntry
 from aegislps_engine.optimization import DesignOptimizationEngine, OptimizationInput
 from aegislps_engine.pv_module import PVEngineeringModule, PVArraySpecification
+from aegislps_engine.uq_engine import UncertaintyQuantificationEngine, UQSimulationConfig
 from aegislps_engine.cad_export import GLTF3DExporter
 from aegislps_geometry.protective_angle import ProtectiveAngleEngine
 from aegislps_geometry.rolling_sphere import RollingSphereEngine
@@ -45,6 +46,7 @@ touch_step_engine = TouchStepEngine()
 spd_engine = SPDCoordinationEngine()
 optimization_engine = DesignOptimizationEngine()
 pv_engine = PVEngineeringModule()
+uq_engine = UncertaintyQuantificationEngine()
 
 @app.get("/health")
 def health_check():
@@ -86,6 +88,10 @@ def calculate_risk(inputs: RiskAssessmentInput):
 @app.post("/api/v1/calculations/pv-clearance")
 def calculate_pv_clearance(pv_spec: PVArraySpecification):
     return pv_engine.evaluate_pv_installation(pv_spec)
+
+@app.post("/api/v1/calculations/uq-monte-carlo")
+def calculate_uq_monte_carlo(config: UQSimulationConfig):
+    return uq_engine.run_monte_carlo(config)
 
 @app.post("/api/v1/optimization/optimize-rods")
 def optimize_air_terminations(inputs: OptimizationInput):
