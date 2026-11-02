@@ -18,6 +18,8 @@ from aegislps_geometry.mesh_rolling_sphere import ArbitraryMeshRollingSphereEngi
 from aegislps_engine.comprehensive_risk import ComprehensiveRisk2024Engine, ComprehensiveRiskInput
 from aegislps_geometry.mesh_method import MeshMethodEngine, MeshMethodInput
 from aegislps_engine.hvi_conductor import HVIConductorAssistant, HVIConductorSelectionInput
+from aegislps_engine.earth_pit import EarthPitEngine, EarthPitSizingInput
+from aegislps_engine.earth_rod_sizing import EarthRodSizingEngine, EarthRodSizingInput
 from aegislps_engine.bom_engine import BOMAndLifecycleEngine, ProjectBOMResult
 from aegislps_engine.lemp_engine import LEMPEngine, LEMPWaveformSpecification, ShieldingGrid, InternalCableLoop
 from aegislps_engine.cad_export import GLTF3DExporter
@@ -59,6 +61,8 @@ lemp_engine = LEMPEngine()
 mesh_method_engine = MeshMethodEngine()
 hvi_assistant = HVIConductorAssistant()
 bom_engine = BOMAndLifecycleEngine()
+earth_pit_engine = EarthPitEngine()
+earth_rod_sizing_engine = EarthRodSizingEngine()
 peec_engine = PEECThermalEngine()
 mesh_rs_engine = ArbitraryMeshRollingSphereEngine()
 comp_risk_engine = ComprehensiveRisk2024Engine()
@@ -103,6 +107,14 @@ def calculate_risk(inputs: RiskAssessmentInput):
 @app.post("/api/v1/calculations/pv-clearance")
 def calculate_pv_clearance(pv_spec: PVArraySpecification):
     return pv_engine.evaluate_pv_installation(pv_spec)
+
+@app.post("/api/v1/calculations/earth-pit-sizing")
+def calculate_earth_pit_sizing(inputs: EarthPitSizingInput):
+    return earth_pit_engine.evaluate_earth_pit_and_backfill(inputs)
+
+@app.post("/api/v1/calculations/earth-rod-sizing")
+def calculate_earth_rod_sizing(inputs: EarthRodSizingInput):
+    return earth_rod_sizing_engine.size_earth_rod_system(inputs)
 
 @app.post("/api/v1/calculations/mesh-method")
 def calculate_mesh_method(inputs: MeshMethodInput):
