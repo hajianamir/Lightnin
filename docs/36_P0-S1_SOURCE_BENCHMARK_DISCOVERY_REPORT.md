@@ -62,6 +62,7 @@
 | STD-VDE-0185-305-4 | DIN EN IEC 62305-4 (VDE 0185-305-4):2026-02 "Blitzschutz Teil 4: Elektrische und elektronische Systeme in baulichen Anlagen" | VDE Verlag | پذیرش ملی آلمان (EN IEC 62305-4:2024) | ۲۰۲۶-۰۲؛ جایگزین ویرایش ۲۰۱۱ و Berichtigung 1:2017 | https://www.vde-verlag.de/p/normen/din-en-iec-62305-4-vde-0185-305-4-2026-02/0100921-DE-PR | صفحه کاتالوگ (توصیف تغییرات قابل‌مشاهده)؛ متن پولی. تغییرات مهم: Annex E (مدل‌سازی تقسیم جریان)، Annex F (PV current sharing)، Annex G (تست در سطح سیستم)، Annex H (ولتاژهای القایی در تأسیسات SPD-محافظت‌شده) | آلمان؛ LEMP/SPD/هماهنگی |
 | STD-BS-EN-62305-1 | BS EN IEC 62305-1:2024 "Protection against lightning – General principles" | BSI Knowledge | پذیرش ملی بریتانیا | ۲۰۲۵-۰۲-۲۸؛ "Current, Under Review" | https://knowledge.bsigroup.com/products/protection-against-lightning-general-principles-3 | صفحه فروش BSI (توضیحات آزاد)؛ **احتیاط**: در صفحه یک خطای Cross-ref به "IEC 60335-2-39:2012" و "IEC 62305-1 Ed.2.0" دیده می‌شود که به‌نظر می‌رسد با توجه به عنوان/تغییرات فنی، نادرست است (صفحه در واقع BS EN IEC 62305-1:2024/Ed.3 را توصیف می‌کند) | نکته کلیدی سیاستی BSI (قابل‌استناد): "UK committee advises users that the BS EN IEC 62305 third edition series should be implemented in full as it would not be safe to implement parts 1, 3 and 4 of the third edition without having done a risk assessment in accordance with BS EN IEC 62305-2:2024" |
 | STD-HORIZON-POWER-PCD | Horizon Power "HPC-7DC-08-0001-2013 – PCD – Substation Lightning Protection Design" | Horizon Power (شرکت برق استرالیای غربی، عمومی) | استاندارد/رویه طراحی شرکت (رسمی، عمومی) | نسخه ۲۰۱۳، بازبینی ۳۱/۱۰/۲۰۲۳ (DM#1805183) | https://www.horizonpower.com.au/globalassets/media/documents/manuals-standards/procedures/hpc-7dc-08-0001-2013_-_pcd_-_substation_lightning_protection_design.pdf?v=4ac015 | PDF تمام‌متن آزاد | پست استرالیا؛ شعاع کره غلتان **24 m** برای پست‌ها؛ فلوچارت طراحی |
+| HBK-ITER-EARTHING | ITER "Electrical Design Handbook – Earthing and Lightning Protection" (ITR-20-007) | ITER Organization (داوید بلتران) | راهنمای فنی تأسیسات بین‌المللی عمومی | نسخه ۱۶ جولای ۲۰۲۰ (نسخه اولیه بازبینی‌شده) | https://www.iter.org/sites/default/files/media/2024-04/itr_20_007_iter_electrical_handbook.pdf | PDF آزاد (CC BY-NC-ND 3.0 IGO) | دسته‌بندی ولتاژ IEC (LV/MV/IV/HV)، مرجع استانداردهای IEC برای earthing/LP در چارچوب تأسیسات بزرگ/پروژه ITER؛ به‌عنوان مثال کاربرد صنعتی/تأسیساتی قابل‌مشاهده از فصل ۱ | عمومی/غیرانتفاعی؛ فقط بخش‌های ابتدایی در این پژوهش واکشی شد، به‌عنوان شاهد کاربردی کاربرد دارد نه مرجع اثبات فرمول |
 
 **احتیاط**: متن کامل هیچ‌یک از استانداردهای بالا در این پژوهش خریداری/دانلود نشده. ارجاع‌های فرمولی به این استانداردها در بخش ۳ فقط از طریق منابع ثانویه (راهنمای تولیدکننده، مقاله کنفرانس) می‌آیند و برچسب `SECONDARY SUPPORT` خورده‌اند مگر آن‌جا که متن mirror/preview (مانند DEHN slides که رونوشت جدول‌های استاندارد است) روشن چیزی را بازتولید کرده باشد.
 
@@ -86,6 +87,8 @@
 | SRC-ITU-K46-2003 | "ITU-T Rec. K.46 (07/2003): Protection of telecommunication lines using metallic symmetric conductors against lightning-induced surges" | ITU-T | توصیه‌نامه | 2003 | https://www.itu.int/rec/dologin_pub.asp?lang=e&id=T-REC-K.46-200307-S!!PDF-E&type=items | PDF تمام‌متن (لینک مستقیم ITU) | Ki (نصب هوایی=۱، دفن=۰.۵) بر اساس IEC 61663-2؛ Ks ضریب شیلد | نسخه ۲۰۰۳ است (قدیمی) |
 | SRC-ITU-K40-2019 | "ITU-T K.40 (11/2019): Protection against lightning electromagnetic impulses in telecommunication centres" | ITU-T | توصیه‌نامه | 2019 | https://www.itu.int/epublications/publication/itu-t-k-40-2019-11-protection-against-lightning-electromagnetic-impulses-in-telecommunication-centres | صفحه انتشار (PDF در فروشگاه ITU برای دانلود رایگان) | LPZ برای مراکز تلکام، MCBN، SPD هماهنگ | صفحه فقط خلاصه است؛ متن کامل در ITU bookshop |
 | SRC-ITE-SPD-2023 | "Surge protective devices (SPDs)" | IET (Wiring Matters 98, Nov 2023) | نشریه انجمن مهندسی برق UK | 2023-11 | https://electrical.theiet.org/wiring-matters/years/2023/98-november-2023/surge-protective-devices-spds/ | تمام‌متن آزاد (ارجاع‌شده از THOR) | تأکید می‌کند که LPS بیرونی به‌تنهایی حفاظت ترانزیست برای تأسیسات الکتریکی کافی نیست | ثانویه |
+| SRC-DEHN-LPG-2014 | "DEHN Lightning Protection Guide" (3rd updated edition, Dec 2014, DS702/E/2014, ISBN 978-3-9813770-1-9) | DEHN + SÖHNE | راهنمای جامع تولیدکننده (حدود ۴۸۰+ صفحه) | ۲۰۱۴-۱۲ (بر اساس IEC/EN 62305:2010 Ed.2) | https://www.dehn.de/sites/default/files/media/files/lpg-2015-e-complete.pdf | PDF تمام‌متن آزاد | فصل ۱٫۱ فهرست IEC/EN 62305 Parts 1-4:2010؛ فصل ۳٫۳ ابزار طراحی DEHN (Risk Tool، **Distance Tool با nodal analysis** بند ۳٫۳٫۲٫۱، Earthing Tool، Air-Termination Tool)؛ پارامترهای جریان صاعقه، RSM/mesh/angle، جداول ki/km/kc (با نسخه IEC 2010 هماهنگ)؛ نکته در مورد DIN EN 62305-2 Supplement 1 (نقشه Ng آلمان) | تولیدکننده (DEHN)؛ مبتنی بر نسخه ۲۰۱۰ استانداردها (پیش از ویرایش 2024) – با این‌حال nodal analysis در خودِ راهنمای DEHN به‌عنوان روش پیاده‌سازی separation ذکر شده و با رویکرد مخزن (Y·V=I) مرتبط است |
+| SRC-OBO-LEITFADEN-2019 | "Lightning protection guide – Support in the planning of lightning and surge protection systems" (2nd revised edition 2019؛ TBS Blitzschutz-Leitfaden 2018 / en / 2020/01/10) | OBO Bettermann | راهنمای جامع تولیدکننده | ویرایش ۲، انتشار ۲۰۱۹ | https://www.obo-bettermann.com/out/media/Blitzschutz-Leitfaden_en.pdf | PDF تمام‌متن آزاد | ۵ فصل: کلیات، LPS بیرونی، LPS داخلی (هم‌بندی، SPD)، تست/نگهداری، واژه‌نامه surge؛ ارجاع به IEC 60364-4-44/5-53 (الزام SPD)؛ LPZ concept و هماهنگی SPD | تولیدکننده (OBO) |
 
 ### ۱-C. مقالات پژوهشی/دانشگاهی
 
@@ -129,7 +132,7 @@
 |---|---|---|---|
 | ریسک (IEC 62305-2) | STD-IEC-62305-2-2024 (صفحه کاتالوگ)، SRC-DEHNRISK، SRC-INGESCO-CALCULUS، SRC-ECALPRO-LIGHTNING، SW-LARS، PAP-LIRA-ICLP-2012 | DEHNrisk (ثبت‌نام لازم)، LARS (قدیمی Ed.2)، ecalpro | **فرمول کامل single-risk و N_SG در Ed.3 (2024) از منابع آزاد در دسترس نبود**؛ باید متن استاندارد خریداری/مطالعه شود |
 | LPS بیرونی (Air/Down/Earth) | SRC-THOR-LPS-2026، SRC-DEHN-SLIDES-2013، STD-IEC-62305-3-2024 (کاتالوگ) | SRC-REUVEN-RSM، OSS-LPO | جدول‌های IEC 62305-3:2024 در متن آزاد تأیید نشدند؛ DEHN slides مربوط به ۲۰۱۰/۲۰۱۱ هستند |
-| جداسازی Separation | SRC-INDELEC-SEP-2026، SRC-DEHN-SLIDES-2013، PAP-ZISCHANK-ICLP، SRC-THOR-LPS-2026، SRC-ECALPRO-LIGHTNING، PAP-BRANDON-VAISALA | مثال DEHN slides (کیفری) | kc در شبکه‌های پیچیده و سقف فلزی به تحلیل عددی نیاز دارد؛ تعمیم قطعه‌به‌قطعه در منابع در دسترس صراحتاً به IEC نسبت داده نشده است |
+| جداسازی Separation | SRC-INDELEC-SEP-2026، SRC-DEHN-SLIDES-2013، SRC-DEHN-LPG-2014 (فصل ۳٫۳٫۲، شامل **nodal analysis** در DEHN Distance Tool بند ۳٫۳٫۲٫۱)، PAP-ZISCHANK-ICLP، SRC-THOR-LPS-2026، SRC-ECALPRO-LIGHTNING، PAP-BRANDON-VAISALA | مثال DEHN slides (کیفری)؛ توصیف nodal analysis در راهنمای DEHN به‌عنوان روش پیاده‌سازی عددی kc | kc در شبکه‌های پیچیده و سقف فلزی به تحلیل عددی نیاز دارد؛ تعمیم قطعه‌به‌قطعه در منابع در دسترس صراحتاً به IEC نسبت داده نشده است |
 | Earthing touch/step | STD-IEEE-80-2013، SRC-ECALPRO-EARTHING، SRC-WINDFARMBOP-IEEE80، SRC-FIRGELLIAUTO-EARTH | ماشین‌حساب SRC-ECALPRO-EARTHING، مثال ۱۱۵ kV windfarmbop | IEEE 80 صریحاً برای AC power-frequency fault است (استناد از صفحه کاتالوگ IEEE و دامنه استاندارد)؛ **اثر surgeهای صاعقه خارج از حوزه IEEE 80 است** (طبق REJECT A تأیید می‌شود). برای impulse earthing به CIGRE/IEC 62305-3 بند ۵.۴ و منابع تخصصی دیگر نیاز است |
 | LPZ/LEMP/SPD | SRC-THOR-LPZ-2026، SRC-INDELEC-LPZ-2026، SRC-SB-SPD-2025، SRC-ITE-SPD-2023 | جدول‌های LPZ/SPD | قاعده "۱۰ m بین SPDها" در THOR/Indelec تکرار شده اما در منابع بررسی‌شده بند استاندارد برای آن یافت نشد |
 | پست/شبکه برق | STD-IEEE-998-2012، PAP-BRANDON-VAISALA، STD-HORIZON-POWER-PCD | IEEE 998 Annex B (third-party PDF)، Horizon Power HPC-7DC-08-0001 (24 m شعاع RSM، فلوچارت رسمی) | تفاوت‌های Mousa/Eriksson در این پژوهش عمیقاً بررسی نشد |
@@ -177,7 +180,10 @@
   - PAP-ZISCHANK-ICLP، equation (3)/(7) که kc را به تعداد n، فاصله c و ارتفاع h وابسته می‌کند؛ و نشان می‌دهد که برای سقف فلزی (natural air termination) تفاوت‌هایی با Annex C وجود دارد.
 
 ### F5: سیستم ماتریسی Y·V=I برای محاسبه kc در شبکه‌های مش
-- **وضعیت**: **UNVERIFIED** به‌عنوان تجویز استاندارد؛ **به‌عنوان یک روش عددی اعمال‌پذیر** در مقالات به آن اشاره شده (PAP-ZISCHANK از "computer codes" و روش عددی استفاده می‌کند)، اما در منابع بررسی‌شده IEC این ماتریس ادمیتانس را تجویز نمی‌کند؛ استاندارد برای موارد ساده فرمول‌های Annex C را می‌دهد.
+- **وضعیت**: **UNVERIFIED** به‌عنوان تجویز استاندارد؛ **به‌عنوان یک روش عددی اعمال‌پذیر توسط تولیدکننده** مستند شده است:
+  - SRC-DEHN-LPG-2014 بند ۳٫۳٫۲٫۱ صریحاً از "Nodal analysis" در DEHN Distance Tool به‌عنوان روش محاسبه تقسیم جریان در طراحی separation distance نام می‌برد. این تأیید می‌کند که روش گرهی دست‌کم توسط یکی از تولیدکنندگان اصلی ابزار طراحی LPS پیاده‌سازی شده و راهنمای آن در دسترس عموم است.
+  - PAP-ZISCHANK-ICLP از "computer codes" (شامل method-of-moments) برای محاسبه kc در ساختمان‌های با mesh و سقف فلزی استفاده می‌کند.
+- در منابع بررسی‌شده IEC 62305-3 خود این ماتریس ادمیتانس را تجویز نمی‌کند؛ برای موارد ساده فرمول‌های Annex C (جدول kc و/یا روابط ساده بسته به n, c, h) را می‌دهد.
 - **OBSERVATION FROM PROJECT MATERIALS**: مخزن Lightnin در `packages/domain-model/` و `docs/adr/ADR-003-GRAPH-SOLVER-FORMULATION.md` یک Graph Solver طراحی کرده است (خودم در این مرحله محتوای ADR را نخواندم، صرفاً از لیست فایل‌ها وجودش را ثبت می‌کنم)؛ ارزیابی صحت آن خارج از محدوده این مرحله است.
 
 ### F6: تعمیم قطعه‌به‌قطعه `s(P) = ki · Σ(kc,j / km,j · lj)` که در DOC-METH-001 آمده
@@ -300,6 +306,21 @@
 ### ۵-۲. یافته‌های منفی محدود شده به منابع بررسی‌شده
 - "در مجموعه منابع این پژوهش، سرویس نقشه جهانی آزاد با رزولوشن مناسب ورودی مهندسی Ng (با شرایط استفاده/مجوز برای استفاده در نرم‌افزار تجاری) پیدا نشد." – این نسبت به ادعای کلی نسخه ۱.۰ تضعیف و مستند شده است.
 - "بند استانداردی که قاعده 'فاصله ۱۰ متری بین SPDها' را تجویز کند، در منابع آزاد بررسی‌شده یافت نشد." (از THOR/ecalpro به‌عنوان راهنمای نصب آمده اما بند استاندارد مشخص نیست).
+
+### ۵-۲b. URLهای معرفی‌شده توسط A در نوبت اخیر
+در پیام اخیر، هماهنگ‌کننده A مجموعه‌ای از URLها (از طریق Google redirect) ارسال کرد. در این پژوهش با `fetch_page` هر کدام بررسی شد:
+- **Furse Guide 3rd Edition** (nVent/Furse، نسخهٔ میزبانی‌شده در lightning.gg): ابزار fetch صفحه در این sandbox خطا داد (بارگیری نشد)؛ در گزارش رکوردی برای آن اضافه نشده.
+- **nVent E907W-WWEN** (nVent.com): بارگیری نشد (fetch خطا داد).
+- **A.N.Wallis Earthing & Lightning Protection Handbook** (powerandcables.com): بارگیری نشد.
+- **DEHN Lightning Protection Guide 3rd Edition** (lpg-2015-e-complete.pdf): با موفقیت بارگیری و به‌عنوان SRC-DEHN-LPG-2014 در دفتر منابع ثبت شد (بالا).
+- **NPP PaLEFS Standard Handbook 2023** (نپال، dpnet.org.np): بارگیری نشد.
+- **OBO Bettermann Lightning Protection Guide** (نسخه ۲۰۱۹ en): بارگیری و به‌عنوان SRC-OBO-LEITFADEN-2019 ثبت شد (بالا).
+- **NIAR/Wichita "Chapter-6 Aircraft Skin Protection"** (agate.niar.wichita.edu): بارگیری شد اما حوزهٔ هواپیما خارج از دامنه این پروژه (سازه‌ها/پست/انرژی/تلکام) است و در ماتریس منظور نشد.
+- **limutokol.pdf** (Strikingly): بارگیری نشد؛ از روی URL موضوع آن مشخص نیست.
+- **Zumtobel Lighting Handbook** (lichthandbuch.pdf): بارگیری نشد؛ به‌نظر می‌رسد کتابچهٔ روشنایی ساختمان باشد و خارج از حوزه حفاظت صاعقه است.
+- **ITER Electrical Handbook Earthing and Lightning Protection** (itr_20_007): بارگیری و به‌عنوان HBK-ITER-EARTHING ثبت شد (بالا).
+
+بنابراین از ۱۰ URL معرفی‌شده توسط A، ۳ مورد (DEHN LPG، OBO Leitfaden، ITER handbook) با موفقیت دریافت و به‌عنوان منابع معتبر به دفتر منابع اضافه شدند؛ ۳ مورد دیگر مربوط به حوزه نامرتبط یا غیرقابل‌دسترسی در این sandbox بودند و ۴ مورد به‌دلیل خطای دسترسی fetch/HTTP در این محیط دریافت نشدند (ممکن است محدودیت شبکه/UA یا خطای سایت باشد). این URLs در صورت نیاز در مرحله بعد باید مجدد تلاش شوند.
 
 ### ۵-۳. تعارضات و ابهامات
 1. **DISCREPANCY در ki (F2)**: ECalPro FAQ ki(I)=0.04, ki(III)=0.06 می‌نویسد که با DEHN slides (I=0.08, III+IV=0.04) و Zischank در تضاد است.
