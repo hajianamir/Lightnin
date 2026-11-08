@@ -25,7 +25,7 @@ def test_earth_pit_sizing_and_gem_backfill():
 
 def test_earth_rod_sizing_multi_material():
     engine = EarthRodSizingEngine()
-
+    
     # 1. Copper bonded steel (5/8" / 16mm)
     inp_cu_bond = EarthRodSizingInput(
         soil_resistivity_ohm_m=120.0,

@@ -47,7 +47,7 @@ class ComprehensiveRiskResult(BaseModel):
 class ComprehensiveRisk2024Engine:
     """
     Full IEC 62305-2:2024 Multi-Component Risk Management Engine.
-
+    
     Implements all 8 risk components:
     - Direct strikes to structure: R_A, R_B, R_C
     - Strikes near structure: R_M
@@ -75,7 +75,7 @@ class ComprehensiveRisk2024Engine:
         p_a = 0.01 if inp.lps_class == "I" else (0.05 if inp.lps_class in ["II", "III", "IV"] else 1.0)
         p_b = 0.02 if inp.lps_class == "I" else (0.05 if inp.lps_class == "II" else (0.1 if inp.lps_class == "III" else 0.2))
         p_spd = 0.01 if inp.has_coordinated_spd else 1.0
-
+        
         # C_TWS Thunderstorm Warning System credit factor (reduces injury risk to people by proactive protocol)
         c_tws = 0.2 if inp.has_tws_early_warning else 1.0
 

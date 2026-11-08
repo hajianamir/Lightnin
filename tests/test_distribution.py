@@ -33,7 +33,7 @@ def test_clean_environment_wheel_build_and_metadata():
 
         wheels = glob.glob(os.path.join(dist_dir, "*.whl"))
         assert len(wheels) == 6, f"Expected 6 wheels, found {len(wheels)}: {wheels}"
-
+        
         # Verify wheel naming conventions and alpha tag
         wheel_names = [os.path.basename(w) for w in wheels]
         for name in wheel_names:

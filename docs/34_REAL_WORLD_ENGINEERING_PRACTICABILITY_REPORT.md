@@ -8,7 +8,7 @@
 ---
 
 ## 1. Executive Purpose & Field Applicability
-A common shortcoming of theoretical or academic tools is their disconnect from actual engineering practice, contractor submittals, and field installation constraints.
+A common shortcoming of theoretical or academic tools is their disconnect from actual engineering practice, contractor submittals, and field installation constraints. 
 This report evaluates AegisLPS as a **practical, production-viable engineering software tool** designed to support consulting engineers, EPC contractors, and facility designers working on real-world industrial, commercial, and utility sites.
 
 ---

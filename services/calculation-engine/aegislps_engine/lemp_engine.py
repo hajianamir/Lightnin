@@ -38,7 +38,7 @@ class LEMPTransientResult(BaseModel):
 class LEMPEngine:
     """
     Advanced IEC 62305-4 Annex A Lightning Electromagnetic Pulse (LEMP) Engine.
-
+    
     Implements:
     - Analytical Heidler function modeling of lightning surge currents:
       i(t) = (I / eta) * ( (t / tau1)^10 / (1 + (t / tau1)^10) ) * exp(-t / tau2)

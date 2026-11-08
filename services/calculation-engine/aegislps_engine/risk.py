@@ -30,7 +30,7 @@ class RiskAssessmentResult(BaseModel):
 class RiskManagementEngine:
     """
     Advanced IEC 62305-2 Risk Assessment Engine.
-
+    
     Implements:
     - Equivalent collection area calculation A_d
     - Annual frequency of direct dangerous events N_D
@@ -55,7 +55,7 @@ class RiskManagementEngine:
         # Probability factors based on protection measures
         # P_A: Touch/step protection (warning signs, asphalt, equipotentialization)
         p_a = 0.01 if inputs.lps_class == "I" else (0.05 if inputs.lps_class in ["II", "III", "IV"] else 1.0)
-
+        
         # P_B: Physical damage probability (LPS Class)
         p_b_map = {"I": 0.02, "II": 0.05, "III": 0.10, "IV": 0.20}
         p_b = p_b_map.get(inputs.lps_class, 1.0)

@@ -30,7 +30,7 @@ class SPDCoordinationAssessment(BaseModel):
 class SPDCoordinationEngine:
     """
     Advanced IEC 62305-4 & IEC 61643-12 Multi-Stage SPD Coordination Engine.
-
+    
     Implements:
     - Cascaded LPZ boundary transition analysis (LPZ 0A -> 0B -> 1 -> 2 -> 3)
     - Cable inductance inductive decoupling Delta U = L' * l * di/dt

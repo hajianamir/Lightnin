@@ -4,7 +4,7 @@ from typing import Dict, List, Any
 class ProtectiveAngleEngine:
     """
     Standards-Controlled Protective Angle Method Engine.
-
+    
     STATUS:
     - Standards-controlled look-up; empirical curve-fitting removed.
     - Implements piece-wise linear interpolation between verified IEC 62305-3 Table 2 anchor points.

@@ -33,7 +33,7 @@ class MeshValidationResult(BaseModel):
 class MeshMethodEngine:
     """
     IEC 62305-3 Section 5.2.3 Mesh Method Design & Validation Engine.
-
+    
     Validates:
     - Standard mesh grid dimensions (Table 2):
       Class I: 5m x 5m

@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple, Any, Optional
 class NodalCurrentSolver:
     """
     Experimental Frequency-Domain Current-Sharing Solver.
-
+    
     ENGINEERING STATUS:
     - Status: Experimental, unverified.
     - Simplified frequency-domain approximation Z = R_dc + omega * L_eff.
@@ -52,7 +52,7 @@ class NodalCurrentSolver:
             r_dc = (rho * length) / cross_section_m2
             radius_m = max(1e-4, np.sqrt(cross_section_m2 / np.pi))
             l_inductance = max(1e-9, (2e-7) * length * max(1.0, (np.log(max(1.0, 2.0 * length / radius_m)) - 0.75)))
-
+            
             z_surge = float(np.sqrt(r_dc**2 + (self.omega * l_inductance)**2))
             admittance = 1.0 / max(1e-4, z_surge)
 

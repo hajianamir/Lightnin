@@ -27,7 +27,7 @@ class SkewSegment3D(BaseModel):
 class PEECThermalEngine:
     """
     Advanced PEEC Mutual Inductance, Conductor Thermal Heating, and Electrodynamic Force Engine.
-
+    
     Implements:
     - Neumann's double integral formulation for mutual inductance M_ij between 3D skew segments:
       M_ij = (mu_0 / 4pi) * oint oint (dl_i . dl_j) / r_ij
@@ -126,7 +126,7 @@ class PEECThermalEngine:
         Calculates adiabatic temperature rise and Lorentz peak magnetic forces under lightning impulse.
         """
         mat = cls.MATERIAL_CONSTANTS.get(props.material, cls.MATERIAL_CONSTANTS["copper"])
-
+        
         # IEC 62305-1 Table 1 Specific Energy (W/R) per LPS Class
         # Class I: W/R = 10.0 MJ/ohm (10^7 A^2.s), I_peak = 200 kA
         # Class II: W/R = 5.6 MJ/ohm, I_peak = 150 kA

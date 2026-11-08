@@ -34,7 +34,7 @@ class SeparationDistanceEngine:
 
         for sp in project.separation_points:
             km = self._get_km(sp.insulation_medium)
-
+            
             # Find effective path length l (from associated node z-height to ground z=0)
             assoc_node = node_map.get(sp.associated_node_id)
             if assoc_node:
@@ -47,7 +47,7 @@ class SeparationDistanceEngine:
 
             # Governing IEC equation: s = ki * (kc / km) * l
             s_m = ki * (kc / km) * l_m
-
+            
             actual_m = sp.physical_distance_m
             pass_comp = actual_m >= s_m
             margin_m = actual_m - s_m

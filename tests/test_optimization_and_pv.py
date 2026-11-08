@@ -21,7 +21,7 @@ def test_design_optimization_coverage_improvement():
 
 def test_pv_rooftop_isolated_clearance():
     pv_engine = PVEngineeringModule()
-
+    
     # Case 1: Adequate physical clearance (1.5m > 0.6m req) -> Isolated PASS
     pv_isolated = PVArraySpecification(
         lps_class="I",

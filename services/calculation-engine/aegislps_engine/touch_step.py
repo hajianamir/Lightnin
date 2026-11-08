@@ -31,7 +31,7 @@ class TouchStepAssessmentResult(BaseModel):
 class TouchStepEngine:
     """
     Advanced Touch & Step Potential Assessment Engine.
-
+    
     Implements:
     - IEEE 80-2013 & IEC 62305-3 Section 8 criteria for touch and step potentials
     - Non-linear surface layer derating factor C_s(h_s, rho, rho_s)
@@ -45,15 +45,15 @@ class TouchStepEngine:
         """
         if rho_surface <= 0 or h_surface_m <= 0 or abs(rho_surface - rho_soil) < 1.0:
             return 1.0
-
+        
         # Reflection factor K = (rho_soil - rho_surface) / (rho_soil + rho_surface)
         k = (rho_soil - rho_surface) / (rho_soil + rho_surface)
-
+        
         # Series summation approximation
         sum_terms = 0.0
         for n in range(1, 10):
             sum_terms += (k ** n) / np.sqrt(1.0 + (2.0 * n * h_surface_m / 0.08) ** 2)
-
+            
         c_s = 1.0 - (0.09 * (1.0 - rho_soil / rho_surface) / (2.0 * h_surface_m + 0.09))
         return float(min(1.0, max(0.1, c_s)))
 
@@ -76,7 +76,7 @@ class TouchStepEngine:
         # U_touch,tol = (1000 + 1.5 * C_s * rho_s) * (0.157 / sqrt(t_f))
         t_f = max(0.01, inp.fault_duration_s)
         k_t = 0.157 / np.sqrt(t_f) if inp.body_weight_kg >= 70.0 else 0.116 / np.sqrt(t_f)
-
+        
         u_touch_tol = (1000.0 + 1.5 * cs * rho_surface) * k_t
         u_step_tol = (1000.0 + 6.0 * cs * rho_surface) * k_t
 
@@ -90,7 +90,7 @@ class TouchStepEngine:
         r_cond = max(0.005, inp.down_conductor_radius_m)
         v_conductor = (i_a * rho_ground) / (2.0 * np.pi * r_cond * 10.0) # Attenuated by earth system impedance
         v_reach_1m = (i_a * rho_ground) / (2.0 * np.pi * 1.0 * 10.0)
-
+        
         # Prospective touch and step voltages
         prospective_touch = max(0.0, v_conductor - v_reach_1m)
         prospective_step = max(0.0, (i_a * rho_ground / (20.0 * np.pi)) * (1.0 / 1.0 - 1.0 / 2.0))

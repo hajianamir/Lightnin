@@ -12,7 +12,7 @@ from aegislps_domain.models import Project, SeparationCalculationResult
 class DOCXReportRenderer:
     """
     Advanced Formal Engineering DOCX Report Generator.
-
+    
     Produces auditable Microsoft Word (.docx) technical documentation containing:
     - Formal engineering title block and project revision metadata
     - Executive compliance summary matrix

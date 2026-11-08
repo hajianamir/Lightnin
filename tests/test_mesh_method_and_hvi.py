@@ -5,7 +5,7 @@ from aegislps_engine.bom_engine import BOMAndLifecycleEngine
 
 def test_mesh_method_dimensions_class_I():
     engine = MeshMethodEngine()
-
+    
     # Compliant 5x5m mesh on flat roof with perimeter conductor
     inp_ok = MeshMethodInput(
         lps_class="I",
@@ -36,7 +36,7 @@ def test_mesh_method_dimensions_class_I():
 
 def test_hvi_conductor_selection_and_clearance():
     hvi_assistant = HVIConductorAssistant()
-
+    
     # Adequate model: HVI_standard_90 (s_equiv=0.9m) for required s=0.75m
     inp_good = HVIConductorSelectionInput(
         lps_class="I",

@@ -39,7 +39,7 @@ class EarthingAssessmentResult(BaseModel):
 class EarthingEngine:
     """
     Advanced IEC 62305-3 Section 5.4 & IEEE 80 Earthing Analysis Engine.
-
+    
     Includes:
     - Dwight & Sunde analytical formulations for rods, rings, and foundation meshes
     - Mutual coupling and array shielding efficiency factors for multiple vertical rods
@@ -57,10 +57,10 @@ class EarthingEngine:
         rho1 = max(1.0, soil.rho_upper_ohm_m)
         rho2 = max(1.0, soil.rho_lower_ohm_m)
         h = max(0.1, soil.h_upper_m)
-
+        
         # Reflection factor k = (rho2 - rho1) / (rho2 + rho1)
         k = (rho2 - rho1) / (rho2 + rho1)
-
+        
         # Sunde integration approximation for shallow electrodes
         ratio = electrode_depth_m / h
         apparent_rho = rho1 * (1.0 + k * (1.0 - np.exp(-1.8 * ratio)))
@@ -144,7 +144,7 @@ class EarthingEngine:
         e_critical = 300e3 # V/m dielectric breakdown of soil
         i_peak = max(1e3, inp.peak_impulse_current_ka * 1e3)
         i_critical = max(100.0, (e_critical * rho) / (2.0 * np.pi * max(0.1, r_dc ** 2)))
-
+        
         # Impulse coefficient A_i = Z_p / R_dc
         impulse_factor = float(1.0 / np.sqrt(1.0 + (i_peak / i_critical)))
         z_impulse = float(r_dc * impulse_factor)

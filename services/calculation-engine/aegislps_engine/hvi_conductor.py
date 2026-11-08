@@ -22,7 +22,7 @@ class HVIConductorSelectionResult(BaseModel):
 class HVIConductorAssistant:
     """
     High-Voltage Insulated (HVI) Down-Conductor Selection & Verification Engine.
-
+    
     Evaluates:
     - High-voltage impulse dielectric withstand (equivalent separation distance in solid insulation s_e)
     - Capacitive semi-conductive shield sheath grounding at sealing ends to control electric field stress
@@ -45,7 +45,7 @@ class HVIConductorAssistant:
 
     def evaluate_hvi_selection(self, inp: HVIConductorSelectionInput) -> HVIConductorSelectionResult:
         spec = self.HVI_SPECS.get(inp.hvi_conductor_model, self.HVI_SPECS["HVI_light_75"])
-
+        
         is_adequate = spec["s_equiv_air"] >= inp.required_equivalent_separation_s_air_m
         len_exceeded = inp.down_conductor_route_length_m > spec["max_length_m"]
 

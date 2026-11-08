@@ -44,7 +44,7 @@ def test_generate_formal_docx_report():
     doc = docx.Document(io.BytesIO(docx_bytes))
     headings = [p.text for p in doc.paragraphs if p.text]
     full_text = " ".join([p.text for p in doc.paragraphs])
-
+    
     assert "LIGHTNING PROTECTION SYSTEM (LPS)" in full_text
     assert "Nuclear Facility Lightning Protection" in full_text
     assert len(doc.tables) >= 4 # Meta table, Summary table, Separation table, BOM table, Schedule table

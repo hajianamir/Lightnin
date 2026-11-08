@@ -33,7 +33,7 @@ class MeshRollingSphereResult(BaseModel):
 class ArbitraryMeshRollingSphereEngine:
     """
     3D Analytical Rolling Sphere Analysis over Arbitrary Polygonal / Triangular Faceted Roof Meshes.
-
+    
     Evaluates:
     - Geometric contact conditions between a sphere of radius R and arbitrary 3D triangular faces.
     - Sagitta penetration depths across sloped, pitched, multi-level, and irregular geometric roofs.

@@ -546,7 +546,7 @@ export default function App() {
             <div style={{ padding: '30px', height: '100%', overflowY: 'auto' }}>
               <h2 style={{ fontSize: '18px', color: '#38bdf8', marginTop: 0 }}>2D Technical CAD Layout (Plan View)</h2>
               <p style={{ fontSize: '12px', color: '#94a3b8' }}>Top-down orthographic representation with coordinate grid and conductors</p>
-
+              
               <div style={{ width: '560px', height: '380px', border: '1px solid #334155', position: 'relative', background: '#070b14', borderRadius: '8px', margin: '20px 0' }}>
                 {/* Building Perimeter */}
                 <div style={{ position: 'absolute', left: '80px', top: '60px', width: '400px', height: '260px', border: '2px solid #eab308' }}>
@@ -556,7 +556,7 @@ export default function App() {
                   <div style={{ position: 'absolute', top: '-5px', right: '-5px', width: '10px', height: '10px', borderRadius: '50%', background: '#38bdf8' }} title="Down Conductor 2" />
                   <div style={{ position: 'absolute', bottom: '-5px', right: '-5px', width: '10px', height: '10px', borderRadius: '50%', background: '#38bdf8' }} title="Down Conductor 3" />
                   <div style={{ position: 'absolute', bottom: '-5px', left: '-5px', width: '10px', height: '10px', borderRadius: '50%', background: '#38bdf8' }} title="Down Conductor 4" />
-
+                  
                   {/* Rooftop HVAC Target */}
                   <div style={{ position: 'absolute', left: '160px', top: '100px', width: '40px', height: '40px', background: '#475569', border: '1px dashed #ef4444' }}>
                     <span style={{ fontSize: '9px', color: '#fff', padding: '2px' }}>HVAC</span>
@@ -786,3 +786,4 @@ export default function App() {
     </div>
   )
 }
+

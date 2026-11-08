@@ -40,7 +40,7 @@ class OptimizationResult(BaseModel):
 class DesignOptimizationEngine:
     """
     Advanced Multi-Objective Design Optimization Engine.
-
+    
     Optimizes:
     - Minimal rod count & total installation cost
     - Maximal rolling-sphere geometric protection coverage

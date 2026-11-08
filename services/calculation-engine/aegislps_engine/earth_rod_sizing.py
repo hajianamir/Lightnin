@@ -29,7 +29,7 @@ class EarthRodSizingResult(BaseModel):
 class EarthRodSizingEngine:
     """
     Advanced Multi-Material Earth Rod Sizing & Array Placement Engine.
-
+    
     Standards:
     - IEC 62561-2 Table 1 (Earth electrodes material, configuration and minimum dimensions):
       * Copper-bonded steel: minimum 14.2 mm diameter with >= 250 um copper coating
@@ -100,7 +100,7 @@ class EarthRodSizingEngine:
         # Generate recommended coordinates along perimeter with foundation setback
         setback = max(1.0, inp.min_distance_to_building_foundation_m)
         l_bldg, w_bldg = inp.site_boundary_length_m, inp.site_boundary_width_m
-
+        
         # Distribute rods around building corners and sides
         coords: List[Tuple[float, float]] = []
         base_corners = [

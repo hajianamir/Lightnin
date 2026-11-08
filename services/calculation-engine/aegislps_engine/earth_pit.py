@@ -30,7 +30,7 @@ class EarthPitSizingResult(BaseModel):
 class EarthPitEngine:
     """
     Advanced Earth Inspection Pit Sizing & Soil Enhancement Backfill Conditioning Engine.
-
+    
     Standards:
     - IEC 62305-3 Section E.5.4.3 & E.7.2 (Test joints & periodic inspection accessibility)
     - IEC 62561-5 (Earth pits and housing requirements)
@@ -74,7 +74,7 @@ class EarthPitEngine:
 
         v_backfill = np.pi * (r_hole_m**2 - r_rod_m**2) * l_depth_m
         mat = self.BACKFILL_PROPERTIES.get(inp.enhancement_material, self.BACKFILL_PROPERTIES["carbon_gem"])
-
+        
         mass_kg = v_backfill * mat["density_kg_m3"]
         bags_25kg = int(np.ceil(mass_kg / 25.0))
 

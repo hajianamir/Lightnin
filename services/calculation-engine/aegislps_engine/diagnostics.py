@@ -21,7 +21,7 @@ class SystemDiagnostics:
     @classmethod
     def run_self_test(cls) -> Dict[str, Any]:
         results = {}
-
+        
         # 1. Standards Store Check
         repo = StandardsRepository()
         p1 = repo.get_parameter("IEC 62305-3:2024", "ki_class_I")

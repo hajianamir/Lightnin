@@ -26,7 +26,7 @@ class PVClearanceResult(BaseModel):
 class PVEngineeringModule:
     """
     Advanced PV Rooftop Engineering Module (IEC 62305-3 Supplement 5 & CLC/TS 50539-12).
-
+    
     Evaluates:
     - Separation distance s to metallic solar module support frameworks
     - Direct flashover hazard vs. isolated LPS requirements

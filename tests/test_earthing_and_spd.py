@@ -38,7 +38,7 @@ def test_earthing_type_a_vertical_dwight_mutual_coupling():
 
 def test_touch_and_step_hazard_control_dalziel():
     engine = TouchStepEngine()
-
+    
     # Non-compliant: Bare soil and accessible down-conductor
     inp_hazard = TouchStepAssessmentInput(
         soil_resistivity_ohm_m=100.0,
@@ -62,7 +62,7 @@ def test_touch_and_step_hazard_control_dalziel():
 
 def test_spd_lpz_coordination_advanced():
     engine = SPDCoordinationEngine()
-
+    
     # Coordinated setup: Type 1 at boundary with 15m cable + Type 2 sub-panel
     spds = [
         SPDEntry(id="spd-1", spd_class="Type 1", technology="spark_gap", i_imp_ka=25.0, up_kv=1.5, cable_length_to_downstream_m=15.0),
@@ -88,7 +88,7 @@ def test_protective_angle_non_linear_decay():
     angle_2m = engine.get_protective_angle_deg("I", 2.0)
     # Height H=18m -> steep angle ~25 deg
     angle_18m = engine.get_protective_angle_deg("I", 18.0)
-
+    
     assert angle_2m > angle_18m
     assert 60.0 <= angle_2m <= 75.0
     assert 20.0 <= angle_18m <= 35.0
