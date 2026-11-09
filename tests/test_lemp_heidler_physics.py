@@ -171,7 +171,7 @@ def test_unknown_stroke_type_falls_back_to_first_positive():
 
 
 def test_front_and_tail_time_definitions():
-    """C: Verify T1 = 1.25 * (t90 - t30) on rising edge and T2 at 0.5 * I_peak on tail."""
+    """C: Verify IEC 10%-90% front time T1 = 1.25 * (t90 - t10) and T2 at 0.5 * I_peak on tail."""
     # 1. First positive 10/350 us (I = 100 kA)
     t_front_1 = np.linspace(0.0, 40.0, 200_000)
     i_front_1, _, _ = LEMPEngine.evaluate_heidler_current(
@@ -181,9 +181,9 @@ def test_front_and_tail_time_definitions():
     i_peak_1 = float(i_front_1[peak_idx_1])
     t_rise_1 = t_front_1[: peak_idx_1 + 1]
     i_rise_1 = i_front_1[: peak_idx_1 + 1]
-    t30_1 = float(np.interp(0.3 * i_peak_1, i_rise_1, t_rise_1))
+    t10_1 = float(np.interp(0.1 * i_peak_1, i_rise_1, t_rise_1))
     t90_1 = float(np.interp(0.9 * i_peak_1, i_rise_1, t_rise_1))
-    t1_first = 1.25 * (t90_1 - t30_1)
+    t1_first = 1.25 * (t90_1 - t10_1)
 
     t_tail_1 = np.linspace(t_front_1[peak_idx_1], 600.0, 200_000)
     i_tail_1, _, _ = LEMPEngine.evaluate_heidler_current(
@@ -191,7 +191,7 @@ def test_front_and_tail_time_definitions():
     )
     t2_first = float(np.interp(0.5 * i_peak_1, i_tail_1[::-1], t_tail_1[::-1]))
 
-    assert t1_first == pytest.approx(7.2499, rel=1e-3)
+    assert t1_first == pytest.approx(10.0, rel=0.01)
     assert t2_first == pytest.approx(370.757, rel=1e-3)
 
     # 2. Subsequent negative 0.25/100 us (I = 100 kA)
@@ -203,9 +203,9 @@ def test_front_and_tail_time_definitions():
     i_peak_2 = float(i_front_2[peak_idx_2])
     t_rise_2 = t_front_2[: peak_idx_2 + 1]
     i_rise_2 = i_front_2[: peak_idx_2 + 1]
-    t30_2 = float(np.interp(0.3 * i_peak_2, i_rise_2, t_rise_2))
+    t10_2 = float(np.interp(0.1 * i_peak_2, i_rise_2, t_rise_2))
     t90_2 = float(np.interp(0.9 * i_peak_2, i_rise_2, t_rise_2))
-    t1_sub = 1.25 * (t90_2 - t30_2)
+    t1_sub = 1.25 * (t90_2 - t10_2)
 
     t_tail_2 = np.linspace(t_front_2[peak_idx_2], 200.0, 200_000)
     i_tail_2, _, _ = LEMPEngine.evaluate_heidler_current(
@@ -213,5 +213,5 @@ def test_front_and_tail_time_definitions():
     )
     t2_sub = float(np.interp(0.5 * i_peak_2, i_tail_2[::-1], t_tail_2[::-1]))
 
-    assert t1_sub == pytest.approx(0.18357, rel=1e-3)
+    assert t1_sub == pytest.approx(0.25, rel=0.01)
     assert t2_sub == pytest.approx(100.159, rel=1e-3)

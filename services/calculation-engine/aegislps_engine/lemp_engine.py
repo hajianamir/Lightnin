@@ -141,12 +141,12 @@ class LEMPEngine:
         - Returns positive current magnitude for all strokes (including
           "subsequent_negative_025_100"); no negative sign convention is applied.
         - Unrecognized stroke_type values fall back to "first_positive_10_350".
-        - Under the 30%-90% front-time definition T1 = 1.25 * (t90 - t30),
-          the IEC Table A.1 parameters give T1 = 7.250 us (-27.50% vs 10 us)
-          for 10/350 and T1 = 0.1836 us (-26.57% vs 0.25 us) for 0.25/100
-          (> 10% difference from nominal because IEC 62305-1 current front time
-          is calibrated to the 10%-90% chord (t90 - t10) / 0.8); tail times to
-          0.5 * I_peak are T2 = 370.76 us (+5.93%) and T2 = 100.16 us (+0.16%).
+        - Under the IEC 62305-1 10%-90% current front-time definition
+          T1 = 1.25 * (t90 - t10), the Table A.1 parameters give
+          T1 = 9.980 us (-0.20% vs nominal 10 us) for 10/350 and
+          T1 = 0.2493 us (-0.27% vs nominal 0.25 us) for 0.25/100;
+          tail times to 0.5 * I_peak are T2 = 370.76 us (+5.93%) and
+          T2 = 100.16 us (+0.16%).
         """
         if stroke_type == "subsequent_negative_025_100":
             params = HEIDLER_IEC_62305_1["subsequent_negative_025_100"]
