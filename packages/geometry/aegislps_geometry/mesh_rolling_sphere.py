@@ -5,6 +5,32 @@ from pydantic import BaseModel, Field
 
 from aegislps_geometry.rolling_sphere import protected_radius_at_height
 
+BARYCENTRIC_SUBDIVISION_N: int = 12
+
+
+def barycentric_grid(n: int = BARYCENTRIC_SUBDIVISION_N) -> List[Tuple[float, float, float]]:
+    """
+    Build a uniform barycentric sample grid of subdivision level n over a triangle.
+
+    Returns (n + 1) * (n + 2) // 2 weight triples (w0, w1, w2) with w0 + w1 + w2 = 1.
+    When n is a multiple of 6 (such as the default n = 12, giving 91 points), the grid
+    includes all three vertices, all three edge midpoints, and the triangle centroid.
+    """
+    if int(n) < 1:
+        raise ValueError(f"Subdivision level n must be >= 1, got {n}")
+    n_int = int(n)
+    weights: List[Tuple[float, float, float]] = []
+    for i in range(n_int + 1):
+        for j in range(n_int + 1 - i):
+            k = n_int - i - j
+            weights.append((i / n_int, j / n_int, k / n_int))
+    return weights
+
+
+_DEFAULT_BARYCENTRIC_WEIGHTS = np.asarray(
+    barycentric_grid(BARYCENTRIC_SUBDIVISION_N), dtype=np.float64
+)
+
 
 class TriangleFace(BaseModel):
     id: str
@@ -43,11 +69,18 @@ class ArbitraryMeshRollingSphereEngine:
     """
     3D Analytical Rolling Sphere Analysis over Arbitrary Polygonal / Triangular Faceted Roof Meshes.
 
-    Evaluates:
-    - Geometric contact conditions between a sphere of radius R (resting on z = 0 and air-termination
-      tips) and all three vertices plus the centroid of each triangular face.
-    - Per-face status: PROTECTED (all 4 points protected), PARTIALLY_EXPOSED (1..3 points protected),
-      or EXPOSED (0 points protected).
+    Evaluates each triangular face on a uniform barycentric grid with subdivision level n = 12
+    ((n + 1)(n + 2) / 2 = 91 sample points, including all three vertices, all edge midpoints,
+    and the centroid) against rolling spheres of radius R resting on z = 0 and air-termination tips:
+    - PROTECTED: all 91 grid points are protected.
+    - PARTIALLY_EXPOSED: at least one grid point is protected, but not all.
+    - EXPOSED: no grid point is protected.
+
+    Limitation:
+    A finite sample grid is a numerical approximation and is not an exact geometric proof.
+    For a 10 m triangle edge at n = 12, the sample spacing along edges is 10 / 12 ≈ 0.83 m.
+    A very large face whose dimensions are not small compared with the sphere radius R can
+    still hide a narrow exposed interior region between adjacent grid points unless subdivided.
     """
 
     @staticmethod
@@ -99,6 +132,7 @@ class ArbitraryMeshRollingSphereEngine:
 
         results: List[MeshClearanceResult] = []
         unprotected_count = 0
+        total_grid_pts = len(_DEFAULT_BARYCENTRIC_WEIGHTS)
 
         for face in inp.triangles:
             v0 = np.array(face.v0, dtype=np.float64)
@@ -106,11 +140,12 @@ class ArbitraryMeshRollingSphereEngine:
             v2 = np.array(face.v2, dtype=np.float64)
             centroid = (v0 + v1 + v2) / 3.0
 
-            sample_points = [v0, v1, v2, centroid]
+            vertices_mat = np.vstack((v0, v1, v2))
+            sample_points = _DEFAULT_BARYCENTRIC_WEIGHTS @ vertices_mat
             evals = [self._evaluate_sample_point(pt, r, tips) for pt in sample_points]
             protected_points_count = sum(1 for pt_ok, _ in evals if pt_ok)
 
-            if protected_points_count == 4:
+            if protected_points_count == total_grid_pts:
                 face_status = "PROTECTED"
                 is_protected = True
             elif protected_points_count > 0:
@@ -123,7 +158,7 @@ class ArbitraryMeshRollingSphereEngine:
             if not is_protected:
                 unprotected_count += 1
 
-            centroid_sphere_z = evals[3][1]
+            _, centroid_sphere_z = self._evaluate_sample_point(centroid, r, tips)
             penetration = max(
                 0.0,
                 max(float(pt[2]) - z_s for pt, (_, z_s) in zip(sample_points, evals)),

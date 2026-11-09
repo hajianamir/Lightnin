@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 
 import aegislps_geometry.rolling_sphere as rs_mod
+import aegislps_geometry.mesh_rolling_sphere as mrs_mod
 from aegislps_geometry.rolling_sphere import RollingSphereEngine
 from aegislps_geometry.mesh_rolling_sphere import (
     ArbitraryMeshRollingSphereEngine,
@@ -137,3 +138,126 @@ def test_mesh_c1b_regression_centroid_inside_vertex_outside():
     assert face.is_protected is False
     assert getattr(face, "status", None) != "PROTECTED"
     assert getattr(face, "status", None) == "PARTIALLY_EXPOSED"
+
+
+def test_mesh_nonconvex_edge_counterexample():
+    """2.a: Sloped triangle whose 3 vertices and centroid are protected, but edge midpoint (12.9, 0, 1) is exposed."""
+    engine = ArbitraryMeshRollingSphereEngine()
+    tri = TriangleFace(
+        id="tri-nonconvex-edge",
+        v0=(17.3, 0.0, 0.0),
+        v1=(8.5, 0.0, 2.0),
+        v2=(0.0, 0.0, 2.0),
+    )
+    res = engine.evaluate_mesh_protection(
+        MeshRollingSphereInput(
+            sphere_radius_m=20.0,
+            triangles=[tri],
+            air_termination_tips=[(0.0, 0.0, 10.0)],
+        )
+    )
+
+    face = res.face_clearances[0]
+    assert face.status == "PARTIALLY_EXPOSED"
+    assert face.is_protected is False
+    assert res.unprotected_faces_count == 1
+    assert res.status == "PARTIAL_EXPOSURE"
+
+
+def test_counterexample_edge_midpoint_exposed_public_api():
+    """2.b: Verify via public API that (12.9, 0, 1) on the v0-v1 edge is exposed while vertices and centroid are protected."""
+    rs_engine = RollingSphereEngine(sphere_radius_m=20.0)
+    for px, py, pz in ((17.3, 0.0, 0.0), (8.5, 0.0, 2.0), (0.0, 0.0, 2.0), (8.6, 0.0, 4.0 / 3.0)):
+        assert rs_engine.check_surface_exposure(px, py, pz, 0.0, 0.0, 10.0)["protected"] is True
+
+    rho_at_z1 = _protected_radius(20.0, 10.0, 1.0)
+    assert abs(rho_at_z1 - 11.0755) <= 0.01
+    assert 12.9 > rho_at_z1
+    mid_exposure = rs_engine.check_surface_exposure(12.9, 0.0, 1.0, 0.0, 0.0, 10.0)
+    assert mid_exposure["protected"] is False
+
+
+def test_mesh_fully_protected_small_triangle():
+    """2.c: Small triangle near rod axis is PROTECTED with FULL_COVERAGE."""
+    engine = ArbitraryMeshRollingSphereEngine()
+    tri = TriangleFace(
+        id="tri-small-protected",
+        v0=(0.5, 0.0, 1.0),
+        v1=(0.0, 0.5, 1.0),
+        v2=(-0.5, 0.0, 1.0),
+    )
+    res = engine.evaluate_mesh_protection(
+        MeshRollingSphereInput(
+            sphere_radius_m=20.0,
+            triangles=[tri],
+            air_termination_tips=[(0.0, 0.0, 10.0)],
+        )
+    )
+
+    assert res.face_clearances[0].status == "PROTECTED"
+    assert res.face_clearances[0].is_protected is True
+    assert res.unprotected_faces_count == 0
+    assert res.status == "FULL_COVERAGE"
+
+
+def test_mesh_partially_protected_flat_triangle():
+    """2.d: Flat triangle at z=1 with one vertex at d=0 and one at d=19 -> PARTIALLY_EXPOSED."""
+    engine = ArbitraryMeshRollingSphereEngine()
+    tri = TriangleFace(
+        id="tri-flat-partial",
+        v0=(0.0, 0.0, 1.0),
+        v1=(19.0, 0.0, 1.0),
+        v2=(0.0, 1.0, 1.0),
+    )
+    res = engine.evaluate_mesh_protection(
+        MeshRollingSphereInput(
+            sphere_radius_m=20.0,
+            triangles=[tri],
+            air_termination_tips=[(0.0, 0.0, 10.0)],
+        )
+    )
+
+    assert res.face_clearances[0].status == "PARTIALLY_EXPOSED"
+    assert res.face_clearances[0].is_protected is False
+
+
+def test_mesh_fully_exposed_triangle():
+    """2.e: Triangle with all vertices at d=30 m, z=1 m -> EXPOSED."""
+    engine = ArbitraryMeshRollingSphereEngine()
+    tri = TriangleFace(
+        id="tri-all-exposed",
+        v0=(30.0, 0.0, 1.0),
+        v1=(30.0 * math.cos(0.1), 30.0 * math.sin(0.1), 1.0),
+        v2=(30.0 * math.cos(0.2), 30.0 * math.sin(0.2), 1.0),
+    )
+    res = engine.evaluate_mesh_protection(
+        MeshRollingSphereInput(
+            sphere_radius_m=20.0,
+            triangles=[tri],
+            air_termination_tips=[(0.0, 0.0, 10.0)],
+        )
+    )
+
+    assert res.face_clearances[0].status == "EXPOSED"
+    assert res.face_clearances[0].is_protected is False
+
+
+def test_barycentric_grid_size_and_special_points():
+    """2.f: barycentric_grid(12) has 91 points including all 3 vertices, all 3 edge midpoints, and centroid."""
+    grid_fn = getattr(mrs_mod, "barycentric_grid", None)
+    assert grid_fn is not None, "barycentric_grid helper is missing from aegislps_geometry.mesh_rolling_sphere"
+    grid = grid_fn(12)
+    assert len(grid) == 91
+
+    required_points = [
+        (1.0, 0.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 0.0, 1.0),
+        (0.5, 0.5, 0.0),
+        (0.5, 0.0, 0.5),
+        (0.0, 0.5, 0.5),
+        (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0),
+    ]
+    for req in required_points:
+        assert any(np.allclose(pt, req, atol=1e-12) for pt in grid), f"Missing {req} in barycentric_grid(12)"
+
