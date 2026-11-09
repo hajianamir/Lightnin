@@ -1,8 +1,11 @@
 import numpy as np
 from typing import List, Dict, Any, Tuple
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-from aegislps_geometry.rolling_sphere import RollingSphereEngine
+from aegislps_geometry.rolling_sphere import (
+    RollingSphereEngine,
+    rolling_sphere_radius_m,
+)
 
 class CandidateRod(BaseModel):
     id: str
@@ -25,9 +28,19 @@ class OptimizationInput(BaseModel):
     roof_height_m: float = 15.0
     targets_to_protect: List[ProtectedTarget] = Field(default_factory=list)
     max_candidate_rods: int = 8
-    target_sphere_radius_m: float = 20.0 # 20m for Class I
+    target_sphere_radius_m: float = Field(
+        default_factory=lambda: rolling_sphere_radius_m(lps_class="I")
+    )
     iterations: int = 150
     random_seed: int = 42
+
+    @model_validator(mode="after")
+    def _default_radius_from_lps_class(self) -> "OptimizationInput":
+        if "target_sphere_radius_m" not in self.model_fields_set:
+            self.target_sphere_radius_m = rolling_sphere_radius_m(
+                lps_class=self.lps_class
+            )
+        return self
 
 class OptimizationResult(BaseModel):
     selected_rods: List[CandidateRod]

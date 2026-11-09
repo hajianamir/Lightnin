@@ -1,17 +1,17 @@
 {
   "point_1_protected": {
-    "clearance_z_m": 3.43967924,
+    "clearance_z_m": 4.74273078,
     "protected": true,
-    "protective_height_z_m": 8.43967924
+    "protective_height_z_m": 9.74273078
   },
   "point_2_exposed_inside_radius": {
     "clearance_z_m": 0.0,
     "protected": false,
-    "protective_height_z_m": 1.38790282
+    "protective_height_z_m": 7.58435968
   },
   "point_3_exposed_outside_radius": {
-    "clearance_z_m": 0.0,
-    "protected": false,
-    "protective_height_z_m": 0.0
+    "clearance_z_m": 2.60369105,
+    "protected": true,
+    "protective_height_z_m": 4.60369105
   }
 }

@@ -8,6 +8,7 @@ from docx.oxml.ns import nsdecls, qn
 from typing import Dict, List, Any, Optional
 
 from aegislps_domain.models import Project, SeparationCalculationResult
+from aegislps_geometry.rolling_sphere import rolling_sphere_radius_m
 
 class DOCXReportRenderer:
     """
@@ -126,13 +127,14 @@ class DOCXReportRenderer:
         p_exec.runs[0].font.size = Pt(10.5)
 
         # Summary Matrix Table
+        sphere_radius_m = rolling_sphere_radius_m(lps_class=project.lps_class)
         summary_table = doc.add_table(rows=6, cols=4)
         summary_table.alignment = WD_TABLE_ALIGNMENT.CENTER
         summary_rows = [
             ("Engineering Discipline", "Governing Standard", "Evaluated Metric", "Compliance Status"),
             ("Separation Distance (s)", "IEC 62305-3 Section 6.3", f"Min Safety Margin: +{separation_results[0].safety_margin_m:.3f} m" if separation_results else "N/A", "COMPLIANT" if separation_results and separation_results[0].pass_compliance else "VIOLATION"),
             ("Nodal Current Sharing (kc)", "IEC 62305-3 Annex C", "Current Conservation Residual < 2%", "CONVERGED"),
-            ("Air-Termination Method", "IEC 62305-3 Section 5.2", "Rolling Sphere (R=20m) & Mesh (5x5m)", "PROTECTED"),
+            ("Air-Termination Method", "IEC 62305-3 Section 5.2", f"Rolling Sphere (R={sphere_radius_m:g}m) & Mesh (5x5m)", "PROTECTED"),
             ("Earthing Resistance (R_dc)", "IEC 62305-3 Section 5.4", f"Stationary R = {earthing_result.get('stationary_resistance_r_ohm', 1.8):.2f} ohm", "COMPLIANT (< 10 ohm)"),
             ("Touch & Step Potentials", "IEC 62305-3 Section 8", "Dalziel 70kg Withstand Limits", "CONTROLLED")
         ]

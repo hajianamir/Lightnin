@@ -26,18 +26,19 @@ def test_nodal_solver_current_sharing():
     assert pytest.approx(kc_factors["s2"], 0.05) == 0.5
 
 def test_rolling_sphere_protection():
-    rs_engine = RollingSphereEngine(sphere_radius_m=20.0) # Class I
+    rs_engine = RollingSphereEngine()  # Class I (R = 313 m per IEC 62305-4:2024 Table A.5)
     res_protected = rs_engine.check_surface_exposure(
         point_x=1.0, point_y=0.0, point_z=10.0,
         rod_x=0.0, rod_y=0.0, rod_height_m=15.0
     )
     assert res_protected["protected"] is True
 
-    res_near_tip_exposed = rs_engine.check_surface_exposure(
+    # At R = 313 m and h = 15 m, rho(14) = sqrt(9165) - sqrt(8568) = 3.171 m > 1.0 m
+    res_near_tip_protected = rs_engine.check_surface_exposure(
         point_x=1.0, point_y=0.0, point_z=14.0,
         rod_x=0.0, rod_y=0.0, rod_height_m=15.0
     )
-    assert res_near_tip_exposed["protected"] is False
+    assert res_near_tip_protected["protected"] is True
 
     res_exposed = rs_engine.check_surface_exposure(
         point_x=22.0, point_y=0.0, point_z=14.0,
