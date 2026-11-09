@@ -13,6 +13,7 @@ Where:
 - $s$: Required separation distance [m]
 - $k_i$: LPS Class coefficient ($0.08, 0.06, 0.04$)
 - $k_c$: Current sharing factor derived from conductor topology or graph admittance matrix
+> **UNVERIFIED — known defect (H1):** `separation.py` sets `kc` from `len(project.segments)` (`1.0` for `<= 1` segment, `0.5` otherwise) rather than conductor topology or the nodal admittance matrix and uses `assoc_node.z` instead of route length `l`.
 - $k_m$: Insulating material factor ($1.0$ for air, $0.5$ for solid concrete)
 - $l$: Spatial route length along conductor to nearest earth or equipotential bonding point [m]
 
