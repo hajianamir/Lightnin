@@ -1,6 +1,10 @@
+import math
 import numpy as np
 from typing import List, Dict, Any, Tuple
 from pydantic import BaseModel, Field
+
+from aegislps_geometry.rolling_sphere import protected_radius_at_height
+
 
 class TriangleFace(BaseModel):
     id: str
@@ -8,10 +12,12 @@ class TriangleFace(BaseModel):
     v1: Tuple[float, float, float]
     v2: Tuple[float, float, float]
 
+
 class MeshRollingSphereInput(BaseModel):
-    sphere_radius_m: float = 20.0 # Class I default 20m
+    sphere_radius_m: float = 20.0  # Class I default 20m
     triangles: List[TriangleFace] = Field(default_factory=list)
     air_termination_tips: List[Tuple[float, float, float]] = Field(default_factory=list)
+
 
 class MeshClearanceResult(BaseModel):
     face_id: str
@@ -20,7 +26,9 @@ class MeshClearanceResult(BaseModel):
     centroid_z: float
     sphere_bottom_z_m: float
     is_protected: bool
+    status: str = "EXPOSED"
     penetration_depth_m: float
+
 
 class MeshRollingSphereResult(BaseModel):
     sphere_radius_m: float
@@ -30,19 +38,66 @@ class MeshRollingSphereResult(BaseModel):
     face_clearances: List[MeshClearanceResult]
     status: str
 
+
 class ArbitraryMeshRollingSphereEngine:
     """
     3D Analytical Rolling Sphere Analysis over Arbitrary Polygonal / Triangular Faceted Roof Meshes.
-    
+
     Evaluates:
-    - Geometric contact conditions between a sphere of radius R and arbitrary 3D triangular faces.
-    - Sagitta penetration depths across sloped, pitched, multi-level, and irregular geometric roofs.
-    - Identification of vulnerable protrusions and uncovered building surface regions.
+    - Geometric contact conditions between a sphere of radius R (resting on z = 0 and air-termination
+      tips) and all three vertices plus the centroid of each triangular face.
+    - Per-face status: PROTECTED (all 4 points protected), PARTIALLY_EXPOSED (1..3 points protected),
+      or EXPOSED (0 points protected).
     """
+
+    @staticmethod
+    def _evaluate_sample_point(
+        point: np.ndarray,
+        r: float,
+        tips: List[np.ndarray],
+    ) -> Tuple[bool, float]:
+        px, py, pz = float(point[0]), float(point[1]), float(point[2])
+        if pz < 0.0:
+            raise ValueError(f"Target height z must be >= 0, got {pz}")
+        if not tips:
+            return False, 0.0
+
+        point_protected = False
+        best_sphere_z = 0.0
+
+        for tip in tips:
+            tx, ty, tz = float(tip[0]), float(tip[1]), float(tip[2])
+            rho_allowed = protected_radius_at_height(r, tz, pz)
+            d_horiz = math.hypot(px - tx, py - ty)
+
+            rho_c = math.sqrt(max(0.0, 2.0 * r * tz - tz * tz))
+            if tz > 0.0 and d_horiz <= rho_c:
+                z_sphere = r - math.sqrt(max(0.0, r * r - (rho_c - d_horiz) ** 2))
+                if z_sphere > best_sphere_z:
+                    best_sphere_z = z_sphere
+
+            max_axial_protected_z = min(tz, 2.0 * r - tz)
+            if (
+                pz <= tz
+                and d_horiz <= rho_allowed
+                and (rho_allowed > 0.0 or (d_horiz == 0.0 and pz <= max_axial_protected_z))
+            ):
+                point_protected = True
+
+        return point_protected, best_sphere_z
+
     def evaluate_mesh_protection(self, inp: MeshRollingSphereInput) -> MeshRollingSphereResult:
         r = float(inp.sphere_radius_m)
+        if r <= 0.0:
+            raise ValueError(f"sphere_radius_m must be > 0, got {r}")
+
         tips = [np.array(tip, dtype=np.float64) for tip in inp.air_termination_tips]
-        results = []
+        for tip in tips:
+            tz = float(tip[2])
+            if tz < 0.0 or tz > 2.0 * r:
+                raise ValueError(f"Rod tip height h must satisfy 0 <= h <= 2R ({2.0 * r}), got {tz}")
+
+        results: List[MeshClearanceResult] = []
         unprotected_count = 0
 
         for face in inp.triangles:
@@ -51,36 +106,38 @@ class ArbitraryMeshRollingSphereEngine:
             v2 = np.array(face.v2, dtype=np.float64)
             centroid = (v0 + v1 + v2) / 3.0
 
-            # Find closest air-termination tip
-            min_dist_to_tip = 1e9
-            closest_tip_z = centroid[2]
-            for tip in tips:
-                d_horiz = np.sqrt((centroid[0] - tip[0])**2 + (centroid[1] - tip[1])**2)
-                if d_horiz < min_dist_to_tip:
-                    min_dist_to_tip = d_horiz
-                    closest_tip_z = tip[2]
+            sample_points = [v0, v1, v2, centroid]
+            evals = [self._evaluate_sample_point(pt, r, tips) for pt in sample_points]
+            protected_points_count = sum(1 for pt_ok, _ in evals if pt_ok)
 
-            # Evaluate rolling sphere sagitta resting on rod tip
-            if min_dist_to_tip <= r and len(tips) > 0:
-                sphere_bottom_z = closest_tip_z - (r - np.sqrt(max(0.0, r**2 - min_dist_to_tip**2)))
-                is_protected = bool(centroid[2] <= sphere_bottom_z)
-                penetration = float(max(0.0, centroid[2] - sphere_bottom_z))
-            else:
-                sphere_bottom_z = 0.0
+            if protected_points_count == 4:
+                face_status = "PROTECTED"
+                is_protected = True
+            elif protected_points_count > 0:
+                face_status = "PARTIALLY_EXPOSED"
                 is_protected = False
-                penetration = float(centroid[2])
+            else:
+                face_status = "EXPOSED"
+                is_protected = False
 
             if not is_protected:
                 unprotected_count += 1
+
+            centroid_sphere_z = evals[3][1]
+            penetration = max(
+                0.0,
+                max(float(pt[2]) - z_s for pt, (_, z_s) in zip(sample_points, evals)),
+            )
 
             results.append(MeshClearanceResult(
                 face_id=face.id,
                 centroid_x=round(float(centroid[0]), 2),
                 centroid_y=round(float(centroid[1]), 2),
                 centroid_z=round(float(centroid[2]), 2),
-                sphere_bottom_z_m=round(float(sphere_bottom_z), 2),
+                sphere_bottom_z_m=round(float(centroid_sphere_z), 2),
                 is_protected=is_protected,
-                penetration_depth_m=round(penetration, 2)
+                status=face_status,
+                penetration_depth_m=round(float(penetration), 2),
             ))
 
         total_faces = len(inp.triangles)
@@ -92,5 +149,5 @@ class ArbitraryMeshRollingSphereEngine:
             unprotected_faces_count=unprotected_count,
             coverage_percentage=round(cov_pct, 1),
             face_clearances=results,
-            status="FULL_COVERAGE" if unprotected_count == 0 else "PARTIAL_EXPOSURE"
+            status="FULL_COVERAGE" if unprotected_count == 0 else "PARTIAL_EXPOSURE",
         )

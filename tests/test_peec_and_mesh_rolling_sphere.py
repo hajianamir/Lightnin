@@ -51,10 +51,12 @@ def test_arbitrary_mesh_rolling_sphere_protection():
     ))
 
     assert res.evaluated_faces_count == 2
-    assert res.unprotected_faces_count == 1
-    assert res.coverage_percentage == 50.0
-    assert res.face_clearances[0].is_protected is True
+    assert res.unprotected_faces_count == 2
+    assert res.coverage_percentage == 0.0
+    assert res.face_clearances[0].is_protected is False
+    assert res.face_clearances[0].status == "PARTIALLY_EXPOSED"
     assert res.face_clearances[1].is_protected is False
+    assert res.face_clearances[1].status == "EXPOSED"
 
 def test_comprehensive_risk_2024_8_components():
     engine = ComprehensiveRisk2024Engine()

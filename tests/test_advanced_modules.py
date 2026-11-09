@@ -28,10 +28,16 @@ def test_nodal_solver_current_sharing():
 def test_rolling_sphere_protection():
     rs_engine = RollingSphereEngine(sphere_radius_m=20.0) # Class I
     res_protected = rs_engine.check_surface_exposure(
-        point_x=1.0, point_y=0.0, point_z=14.0,
+        point_x=1.0, point_y=0.0, point_z=10.0,
         rod_x=0.0, rod_y=0.0, rod_height_m=15.0
     )
     assert res_protected["protected"] is True
+
+    res_near_tip_exposed = rs_engine.check_surface_exposure(
+        point_x=1.0, point_y=0.0, point_z=14.0,
+        rod_x=0.0, rod_y=0.0, rod_height_m=15.0
+    )
+    assert res_near_tip_exposed["protected"] is False
 
     res_exposed = rs_engine.check_surface_exposure(
         point_x=22.0, point_y=0.0, point_z=14.0,
