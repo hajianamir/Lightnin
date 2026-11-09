@@ -1,0 +1,54 @@
+{
+  "cone_exposed_object": {
+    "actual_horizontal_distance_m": 12.0,
+    "applicable": true,
+    "clearance_margin_m": -7.0,
+    "protected": false,
+    "protected_radius_at_z_m": 5.0,
+    "protective_angle_deg": 45.0,
+    "status": "EXPOSED"
+  },
+  "cone_protected_object": {
+    "actual_horizontal_distance_m": 2.0,
+    "applicable": true,
+    "clearance_margin_m": 3.0,
+    "protected": true,
+    "protected_radius_at_z_m": 5.0,
+    "protective_angle_deg": 45.0,
+    "status": "PROTECTED"
+  },
+  "protective_angles_deg": {
+    "I": {
+      "10m": 45.0,
+      "20m": 25.0,
+      "2m": 71.0,
+      "45m": 0.0,
+      "5m": 61.25,
+      "60m": 0.0
+    },
+    "II": {
+      "10m": 52.0,
+      "20m": 35.0,
+      "2m": 73.0,
+      "45m": 0.0,
+      "5m": 65.125,
+      "60m": 0.0
+    },
+    "III": {
+      "10m": 60.0,
+      "20m": 45.0,
+      "2m": 76.0,
+      "45m": 25.0,
+      "5m": 70.0,
+      "60m": 0.0
+    },
+    "IV": {
+      "10m": 65.0,
+      "20m": 53.0,
+      "2m": 78.0,
+      "45m": 35.0,
+      "5m": 73.125,
+      "60m": 25.0
+    }
+  }
+}

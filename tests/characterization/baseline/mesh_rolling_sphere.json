@@ -4,18 +4,18 @@
   "face_clearances": [
     {
       "centroid_x": 0.0,
-      "centroid_y": -0.17,
+      "centroid_y": -0.33,
       "centroid_z": 2.0,
-      "face_id": "under",
+      "face_id": "tri_under",
       "is_protected": true,
       "penetration_depth_m": 0.0,
       "sphere_bottom_z_m": 10.0
     },
     {
-      "centroid_x": 50.33,
-      "centroid_y": 50.33,
+      "centroid_x": 51.0,
+      "centroid_y": 50.67,
       "centroid_z": 2.0,
-      "face_id": "far",
+      "face_id": "tri_far",
       "is_protected": false,
       "penetration_depth_m": 2.0,
       "sphere_bottom_z_m": 0.0

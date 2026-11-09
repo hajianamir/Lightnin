@@ -1,14 +1,18 @@
-# Characterization snapshots
+# Characterization Baseline Snapshots
 
-These files record the **current** numerical output of the calculation engines for
-fixed inputs (`generate_baseline.py`). They are a regression guard, not a validation.
+These snapshots capture the numerical outputs of the calculation and geometry
+engines for fixed reference inputs and deterministic random seeds, with one JSON
+file per engine under `tests/characterization/baseline/`.
 
-- Some recorded values are known to be **wrong** (see the supervisor review: rolling-sphere
-  geometry, touch/step, Heidler parameters, ring-electrode l1 rule, K_MS, separation kc).
-  The snapshot preserves that behaviour on purpose so that every later change is visible.
-- A failing test means behaviour changed. That is not automatically a bug; review the diff first.
-- Regenerate only in a step that explicitly allows it:
+- **Purpose:** Detect any unintended or intended numerical change across steps.
+- **Current behaviour only:** These snapshots are a regression baseline, NOT a
+  standards or mathematical validation. They record what the engines output
+  right now, including known defects.
+- **Regeneration:** Run:
 
-      python tests/characterization/generate_baseline.py
+  ```bash
+  python tests/characterization/generate_baseline.py
+  ```
 
-- Generation is deterministic (fixed seeds, sorted keys, 9 significant digits).
+  Regenerate snapshots **only** in a step whose instructions explicitly allow
+  updating the characterization baseline.

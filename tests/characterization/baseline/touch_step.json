@@ -1,0 +1,47 @@
+{
+  "default": {
+    "prospective_step_voltage_v": 79577.5,
+    "prospective_touch_voltage_v": 31671833.7,
+    "recommended_mitigations": [
+      "Install high-voltage XLPE insulating conduit (100 kV, 1.2/50us) over lower 3m of down conductor",
+      "Apply a 5cm layer of asphalt (resistivity >= 10 kOhm.m) within 3m radius",
+      "Erect physical barrier/fence restricting public access within 3m",
+      "Lay 10cm crushed rock/gravel layer (resistivity >= 3 kOhm.m) over earth electrode zone",
+      "Install equipotential earth mesh ring buried at 0.5m depth around perimeter"
+    ],
+    "status": "HAZARD_DETECTED",
+    "step_hazard_controlled": false,
+    "step_safety_margin_v": -78454.1,
+    "surface_derating_factor_cs": 1.0,
+    "tolerable_step_voltage_v": 1123.4,
+    "tolerable_touch_voltage_v": 807.4,
+    "touch_hazard_controlled": false,
+    "touch_safety_margin_v": -31671026.2
+  },
+  "physical_insulation_barrier": {
+    "prospective_step_voltage_v": 561.7,
+    "prospective_touch_voltage_v": 0.0,
+    "recommended_mitigations": [],
+    "status": "COMPLIANT",
+    "step_hazard_controlled": true,
+    "step_safety_margin_v": 561.7,
+    "surface_derating_factor_cs": 1.0,
+    "tolerable_step_voltage_v": 1123.4,
+    "tolerable_touch_voltage_v": 807.4,
+    "touch_hazard_controlled": true,
+    "touch_safety_margin_v": 807.4
+  },
+  "restricted_access_perimeter": {
+    "prospective_step_voltage_v": 0.0,
+    "prospective_touch_voltage_v": 0.0,
+    "recommended_mitigations": [],
+    "status": "COMPLIANT",
+    "step_hazard_controlled": true,
+    "step_safety_margin_v": 1123.4,
+    "surface_derating_factor_cs": 1.0,
+    "tolerable_step_voltage_v": 1123.4,
+    "tolerable_touch_voltage_v": 807.4,
+    "touch_hazard_controlled": true,
+    "touch_safety_margin_v": 807.4
+  }
+}

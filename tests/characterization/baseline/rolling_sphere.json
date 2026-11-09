@@ -1,0 +1,17 @@
+{
+  "point_1_protected": {
+    "clearance_z_m": 4.97498436,
+    "protected": true,
+    "protective_height_z_m": 9.97498436
+  },
+  "point_2_exposed_inside_radius": {
+    "clearance_z_m": 0.0,
+    "protected": false,
+    "protective_height_z_m": 7.32050808
+  },
+  "point_3_exposed_outside_radius": {
+    "clearance_z_m": 0.0,
+    "protected": false,
+    "reason": "Horizontal distance exceeds sphere radius"
+  }
+}

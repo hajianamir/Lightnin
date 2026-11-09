@@ -2,10 +2,10 @@
   "coordination_details": [
     "Type 1 SPD installed at main service entrance boundary",
     "Type 2 SPD installed at secondary power distribution board",
-    "Voltage protection level Up (1.2 kV) complies with equipment withstand (2.5 kV)",
-    "Maximum effective protective distance without terminal SPD: 13.0 m"
+    "Voltage protection level Up (1.5 kV) complies with equipment withstand (2.5 kV)",
+    "Maximum effective protective distance without terminal SPD: 10.0 m"
   ],
-  "effective_protection_distance_m": 13.0,
+  "effective_protection_distance_m": 10.0,
   "energy_coordination_verified": false,
   "equipment": {
     "category": "Cat II",
@@ -16,7 +16,7 @@
       "cable_length_to_downstream_m": 5.0,
       "i_imp_ka": 25.0,
       "i_n_ka": 20.0,
-      "id": "t1",
+      "id": "spd_1",
       "installed_lpz_boundary": "LPZ 0B / 1",
       "spd_class": "Type 1",
       "technology": "spark_gap",
@@ -27,12 +27,12 @@
       "cable_length_to_downstream_m": 15.0,
       "i_imp_ka": 25.0,
       "i_n_ka": 20.0,
-      "id": "t2",
+      "id": "spd_2",
       "installed_lpz_boundary": "LPZ 0B / 1",
       "spd_class": "Type 2",
-      "technology": "varistor_mov",
+      "technology": "spark_gap",
       "uc_volts": 275.0,
-      "up_kv": 1.2
+      "up_kv": 1.5
     }
   ],
   "status": "ACTION_REQUIRED",
