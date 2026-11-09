@@ -35,7 +35,8 @@ Every calculation module is reviewed for:
   - The implementation strictly isolates input geometry, routing lengths, and material factors.
   - Distinguishes spatial conductor path length $l$ from direct straight-line Euclidean clearance $D_{\text{actual}}$.
   - Pass/fail determination is based strictly on numerical comparison $D_{\text{actual}} \ge s$, displaying intermediate substitution traces and positive/negative safety margins.
-- **Classification**: Implemented, verified against reference hand-calculation benchmark cases.
+- **Classification**: Implemented, NOT verified against reference hand-calculation benchmark cases.
+
 > **UNVERIFIED — known defect (H1):** `separation.py` sets `kc` from `len(project.segments)` (`1.0` for `<= 1` segment, `0.5` otherwise) rather than down-conductor count and uses node elevation `z` instead of summing segment path lengths.
 
 ---
@@ -69,7 +70,9 @@ Every calculation module is reviewed for:
     $$z_{\text{protect}} = h_{\text{rod}} - \left( R - \sqrt{\max(0, R^2 - d_{\text{horiz}}^2)} \right)$$
 - **Engineering Assessment**:
   - Correctly calculates sagitta penetration and clearance margins for rooftop equipment.
-> **UNVERIFIED — known defect (C1):** `rolling_sphere.py` evaluates `h_rod - (R - sqrt(R^2 - d^2))` (an inverted cap centered below the rod tip) instead of a sphere of radius `R` resting on both the air-termination tip and the reference plane.
+
+  > **UNVERIFIED — known defect (C1):** `rolling_sphere.py` evaluates `h_rod - (R - sqrt(R^2 - d^2))` (an inverted cap centered below the rod tip) instead of a sphere of radius `R` resting on both the air-termination tip and the reference plane.
+
 - **Classification**: Implemented, analytical tests passing.
 
 ---
@@ -78,10 +81,13 @@ Every calculation module is reviewed for:
 - **Governing Standard**: IEC 62305-3 Section 5.2.2, Table 2 & Figure 1.
 - **Standards Alignment**:
   - Empirical continuous curve-fitting has been completely removed in accordance with audit directives.
-  - Implements piece-wise linear interpolation strictly between verified Table 2 anchor points.
-> **UNVERIFIED — known defect (H8):** The hardcoded `TABULATED_ANGLES` anchor points and sparse piece-wise linear interpolation in `protective_angle.py` are not verified against IEC 62305-3 Table 2 / Figure 1.
+  - Implements piece-wise linear interpolation strictly between unverified Table 2 anchor points.
   - Strictly enforces maximum height limits ($H \le 20\text{m}$ for Class I, $30\text{m}$ for Class II, $45\text{m}$ for Class III, $60\text{m}$ for Class IV). Exceeding heights automatically marks the method as non-applicable and requires the rolling sphere method.
-- **Classification**: Standards-controlled look-up; verified within Table 2 limits.
+
+  > **UNVERIFIED — known defect (H8):** The hardcoded `TABULATED_ANGLES` anchor points and sparse piece-wise linear interpolation in `protective_angle.py` are not verified against IEC 62305-3 Table 2 / Figure 1.
+
+- **Classification**: Standards-controlled look-up; NOT verified within Table 2 limits.
+
 > **UNVERIFIED — known defect (H8):** `protective_angle.py` uses unverified Table 2 anchor values and coarse linear interpolation across `[2, 10, 20, 30, 45, 60]` m.
 
 ---
@@ -100,9 +106,12 @@ Every calculation module is reviewed for:
     $$\rho_a = \rho_1 \cdot \left[ 1 + k \cdot \left( 1 - e^{-1.8 (h_e / h_1)} \right) \right], \quad k = \frac{\rho_2 - \rho_1}{\rho_2 + \rho_1}$$
   - **Impulse Impedance (Corson / Bellaschi Soil Ionization)**:
     $$Z_p = \frac{R_{\text{dc}}}{\sqrt{1 + \frac{I_{\text{peak}}}{I_{\text{critical}}}}}, \quad I_{\text{critical}} = \frac{E_c \cdot \rho}{2\pi R_{\text{dc}}^2}$$
-- **Classification**: Analytical earthing approximations; verified against IEEE 80 / Dwight reference datasets.
+- **Classification**: Analytical earthing approximations; NOT verified against IEEE 80 / Dwight reference datasets.
+
 > **UNVERIFIED — known defect (C4):** `earthing.py` checks ring circumference `2 * pi * r_ring >= l1` instead of equivalent radius `r_e >= l1` and uses an unverified `l1(rho)` slope.
+
 > **UNVERIFIED — known defect (H4):** `earthing.py` uses an ad-hoc `(L / (2 * pi * s)) * ln(1 + s / L)` mutual-coupling term (for example at `N = 4, s = 5 m, L = 3 m`) that disagrees with IEEE 80 / Dwight multi-rod efficiency datasets.
+
 > **UNVERIFIED — known defect (H5):** `earthing.py` uses unverified prefactors in the buried circular-ring and horizontal-strip resistance formulas that disagree with Dwight and Sunde analytical expressions.
 
 ---
@@ -115,7 +124,9 @@ Every calculation module is reviewed for:
     $$U_{\text{touch,tol}} = (1000 + 1.5 \cdot C_s \cdot \rho_s) \cdot \frac{0.157}{\sqrt{t_f}}$$
     $$U_{\text{step,tol}} = (1000 + 6.0 \cdot C_s \cdot \rho_s) \cdot \frac{0.157}{\sqrt{t_f}}$$
   - Hemispherical current dispersion prospective potential distribution $V(r)$.
-> **UNVERIFIED — known defect (C2):** `touch_step.py` discards its `C_s` series summation, divides prospective hemispherical ground potential by an arbitrary factor of `10`, and zeroes or halves prospective voltages when perimeter-fence or barrier flags are enabled.
+
+  > **UNVERIFIED — known defect (C2):** `touch_step.py` discards its `C_s` series summation, divides prospective hemispherical ground potential by an arbitrary factor of `10`, and zeroes or halves prospective voltages when perimeter-fence or barrier flags are enabled.
+
 - **Disclosures**:
   - Differentiates power-frequency substation criteria (IEEE 80) from lightning equipotentialization (IEC 62305-3).
 - **Classification**: Experimental screening module; specialist review required.
@@ -129,7 +140,9 @@ Every calculation module is reviewed for:
   - Minimum inductive decoupling cable length ($l \ge 10\text{ m}$) between Type 1 spark gap and downstream Type 2 MOV to prevent premature MOV destruction.
   - Maximum effective protective distance:
     $$l_{\text{prot}} = (U_w - U_p) \cdot 10\text{ m}$$
-- **Classification**: Rules-based engineering coordination engine; verified.
+- **Classification**: Rules-based engineering coordination engine; NOT verified.
+
+> **UNVERIFIED — known defect (H15):** `spd_coordination.py` computes the effective protective length as `l_prot = (U_w - U_p) * 10` clipped to [5, 30] m, which is an empirical heuristic. It is not the stated relation `ΔU = L' · l · di/dt`, so the "verified" classification is contradicted.
 
 ---
 
@@ -150,6 +163,7 @@ Every calculation module is reviewed for:
   - Simulated annealing metaheuristic exploring air-termination rod locations, heights, and quantities.
   - Multi-objective Pareto optimization: maximizes 3D rolling-sphere protection coverage while minimizing rod count and total material cost.
 - **Classification**: Experimental recommendation engine; all proposed outputs must be verified by the deterministic calculation engine.
+
 > **UNVERIFIED — known defect (C1):** Both `optimization.py` and the deterministic `rolling_sphere.py` engine evaluate `tip_z - (R - sqrt(R^2 - d^2))` rather than a rolling sphere of radius `R` resting on the rod tip and reference plane.
 
 ---
