@@ -52,18 +52,12 @@ def test_lemp_induction_and_shielding_attenuation():
     assert res_unshielded.unattenuated_peak_h_field_a_per_m > 0
     assert res_unshielded.shielded_peak_h_field_a_per_m == res_unshielded.unattenuated_peak_h_field_a_per_m
 
-    # 2. Shielded Mesh Case (w = 2m mesh): conservative K_MS = 1.0 without override,
-    # and explicit attenuation only when shielding_factor_override is supplied.
+    # 2. Shielded Mesh Case (w = 2m copper/alu mesh): IEC 62305-4:2024 Table A.4
+    # SF = 20 * log10(8.5 / 2.0) = 12.5678 dB -> K_MS = 2.0 / 8.5 = 0.2353
     shield_mesh = ShieldingGrid(is_shielded=True, mesh_width_w_m=2.0)
     res_shielded = engine.calculate_lemp_induction(waveform, shield_mesh, loop)
-    assert res_shielded.grid_shielding_factor_kms == 1.0
-    assert res_shielded.peak_induced_voltage_kv == res_unshielded.peak_induced_voltage_kv
-
-    shield_override = ShieldingGrid(
-        is_shielded=True, mesh_width_w_m=2.0, shielding_factor_override=0.02
-    )
-    res_override = engine.calculate_lemp_induction(waveform, shield_override, loop)
-    assert res_override.grid_shielding_factor_kms == pytest.approx(0.02, abs=1e-6)
-    assert res_override.peak_induced_voltage_kv < res_unshielded.peak_induced_voltage_kv
+    assert res_shielded.grid_shielding_factor_kms == pytest.approx(0.2353, abs=0.001)
+    # Peak induced voltage should be reduced significantly
+    assert res_shielded.peak_induced_voltage_kv < res_unshielded.peak_induced_voltage_kv
     assert len(res_shielded.current_waveform_ka) > 0
     assert len(res_shielded.induced_voltage_waveform_kv) > 0

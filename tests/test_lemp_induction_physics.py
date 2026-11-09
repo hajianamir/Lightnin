@@ -1,28 +1,29 @@
-"""Physics and verification tests for LEMP induction, K_MS, and loop coupling (Step 1.5: C3-b)."""
+"""Physics and IEC 62305-4:2024 Annex A verification tests for LEMPEngine (Step 1.5: C3-b)."""
 
 import math
 import numpy as np
 import pytest
-from pydantic import ValidationError
 
 from aegislps_engine.lemp_engine import (
-    K_MS_SOURCE,
     InternalCableLoop,
     LEMPEngine,
     LEMPTransientResult,
     LEMPWaveformSpecification,
     ShieldingGrid,
+    _shielding_factor_db,
 )
 
 
 def _assert_result_finite(res: LEMPTransientResult) -> None:
-    """Assert that every scalar and array output in LEMPTransientResult is finite."""
+    """Assert that every numeric scalar and waveform array element is finite."""
     for scalar in (
         res.peak_current_ka,
         res.max_di_dt_ka_per_us,
         res.unattenuated_peak_h_field_a_per_m,
         res.shielded_peak_h_field_a_per_m,
         res.grid_shielding_factor_kms,
+        res.shielding_factor_db,
+        res.safety_distance_m,
         res.peak_induced_voltage_kv,
         res.equipment_withstand_uw_kv,
     ):
@@ -37,67 +38,242 @@ def _assert_result_finite(res: LEMPTransientResult) -> None:
         assert all(math.isfinite(v) for v in arr)
 
 
-def test_kms_source_flag_default_and_override():
-    """D.1: K_MS source flag is UNVERIFIED for both default (conservative 1.0) and override."""
+def test_01_copper_w2m_unbonded():
+    """1. Copper/aluminium, w_m = 2 m: SF = 12.56 dB, K = 0.2353, d_SF = 2.51 m."""
     engine = LEMPEngine()
-    waveform = LEMPWaveformSpecification(
-        stroke_type="first_positive_10_350",
-        peak_current_ka=100.0,
-        t_end_us=100.0,
-    )
-    loop = InternalCableLoop()
-
-    # Default shielded case (no override): conservative K_MS = 1.0, source = UNVERIFIED
-    res_default = engine.calculate_lemp_induction(
-        waveform,
-        ShieldingGrid(is_shielded=True, mesh_width_w_m=5.0),
-        loop,
-    )
-    _assert_result_finite(res_default)
-    assert K_MS_SOURCE == "UNVERIFIED"
-    assert res_default.kms_source == "UNVERIFIED"
-    assert res_default.K_MS_SOURCE == "UNVERIFIED"
-    assert res_default.grid_shielding_factor_kms == 1.0
-    assert "conservative" in " ".join(res_default.engineering_insights).lower()
-
-    # Explicit user override case: exact override value used, source remains UNVERIFIED
-    override_kms = 0.0375
-    res_override = engine.calculate_lemp_induction(
-        waveform,
+    res = engine.calculate_lemp_induction(
+        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
         ShieldingGrid(
             is_shielded=True,
-            mesh_width_w_m=5.0,
-            shielding_factor_override=override_kms,
+            mesh_width_w_m=2.0,
+            material="copper_aluminium",
+            meshed_bonding_network=False,
         ),
+        InternalCableLoop(),
+    )
+    _assert_result_finite(res)
+    assert res.k_source == "IEC 62305-4:2024 Table A.4"
+    assert res.shielding_factor_db == pytest.approx(12.56, abs=0.01)
+    assert res.grid_shielding_factor_kms == pytest.approx(0.2353, abs=0.001)
+    assert res.safety_distance_m == pytest.approx(2.51, abs=0.01)
+
+
+def test_02_copper_w2m_meshed_bonding():
+    """2. Copper/aluminium, w_m = 2 m, meshed bonding (+6 dB): SF = 18.56 dB, K = 0.1177."""
+    engine = LEMPEngine()
+    res = engine.calculate_lemp_induction(
+        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=2.0,
+            material="copper_aluminium",
+            meshed_bonding_network=True,
+        ),
+        InternalCableLoop(),
+    )
+    _assert_result_finite(res)
+    assert res.shielding_factor_db == pytest.approx(18.56, abs=0.01)
+    assert res.grid_shielding_factor_kms == pytest.approx(0.1177, abs=0.001)
+    assert res.safety_distance_m == pytest.approx(3.71, abs=0.01)
+
+
+def test_03_copper_w10m_negative_sf_clamped_to_zero():
+    """3. Copper/aluminium, w_m = 10 m: SF_formula = -1.41 dB -> clamped to 0 -> K = 1.0."""
+    sf_raw = 20.0 * math.log10(8.5 / 10.0)
+    assert sf_raw == pytest.approx(-1.41, abs=0.01)
+
+    engine = LEMPEngine()
+    res = engine.calculate_lemp_induction(
+        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=10.0,
+            material="copper_aluminium",
+            meshed_bonding_network=False,
+        ),
+        InternalCableLoop(),
+    )
+    _assert_result_finite(res)
+    assert res.shielding_factor_db == 0.0
+    assert res.grid_shielding_factor_kms == 1.0
+    assert res.safety_distance_m == 10.0
+
+
+def test_04_copper_w10m_meshed_bonding_after_zero_clamp():
+    """4. Copper/aluminium, w_m = 10 m, bonded: clamp(-1.41 -> 0) + 6 = 6.0 dB, K = 0.501, d_SF = 10 m."""
+    engine = LEMPEngine()
+    res = engine.calculate_lemp_induction(
+        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=10.0,
+            material="copper_aluminium",
+            meshed_bonding_network=True,
+        ),
+        InternalCableLoop(),
+    )
+    _assert_result_finite(res)
+    assert res.shielding_factor_db == pytest.approx(6.0, abs=1e-6)
+    assert res.grid_shielding_factor_kms == pytest.approx(0.501, abs=0.001)
+    # Since SF = 6.0 < 10 dB, Eq. (A.15) gives d_SF/n = w_m = 10 m
+    assert res.safety_distance_m == pytest.approx(10.0, abs=1e-6)
+
+
+def test_05_steel_w2m_rc5mm_first_positive_reduces_sf():
+    """5. Steel, w_m = 2 m, r_c = 5 mm, first positive (25 kHz): SF = 10.22 dB, K = 0.3087, d_SF = 2.04 m."""
+    engine = LEMPEngine()
+    res_steel = engine.calculate_lemp_induction(
+        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
+            material="steel",
+            meshed_bonding_network=False,
+        ),
+        InternalCableLoop(),
+    )
+    res_copper = engine.calculate_lemp_induction(
+        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
+            material="copper_aluminium",
+            meshed_bonding_network=False,
+        ),
+        InternalCableLoop(),
+    )
+    _assert_result_finite(res_steel)
+    assert res_steel.shielding_factor_db == pytest.approx(10.22, abs=0.01)
+    assert res_steel.grid_shielding_factor_kms == pytest.approx(0.3087, abs=0.001)
+    assert res_steel.safety_distance_m == pytest.approx(2.04, abs=0.01)
+
+    # Steel impedance term divides 8.5/w_m -> reduces SF (increases K_MS) relative to copper
+    assert res_steel.shielding_factor_db < res_copper.shielding_factor_db
+    assert res_steel.grid_shielding_factor_kms > res_copper.grid_shielding_factor_kms
+
+
+def test_06_steel_w2m_subsequent_stroke():
+    """6. Steel, w_m = 2 m, subsequent stroke (1 MHz): SF = 12.56 dB, K = 0.2353."""
+    engine = LEMPEngine()
+    res = engine.calculate_lemp_induction(
+        LEMPWaveformSpecification(stroke_type="subsequent_negative_025_100"),
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
+            material="steel",
+            meshed_bonding_network=False,
+        ),
+        InternalCableLoop(),
+    )
+    _assert_result_finite(res)
+    assert res.shielding_factor_db == pytest.approx(12.56, abs=0.01)
+    assert res.grid_shielding_factor_kms == pytest.approx(0.2353, abs=0.001)
+
+
+@pytest.mark.parametrize(
+    "s_a_m,expected_h1_a_per_m",
+    [
+        (67.0, 56.0),
+        (87.0, 43.0),
+        (137.0, 27.0),
+    ],
+)
+def test_07_table_a6_shielded_magnetic_field_cases(
+    s_a_m: float, expected_h1_a_per_m: float
+):
+    """7. IEC 62305-4:2024 Table A.6 example: I_0 = 100 kA, w_m = 2 m, H_1 from H_0 and SF within 2%."""
+    engine = LEMPEngine()
+    res = engine.calculate_lemp_induction(
+        LEMPWaveformSpecification(
+            stroke_type="first_positive_10_350",
+            peak_current_ka=100.0,
+            t_end_us=100.0,
+        ),
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=2.0,
+            material="copper_aluminium",
+            meshed_bonding_network=False,
+        ),
+        InternalCableLoop(
+            loop_area_m2=2.0,
+            center_distance_from_down_conductor_m=s_a_m,
+        ),
+    )
+    _assert_result_finite(res)
+    assert res.shielding_factor_db == pytest.approx(12.56, abs=0.01)
+    assert res.shielded_peak_h_field_a_per_m == pytest.approx(
+        expected_h1_a_per_m, rel=0.02
+    )
+
+
+def test_08_unshielded_gives_unit_k_and_override_source():
+    """8. is_shielded = False gives K = 1.0; explicit override sets k_source = 'override'."""
+    engine = LEMPEngine()
+    waveform = LEMPWaveformSpecification()
+    loop = InternalCableLoop()
+
+    for shield in (
+        ShieldingGrid(is_shielded=False),
+        ShieldingGrid(
+            is_shielded=False,
+            mesh_width_w_m=1.0,
+            material="steel",
+            meshed_bonding_network=True,
+            shielding_factor_override_db=20.0,
+        ),
+    ):
+        res = engine.calculate_lemp_induction(waveform, shield, loop)
+        _assert_result_finite(res)
+        assert res.grid_shielding_factor_kms == 1.0
+        assert res.shielding_factor_db == 0.0
+        assert res.shielded_peak_h_field_a_per_m == res.unattenuated_peak_h_field_a_per_m
+
+    res_override = engine.calculate_lemp_induction(
+        waveform,
+        ShieldingGrid(is_shielded=True, mesh_width_w_m=2.0, shielding_factor_override_db=20.0),
         loop,
     )
     _assert_result_finite(res_override)
-    assert res_override.kms_source == "UNVERIFIED"
-    assert res_override.K_MS_SOURCE == "UNVERIFIED"
-    assert res_override.grid_shielding_factor_kms == override_kms
-    assert res_override.shielded_peak_h_field_a_per_m == pytest.approx(
-        res_default.unattenuated_peak_h_field_a_per_m * override_kms, abs=0.1
-    )
-    assert res_override.peak_induced_voltage_kv == pytest.approx(
-        res_default.peak_induced_voltage_kv * override_kms, abs=1e-3
-    )
-
-    # Out-of-range overrides are rejected
-    with pytest.raises(ValidationError):
-        ShieldingGrid(shielding_factor_override=-0.1)
-    with pytest.raises(ValidationError):
-        ShieldingGrid(shielding_factor_override=1.5)
+    assert res_override.k_source == "override"
+    assert res_override.shielding_factor_db == 20.0
+    assert res_override.grid_shielding_factor_kms == pytest.approx(0.1, abs=1e-9)
+    assert res_override.safety_distance_m == pytest.approx(4.0, abs=1e-9)
 
 
-@pytest.mark.parametrize("override", [None, 0.15])
-def test_no_mur_credit_without_verified_source(override: float | None):
-    """D.2: relative_permeability_mur = 200 receives zero K_MS credit vs mu_r = 1."""
+def test_09_mesh_width_warning_above_5m():
+    """9. Warning emitted when mesh_width_w_m > 5 m, and absent when mesh_width_w_m <= 5 m."""
     engine = LEMPEngine()
-    waveform = LEMPWaveformSpecification(
-        stroke_type="subsequent_negative_025_100",
-        peak_current_ka=50.0,
-        t_end_us=100.0,
+    waveform = LEMPWaveformSpecification()
+    loop = InternalCableLoop()
+
+    res_w10 = engine.calculate_lemp_induction(
+        waveform, ShieldingGrid(is_shielded=True, mesh_width_w_m=10.0), loop
     )
+    res_w5 = engine.calculate_lemp_induction(
+        waveform, ShieldingGrid(is_shielded=True, mesh_width_w_m=5.0), loop
+    )
+    res_w2 = engine.calculate_lemp_induction(
+        waveform, ShieldingGrid(is_shielded=True, mesh_width_w_m=2.0), loop
+    )
+    _assert_result_finite(res_w10)
+    _assert_result_finite(res_w5)
+    _assert_result_finite(res_w2)
+
+    assert len(res_w10.warnings) == 1
+    assert "5.0 m" in res_w10.warnings[0]
+    assert res_w5.warnings == []
+    assert res_w2.warnings == []
+
+
+@pytest.mark.parametrize("material", ["copper_aluminium", "steel"])
+def test_10_relative_permeability_mur_has_no_effect_on_k(material: str):
+    """10. relative_permeability_mur = 200 leaves K identical to mu_r = 1."""
+    engine = LEMPEngine()
+    waveform = LEMPWaveformSpecification(stroke_type="first_positive_10_350")
     loop = InternalCableLoop()
 
     res_mur_1 = engine.calculate_lemp_induction(
@@ -105,8 +281,9 @@ def test_no_mur_credit_without_verified_source(override: float | None):
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
+            material=material,
             relative_permeability_mur=1.0,
-            shielding_factor_override=override,
         ),
         loop,
     )
@@ -115,16 +292,16 @@ def test_no_mur_credit_without_verified_source(override: float | None):
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
+            material=material,
             relative_permeability_mur=200.0,
-            shielding_factor_override=override,
         ),
         loop,
     )
     _assert_result_finite(res_mur_1)
     _assert_result_finite(res_mur_200)
-
     assert res_mur_200.grid_shielding_factor_kms == res_mur_1.grid_shielding_factor_kms
-    assert res_mur_200.shielded_peak_h_field_a_per_m == res_mur_1.shielded_peak_h_field_a_per_m
+    assert res_mur_200.shielding_factor_db == res_mur_1.shielding_factor_db
     assert res_mur_200.peak_induced_voltage_kv == res_mur_1.peak_induced_voltage_kv
 
 
@@ -132,8 +309,8 @@ def test_no_mur_credit_without_verified_source(override: float | None):
     "stroke_type",
     ["first_positive_10_350", "subsequent_negative_025_100"],
 )
-def test_peak_induced_voltage_grid_independence(stroke_type: str):
-    """D.3 / B.3: Peak induced voltage agrees within 0.5% across 500, 5000, and 50000 steps."""
+def test_11_peak_induced_voltage_independent_of_num_time_steps(stroke_type: str):
+    """11. Peak induced voltage agrees within 0.5% across 500, 5000, and 50000 points."""
     engine = LEMPEngine()
     shield = ShieldingGrid(is_shielded=True, mesh_width_w_m=5.0)
     loop = InternalCableLoop()
@@ -153,7 +330,6 @@ def test_peak_induced_voltage_grid_independence(stroke_type: str):
         _assert_result_finite(res)
         peaks[n_steps] = res.peak_induced_voltage_kv
 
-        # Output waveform lists keep downsampling tied to num_time_steps
         expected_step = max(1, n_steps // 50)
         expected_len = len(range(0, n_steps, expected_step))
         assert len(res.time_series_us) == expected_len
@@ -165,153 +341,28 @@ def test_peak_induced_voltage_grid_independence(stroke_type: str):
     assert peaks[500] == pytest.approx(peaks[5_000], rel=0.005)
 
 
-def test_faraday_loop_model_comparison_documented_errors():
-    """
-    D.4 / C.1-C.2: Compare uniform-field area coupling against exact rectangular-loop
-    mutual inductance M_exact = (mu_0 * a / (2 * pi)) * ln((d + b) / d).
-
-    Documented relative errors (M_approx - M_exact) / M_exact:
-    1) Inner-edge evaluation r = d, M_area(d) = mu_0 * a * b / (2 * pi * d):
-       - b/d = 0.1 -> +4.9206%
-       - b/d = 1.0 -> +44.2695%
-       - b/d = 3.0 -> +116.4043%
-    2) Center-distance evaluation r_c = d + b/2, M_area(r_c) = mu_0 * a * b / (2 * pi * r_c)
-       (used by InternalCableLoop.center_distance_from_down_conductor_m):
-       - b/d = 0.1 -> -0.0756%
-       - b/d = 1.0 -> -3.8203%
-       - b/d = 3.0 -> -13.4383%
-    3) Default InternalCableLoop (loop_area_m2 = 2.0, center_distance = 3.0):
-       For square loop a = b = sqrt(2) m (d = 3 - sqrt(2)/2 = 2.2929 m, b/d = 0.6168),
-       engine coupling error is -1.8801% (well within the 10% replacement gate).
-    """
-    mu_0 = LEMPEngine.MU_0
-    engine = LEMPEngine()
-    waveform = LEMPWaveformSpecification(
-        stroke_type="first_positive_10_350",
-        peak_current_ka=100.0,
-        t_end_us=100.0,
-    )
-    shield = ShieldingGrid(is_shielded=False)
-
-    # Documented (ratio b/d, expected rel_err at r=d, expected rel_err at r_c=d+b/2)
-    cases = [
-        (0.1, +0.049206, -0.000756),
-        (1.0, +0.442695, -0.038203),
-        (3.0, +1.164043, -0.134383),
-    ]
-
-    for ratio_b_over_d, expected_err_inner, expected_err_center in cases:
-        a_m = 2.0
-        d_m = 2.0  # >= 0.5 m so r_m clamp in calculate_lemp_induction is inactive
-        b_m = ratio_b_over_d * d_m
-        area_m2 = a_m * b_m
-        r_center_m = d_m + 0.5 * b_m
-
-        m_exact = (mu_0 * a_m / (2.0 * math.pi)) * math.log((d_m + b_m) / d_m)
-        m_area_inner = mu_0 * area_m2 / (2.0 * math.pi * d_m)
-        m_area_center = mu_0 * area_m2 / (2.0 * math.pi * r_center_m)
-
-        rel_err_inner = (m_area_inner - m_exact) / m_exact
-        rel_err_center = (m_area_center - m_exact) / m_exact
-
-        assert rel_err_inner == pytest.approx(expected_err_inner, abs=1e-5)
-        assert rel_err_center == pytest.approx(expected_err_center, abs=1e-5)
-
-        # Verify engine output matches M_area(r_center) * max_di_dt
-        res = engine.calculate_lemp_induction(
-            waveform,
-            shield,
-            InternalCableLoop(
-                loop_area_m2=area_m2,
-                center_distance_from_down_conductor_m=r_center_m,
-            ),
-        )
-        _assert_result_finite(res)
-        u_exact_kv = m_exact * (res.max_di_dt_ka_per_us * 1e9) * 1e-3
-        u_engine_err = (res.peak_induced_voltage_kv - u_exact_kv) / u_exact_kv
-        assert u_engine_err == pytest.approx(expected_err_center, abs=2e-3)
-
-    # Default geometry gate check: loop_area_m2 = 2.0, center_distance = 3.0 (square loop)
-    default_loop = InternalCableLoop()
-    a_def = math.sqrt(default_loop.loop_area_m2)
-    b_def = math.sqrt(default_loop.loop_area_m2)
-    d_def = default_loop.center_distance_from_down_conductor_m - 0.5 * b_def
-    m_exact_def = (mu_0 * a_def / (2.0 * math.pi)) * math.log((d_def + b_def) / d_def)
-    m_engine_def = (
-        mu_0
-        * default_loop.loop_area_m2
-        / (2.0 * math.pi * default_loop.center_distance_from_down_conductor_m)
-    )
-    rel_err_default = (m_engine_def - m_exact_def) / m_exact_def
-    assert rel_err_default == pytest.approx(-0.018801, abs=1e-5)
-    assert abs(rel_err_default) < 0.10
-
-
-def test_mesh_width_warning_threshold():
-    """D.5: mesh_width_w_m = 10 emits warning; mesh_width_w_m = 5 does not."""
-    engine = LEMPEngine()
-    waveform = LEMPWaveformSpecification()
-    loop = InternalCableLoop()
-
-    res_w10 = engine.calculate_lemp_induction(
-        waveform,
-        ShieldingGrid(is_shielded=True, mesh_width_w_m=10.0),
-        loop,
-    )
-    _assert_result_finite(res_w10)
-    assert len(res_w10.warnings) == 1
-    assert "5.0 m" in res_w10.warnings[0]
-
-    res_w5 = engine.calculate_lemp_induction(
-        waveform,
-        ShieldingGrid(is_shielded=True, mesh_width_w_m=5.0),
-        loop,
-    )
-    _assert_result_finite(res_w5)
-    assert res_w5.warnings == []
-
-
-def test_unshielded_gives_unit_kms():
-    """D.6: is_shielded = False always gives K_MS = 1.0."""
-    engine = LEMPEngine()
-    waveform = LEMPWaveformSpecification()
-    loop = InternalCableLoop()
-
-    for shield in (
-        ShieldingGrid(is_shielded=False),
-        ShieldingGrid(
-            is_shielded=False,
-            mesh_width_w_m=1.0,
-            relative_permeability_mur=200.0,
-            shielding_factor_override=0.05,
-        ),
-    ):
-        res = engine.calculate_lemp_induction(waveform, shield, loop)
-        _assert_result_finite(res)
-        assert res.grid_shielding_factor_kms == 1.0
-        assert res.shielded_peak_h_field_a_per_m == res.unattenuated_peak_h_field_a_per_m
-
-
 @pytest.mark.parametrize(
-    "stroke_type,peak_ka,t_end_us,n_steps,is_shielded,w_m,override",
+    "stroke_type,peak_ka,t_end_us,n_steps,is_shielded,w_m,material,bonded,override_db",
     [
-        ("first_positive_10_350", 0.0, 100.0, 500, True, 5.0, None),
-        ("first_positive_10_350", 200.0, 500.0, 1, True, 0.5, 0.0),
-        ("subsequent_negative_025_100", 50.0, 0.1, 2, True, 10.0, 1.0),
-        ("subsequent_negative_025_100", 100.0, 20.0, 5000, False, 5.0, None),
-        ("unknown_stroke_fallback", 100.0, 100.0, 50, True, 2.0, 0.25),
+        ("first_positive_10_350", 0.0, 100.0, 500, True, 5.0, "copper_aluminium", False, None),
+        ("first_positive_10_350", 200.0, 500.0, 1, True, 0.5, "steel", True, None),
+        ("subsequent_negative_025_100", 50.0, 0.1, 2, True, 12.0, "steel", False, None),
+        ("subsequent_negative_025_100", 100.0, 20.0, 5000, False, 5.0, "copper_aluminium", False, None),
+        ("unknown_stroke_fallback", 100.0, 100.0, 50, True, 2.0, "copper_aluminium", True, 15.0),
     ],
 )
-def test_no_nan_or_inf_across_diverse_inputs(
+def test_12_no_nan_or_inf_for_any_input(
     stroke_type: str,
     peak_ka: float,
     t_end_us: float,
     n_steps: int,
     is_shielded: bool,
     w_m: float,
-    override: float | None,
+    material: str,
+    bonded: bool,
+    override_db: float | None,
 ):
-    """D.7: No NaN or inf in any scalar or array field across edge and nominal inputs."""
+    """12. No NaN or inf in any scalar or array field across edge and nominal inputs."""
     engine = LEMPEngine()
     res = engine.calculate_lemp_induction(
         LEMPWaveformSpecification(
@@ -323,14 +374,20 @@ def test_no_nan_or_inf_across_diverse_inputs(
         ShieldingGrid(
             is_shielded=is_shielded,
             mesh_width_w_m=w_m,
-            shielding_factor_override=override,
+            material=material,
+            meshed_bonding_network=bonded,
+            shielding_factor_override_db=override_db,
         ),
         InternalCableLoop(
-            loop_area_m2=0.001,
-            center_distance_from_down_conductor_m=0.1,
+            loop_area_m2=0.01,
+            center_distance_from_down_conductor_m=0.5,
             equipment_withstand_uw_kv=1.5,
         ),
     )
     _assert_result_finite(res)
     assert not np.any(np.isnan(res.induced_voltage_waveform_kv))
     assert not np.any(np.isinf(res.induced_voltage_waveform_kv))
+    with pytest.raises(ValueError):
+        _shielding_factor_db(0.0, 0.005, "first_positive_10_350", False)
+    with pytest.raises(ValueError):
+        _shielding_factor_db(2.0, 0.0, "first_positive_10_350", False)

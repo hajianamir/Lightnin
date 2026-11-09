@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from typing import Callable, Dict, List, Tuple, Any, Optional
+from typing import Callable, Dict, List, Literal, Tuple, Any, Optional
 from pydantic import BaseModel, Field
 
 # IEC 62305-1 Annex A, Table A.1 Heidler current parameters (n = 10),
@@ -81,42 +81,79 @@ class LEMPWaveformSpecification(BaseModel):
     t_end_us: float = 100.0 # Simulation horizon in microseconds
     num_time_steps: int = 500
 
-K_MS_SOURCE: str = "UNVERIFIED"
+_DEFAULT_ROD_RADIUS_M: float = 0.005
 _INTERNAL_PEAK_GRID_POINTS: int = 20_000
-_MAX_EFFECTIVE_MESH_WIDTH_M: float = 5.0
+_MAX_RECOMMENDED_MESH_WIDTH_M: float = 5.0
+_K_SOURCE_IEC_2024: Literal["IEC 62305-4:2024 Table A.4"] = "IEC 62305-4:2024 Table A.4"
+_K_SOURCE_OVERRIDE: Literal["override"] = "override"
 
 
-def _resolve_shielding_factor(shield: "ShieldingGrid") -> Tuple[float, str, List[str]]:
-    """Resolve K_MS, source flag, and mesh-width warnings without unverified credits."""
-    warnings: List[str] = []
-    if shield.is_shielded and shield.mesh_width_w_m > _MAX_EFFECTIVE_MESH_WIDTH_M:
-        warnings.append(
-            f"Spatial shield mesh width w = {shield.mesh_width_w_m:.2f} m exceeds "
-            f"{_MAX_EFFECTIVE_MESH_WIDTH_M:.1f} m; spatial grid shields wider than "
-            "~5 m provide little magnetic-field attenuation (IEC 62305-4 Annex A)."
-        )
+def _shielding_factor_db(
+    w_m: float,
+    r_c: float,
+    stroke_type: str,
+    bonded: bool,
+    material: Literal["copper_aluminium", "steel"] = "copper_aluminium",
+) -> float:
+    """
+    IEC 62305-4:2024 Annex A, Table A.4 magnetic shielding factor SF [dB].
 
-    if not shield.is_shielded:
-        kms = 1.0
-    elif shield.shielding_factor_override is not None:
-        kms = float(shield.shielding_factor_override)
+    Evaluation order:
+    1. Formula by material and frequency row:
+       - "first_positive_10_350" (25 kHz row):
+         * copper_aluminium: SF_formula = 20 * log10(8.5 / w_m)
+         * steel (Note c: mu_r ~ 200):
+           SF_formula = 20 * log10((8.5 / w_m) / sqrt(1 + 18e-6 / r_c^2))
+       - "subsequent_negative_025_100" (1 MHz / 250 kHz row):
+         * copper_aluminium or steel: SF_formula = 20 * log10(8.5 / w_m)
+    2. Note a: if SF_formula < 0, set SF = 0.
+    3. Note b: if bonded (meshed bonding network per Clause 5.3), add +6 dB.
+    """
+    if w_m <= 0.0:
+        raise ValueError(f"mesh_width_w_m must be > 0, got {w_m}")
+    if r_c <= 0.0:
+        raise ValueError(f"rod_radius_m must be > 0, got {r_c}")
+
+    if stroke_type == "subsequent_negative_025_100":
+        sf_formula = 20.0 * math.log10(8.5 / w_m)
+    elif material == "steel":
+        steel_factor = math.sqrt(1.0 + 18.0e-6 / (r_c * r_c))
+        sf_formula = 20.0 * math.log10((8.5 / w_m) / steel_factor)
     else:
-        # Conservative default (no shielding credit) when no primary IEC 62305-4
-        # Annex A formula is available in-repo and no explicit override is supplied.
-        kms = 1.0
+        sf_formula = 20.0 * math.log10(8.5 / w_m)
 
-    return kms, K_MS_SOURCE, warnings
+    sf_db = max(0.0, sf_formula)
+    if bonded:
+        sf_db += 6.0
+    return float(sf_db)
+
+
+def _safety_distance_dsf_m(w_m: float, sf_db: float) -> float:
+    """
+    IEC 62305-4:2024 Annex A, Eq. (A.14)-(A.15) internal safety distance d_SF/n [m]:
+    d_SF/n = w_m * SF / 10 for SF >= 10 dB, and d_SF/n = w_m for SF < 10 dB.
+    """
+    if sf_db >= 10.0:
+        return float(w_m * sf_db / 10.0)
+    return float(w_m)
 
 
 class ShieldingGrid(BaseModel):
+    """
+    Spatial grid shield parameters per IEC 62305-4:2024 Annex A (Table A.4).
+
+    `relative_permeability_mur` is retained for input schema compatibility and has
+    no effect on K_MS; for steel (`material="steel"`), magnetic permeability
+    (Table A.4 Note c: mu_r ~ 200) enters SF via `rod_radius_m` (`r_c`).
+    """
     is_shielded: bool = True
-    mesh_width_w_m: float = 5.0 # Spatial grid shield width (e.g., 5m mesh)
-    relative_permeability_mur: float = 1.0 # Retained for schema compatibility; no permeability credit applied
-    shielding_factor_override: Optional[float] = Field(
-        default=None,
-        ge=0.0,
-        le=1.0,
-        allow_inf_nan=False,
+    mesh_width_w_m: float = Field(default=5.0, gt=0.0, allow_inf_nan=False)
+    relative_permeability_mur: float = 1.0
+    rod_radius_m: float = Field(default=_DEFAULT_ROD_RADIUS_M, gt=0.0, allow_inf_nan=False)
+    material: Literal["copper_aluminium", "steel"] = "copper_aluminium"
+    meshed_bonding_network: bool = False
+    shielding_factor_override_db: Optional[float] = Field(
+        default=None, ge=0.0, allow_inf_nan=False
     )
 
 class InternalCableLoop(BaseModel):
@@ -132,7 +169,9 @@ class LEMPTransientResult(BaseModel):
     unattenuated_peak_h_field_a_per_m: float
     shielded_peak_h_field_a_per_m: float
     grid_shielding_factor_kms: float
-    kms_source: str = K_MS_SOURCE
+    shielding_factor_db: float
+    safety_distance_m: float
+    k_source: Literal["IEC 62305-4:2024 Table A.4", "override"] = _K_SOURCE_IEC_2024
     peak_induced_voltage_kv: float
     equipment_withstand_uw_kv: float
     equipment_protected: bool
@@ -143,30 +182,26 @@ class LEMPTransientResult(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     engineering_insights: List[str] = Field(default_factory=list)
 
-    @property
-    def K_MS_SOURCE(self) -> str:
-        return self.kms_source
-
 class LEMPEngine:
     """
-    Lightning Electromagnetic Pulse (LEMP) Transient Induction Engine.
+    IEC 62305-4:2024 Annex A Lightning Electromagnetic Pulse (LEMP) Engine.
 
     Implements:
     - Analytical Heidler function modeling of lightning surge currents:
       i(t) = (I / eta) * ( (t / tau1)^10 / (1 + (t / tau1)^10) ) * exp(-t / tau2)
-    - Biot-Savart quasi-magnetostatic transient field induction:
-      H(r, t) = i(t) / (2 * pi * r)
-    - Spatial grid shield magnetic field factor K_MS:
-      Conservative default K_MS = 1.0 (no unverified credit; kms_source = "UNVERIFIED")
-      unless an explicit ShieldingGrid.shielding_factor_override in [0, 1] is supplied;
-      no unverified relative-permeability (mu_r) reduction is applied.
-    - Uniform-field Faraday law approximation over internal cabling loops (valid for b << d):
-      u_i(t) = - mu_0 * K_MS * (dH / dt) * A_loop
-             = - (mu_0 / (2 * pi * r)) * K_MS * A_loop * (di / dt)
+    - Biot-Savart magnetic field Eq. (A.6)-(A.10) at user-supplied strike-to-volume
+      distance s_a (`InternalCableLoop.center_distance_from_down_conductor_m`):
+      H_0(t) = i(t) / (2 * pi * s_a),  H_1(t) = H_0(t) / 10^(SF / 20)
+    - IEC 62305-4:2024 Table A.4 spatial grid shield attenuation:
+      K_MS = 10^(-SF / 20), with copper/aluminium & steel rows, Note a (SF >= 0 dB),
+      Note b (+6 dB meshed bonding network), and internal safety distance d_SF/n
+      per Eq. (A.14)-(A.15).
+    - Uniform-field Faraday induction over internal cabling loops (valid for b << s_a):
+      u_i(t) = - mu_0 * K_MS * (dH_0 / dt) * A_loop
+             = - (mu_0 / (2 * pi * s_a)) * K_MS * A_loop * (di / dt)
     - Continuous/fine-grid peak surge stress evaluation vs. equipment withstand (U_w).
     """
     MU_0 = 4.0 * np.pi * 1e-7 # H/m permeability of free space
-    K_MS_SOURCE = K_MS_SOURCE
 
     @classmethod
     def evaluate_heidler_current(
@@ -253,29 +288,28 @@ class LEMPEngine:
         loop: InternalCableLoop
     ) -> LEMPTransientResult:
         """
-        Evaluate transient LEMP magnetic field and open-circuit induced loop voltage.
+        Evaluate LEMP magnetic field attenuation and induced loop voltage per
+        IEC 62305-4:2024 Annex A (pp. 54-55, Table A.4, Eq. A.6-A.10, Eq. A.14-A.15).
 
-        Notes & validity limits:
-        - K_MS handling (K_MS_SOURCE = "UNVERIFIED"): The primary IEC 62305-4 Annex A
-          spatial-shielding formula is not present in-repo. When shield.is_shielded is
-          False, K_MS = 1.0. When shield.is_shielded is True and no explicit
-          shield.shielding_factor_override is given, conservative K_MS = 1.0 (no
-          shielding credit) is applied; otherwise the user override in [0, 1] is used.
-          No relative_permeability_mur reduction is applied. A warning is emitted when
-          shield.is_shielded is True and mesh_width_w_m > 5.0 m.
-        - Peak evaluation: Peak current/H-field, max |di/dt|, and peak_induced_voltage_kv
-          are evaluated on a fixed fine internal grid (_INTERNAL_PEAK_GRID_POINTS = 20000
-          over [0, t_end_us] with analytic di/dt and golden-section front refinement),
-          independent of waveform.num_time_steps. Serialized waveform arrays retain the
-          waveform.num_time_steps discretization.
-        - Faraday loop approximation (valid only when radial loop height b << d):
-          u_i(t) = -(mu_0 / (2 * pi * r)) * K_MS * A_loop * (di / dt) assumes a uniform
-          magnetic field over A_loop = a * b, approximating the exact rectangular-loop
-          mutual inductance M = (mu_0 * a / (2 * pi)) * ln((d + b) / d) (axial length a,
-          radial span b from inner edge d to d + b). Using r = d overestimates M unless
-          b << d (+4.9% at b/d = 0.1, +44.3% at b/d = 1, +116.4% at b/d = 3); using loop
-          center distance r = d + b/2 underestimates M when b is comparable to or larger
-          than d (-0.08% at b/d = 0.1, -3.82% at b/d = 1, -13.44% at b/d = 3).
+        Notes & scope boundaries:
+        - Distance s_a: `loop.center_distance_from_down_conductor_m` represents s_a in
+          Eq. (A.6)-(A.10), the distance between the strike point and the center of the
+          shielded volume. Geometric evaluation of s_a from building geometry and the
+          rolling sphere per Eq. (A.16)-(A.17) is not implemented here; s_a is supplied
+          directly by the caller.
+        - Shielding factor SF & K_MS: Computed from Table A.4 via `_shielding_factor_db`
+          (`k_source = "IEC 62305-4:2024 Table A.4"`) unless `shielding_factor_override_db`
+          is given (`k_source = "override"`), with `K_MS = 10^(-SF / 20)`. When
+          `shield.is_shielded` is False, `SF = 0 dB` and `K_MS = 1.0`.
+        - Steel permeability: `shield.relative_permeability_mur` has no effect on K_MS;
+          steel permeability (Table A.4 Note c: mu_r ~ 200) enters SF through `rod_radius_m` (`r_c`).
+        - Internal safety distance d_SF/n: Reported in `safety_distance_m` per Eq. (A.14)-(A.15)
+          (`w_m * SF / 10` for `SF >= 10 dB`, `w_m` for `SF < 10 dB`, `0.0` if unshielded).
+        - Continuous-grid peak evaluation: `peak_induced_voltage_kv`, `max_di_dt_ka_per_us`,
+          and peak H-fields are evaluated on a fixed 20,000-point internal grid independent
+          of `waveform.num_time_steps`; serialized waveform arrays stay on `num_time_steps`.
+        - Uniform-field Faraday loop approximation `u = mu_0 * K_MS * (A_loop / (2 * pi * s_a)) * di/dt`
+          is valid when the radial loop span b << s_a.
         """
         n_steps = max(1, int(waveform.num_time_steps))
         t_end_us = max(0.0, float(waveform.t_end_us))
@@ -291,21 +325,50 @@ class LEMPEngine:
             t_fine_us, waveform.stroke_type, waveform.peak_current_ka
         )
 
-        r_m = max(0.5, loop.center_distance_from_down_conductor_m)
+        s_a_m = max(0.5, loop.center_distance_from_down_conductor_m)
         a_loop = max(0.01, loop.loop_area_m2)
 
-        # Peak unattenuated magnetic field at distance r (A/m) on fine internal grid
-        # H(t) = i(t) / (2 * pi * r) where i(t) in Amperes
-        h_unshielded_fine_a_m = (np.abs(i_fine_ka) * 1e3) / (2.0 * np.pi * r_m)
+        # Eq. (A.6): Peak unattenuated magnetic field H_0 = I_0 / (2 * pi * s_a) [A/m]
+        h_unshielded_fine_a_m = (np.abs(i_fine_ka) * 1e3) / (2.0 * np.pi * s_a_m)
         peak_h_unshielded = float(np.max(h_unshielded_fine_a_m))
 
-        kms, kms_source, warnings = _resolve_shielding_factor(shield)
+        warnings: List[str] = []
+        if shield.is_shielded and shield.mesh_width_w_m > _MAX_RECOMMENDED_MESH_WIDTH_M:
+            warnings.append(
+                f"Spatial shield mesh width w_m = {shield.mesh_width_w_m:.2f} m exceeds "
+                f"{_MAX_RECOMMENDED_MESH_WIDTH_M:.1f} m; wide spatial grids provide reduced "
+                "or zero magnetic-field attenuation per IEC 62305-4:2024 Annex A."
+            )
+
+        if not shield.is_shielded:
+            sf_db = 0.0
+            kms = 1.0
+            safety_distance_m = 0.0
+            k_source: Literal["IEC 62305-4:2024 Table A.4", "override"] = _K_SOURCE_IEC_2024
+        elif shield.shielding_factor_override_db is not None:
+            sf_db = float(shield.shielding_factor_override_db)
+            kms = float(10.0 ** (-sf_db / 20.0))
+            safety_distance_m = _safety_distance_dsf_m(shield.mesh_width_w_m, sf_db)
+            k_source = _K_SOURCE_OVERRIDE
+        else:
+            sf_db = _shielding_factor_db(
+                w_m=shield.mesh_width_w_m,
+                r_c=shield.rod_radius_m,
+                stroke_type=waveform.stroke_type,
+                bonded=shield.meshed_bonding_network,
+                material=shield.material,
+            )
+            kms = float(10.0 ** (-sf_db / 20.0))
+            safety_distance_m = _safety_distance_dsf_m(shield.mesh_width_w_m, sf_db)
+            k_source = _K_SOURCE_IEC_2024
+
+        # Eq. (A.10): H_1 = H_0 / 10^(SF / 20) = H_0 * K_MS
         peak_h_shielded = float(peak_h_unshielded * kms)
 
-        # Faraday induced electromotive force u_i(t) (uniform-field approximation, b << d)
+        # Faraday induced electromotive force u_i(t) (uniform-field approximation, b << s_a)
         # di/dt is in kA/us = 10^3 A / 10^-6 s = 10^9 A/s
         loop_coupling_v_per_ka_us = (
-            self.MU_0 * kms * (a_loop / (2.0 * np.pi * r_m)) * 1e9
+            self.MU_0 * kms * (a_loop / (2.0 * np.pi * s_a_m)) * 1e9
         )
         u_induced_kv = np.abs(loop_coupling_v_per_ka_us * di_dt_ka_us) * 1e-3
 
@@ -318,19 +381,13 @@ class LEMPEngine:
         protected = peak_induced_kv <= loop.equipment_withstand_uw_kv
         status = "COMPLIANT_WITHIN_WITHSTAND" if protected else "EXCEEDS_WITHSTAND_HAZARD"
 
-        if not shield.is_shielded:
-            kms_detail = f"K_MS = {kms:.3f}, unshielded, source={kms_source}"
-        elif shield.shielding_factor_override is not None:
-            kms_detail = f"K_MS = {kms:.4g}, user override, source={kms_source}"
-        else:
-            kms_detail = (
-                f"K_MS = {kms:.3f}, source={kms_source}; conservative no-shielding "
-                "credit applied without verified primary formula or override"
-            )
-
         insights = [
             f"Heidler surge waveform '{waveform.stroke_type}': Peak current {waveform.peak_current_ka:.1f} kA, max steepness di/dt = {max_di_dt:.2f} kA/us.",
-            f"Magnetic field at {r_m:.1f}m: Unattenuated {peak_h_unshielded:.1f} A/m -> Shielded {peak_h_shielded:.1f} A/m ({kms_detail}).",
+            (
+                f"Magnetic field at s_a = {s_a_m:.1f} m: H0 = {peak_h_unshielded:.1f} A/m -> "
+                f"H1 = {peak_h_shielded:.1f} A/m (SF = {sf_db:.2f} dB, K_MS = {kms:.4f}, "
+                f"d_SF/n = {safety_distance_m:.2f} m, source = {k_source})."
+            ),
             f"Induced loop voltage: Peak {peak_induced_kv:.2f} kV vs Equipment withstand Uw = {loop.equipment_withstand_uw_kv:.2f} kV.",
             "Mitigation recommendation: Reduce loop area or add Type 3 fine surge protection." if not protected else "Equipment protected by existing shielding and spatial separation."
         ]
@@ -343,8 +400,10 @@ class LEMPEngine:
             max_di_dt_ka_per_us=round(max_di_dt, 3),
             unattenuated_peak_h_field_a_per_m=round(peak_h_unshielded, 1),
             shielded_peak_h_field_a_per_m=round(peak_h_shielded, 1),
-            grid_shielding_factor_kms=float(kms),
-            kms_source=kms_source,
+            grid_shielding_factor_kms=kms,
+            shielding_factor_db=round(sf_db, 4),
+            safety_distance_m=round(safety_distance_m, 4),
+            k_source=k_source,
             peak_induced_voltage_kv=round(peak_induced_kv, 3),
             equipment_withstand_uw_kv=loop.equipment_withstand_uw_kv,
             equipment_protected=protected,
