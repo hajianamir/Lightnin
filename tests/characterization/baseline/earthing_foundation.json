@@ -1,0 +1,14 @@
+{
+  "actual_effective_length_m": 80.0,
+  "effective_soil_resistivity_ohm_m": 100.0,
+  "impulse_efficiency_factor": 0.894,
+  "impulse_impedance_z_ohm": 3.1,
+  "lps_class": "I",
+  "meets_iec_l1_requirement": true,
+  "meets_recommended_10_ohm": true,
+  "method_details": "Foundation Mesh (Perim=80.0m, Area=400.0m2, Laurent formula): R_stat=3.47 ohm",
+  "minimum_length_l1_m": 5.0,
+  "stationary_resistance_r_ohm": 3.47,
+  "status": "PASS",
+  "warnings": []
+}

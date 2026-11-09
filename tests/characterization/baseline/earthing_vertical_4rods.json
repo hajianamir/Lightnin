@@ -1,0 +1,16 @@
+{
+  "actual_effective_length_m": 12.0,
+  "effective_soil_resistivity_ohm_m": 100.0,
+  "impulse_efficiency_factor": 0.514,
+  "impulse_impedance_z_ohm": 5.93,
+  "lps_class": "I",
+  "meets_iec_l1_requirement": true,
+  "meets_recommended_10_ohm": false,
+  "method_details": "Type A Vertical (4 rods x 3.0m, spacing=5.0m, Dwight + Mutual Coupling): R_stat=11.52 ohm",
+  "minimum_length_l1_m": 5.0,
+  "stationary_resistance_r_ohm": 11.52,
+  "status": "WARNING",
+  "warnings": [
+    "Stationary resistance (11.52 ohm) exceeds standard 10 ohm recommendation"
+  ]
+}

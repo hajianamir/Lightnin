@@ -1,0 +1,13 @@
+{
+  "actual_clearance_m": 0.85,
+  "engineering_recommendations": [
+    "Isolated LPS achieved: No direct lightning current will enter PV framework.",
+    "Bond module frames to local equipotential earthing bar with 6 mm2 Cu.",
+    "Route DC+ and DC- string cables in direct physical contact to minimize inductive loop area."
+  ],
+  "is_isolated_lps_sufficient": true,
+  "loop_area_risk": "LOW",
+  "required_separation_s_m": 0.6,
+  "requires_equipotential_bonding": false,
+  "status": "ISOLATED_PASS"
+}

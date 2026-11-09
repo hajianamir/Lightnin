@@ -1,0 +1,100 @@
+{
+  "inspection_schedule": [
+    {
+      "clause": "IEC 62305-3 §E.7.2",
+      "criterion": "No mechanical detachment, corrosion, or flashover witness marks on conductors",
+      "frequency_years": 1,
+      "inspection_method": "visual",
+      "item": "Visual conductor inspection"
+    },
+    {
+      "clause": "IEC 62305-3 §E.7.2",
+      "criterion": "Electrical resistance across all joints and bonding points <= 0.2 ohm",
+      "frequency_years": 2,
+      "inspection_method": "electrical_continuity",
+      "item": "Bonding continuity measurement"
+    },
+    {
+      "clause": "IEC 62305-3 §E.7.2",
+      "criterion": "Overall earth system resistance <= 10.0 ohm measured at test joints",
+      "frequency_years": 2,
+      "inspection_method": "soil_resistance",
+      "item": "Earthing resistance measurement"
+    },
+    {
+      "clause": "IEC 62305-4 §E.7.3",
+      "criterion": "Optical status flags green, no blown surge protection cartridges",
+      "frequency_years": 1,
+      "inspection_method": "visual",
+      "item": "SPD status indicator check"
+    }
+  ],
+  "items": [
+    {
+      "category": "air_termination",
+      "description": "Air termination rod 3.0m copper-clad steel (16mm dia)",
+      "item_code": "AT-ROD-3M-CU",
+      "quantity": 4.0,
+      "unit": "pcs"
+    },
+    {
+      "category": "air_termination",
+      "description": "Copper round conductor 8mm (50 mm2) for roof perimeter ring",
+      "item_code": "COND-50CU-RND",
+      "quantity": 110.0,
+      "unit": "m"
+    },
+    {
+      "category": "down_conductor",
+      "description": "Copper round conductor 8mm (50 mm2) for down conductors",
+      "item_code": "COND-50CU-RND",
+      "quantity": 66.0,
+      "unit": "m"
+    },
+    {
+      "category": "fasteners",
+      "description": "Heavy duty conductor fasteners with expansion anchors",
+      "item_code": "CLAMP-DC-SCREW",
+      "quantity": 75.0,
+      "unit": "pcs"
+    },
+    {
+      "category": "down_conductor",
+      "description": "Measuring / disconnect test joint box (IP65 rated)",
+      "item_code": "TEST-JOINT-CU",
+      "quantity": 4.0,
+      "unit": "pcs"
+    },
+    {
+      "category": "earthing",
+      "description": "Type B copper earthing strip 30x3.5mm buried at 0.5m",
+      "item_code": "EARTH-STRIP-CU",
+      "quantity": 121.8,
+      "unit": "m"
+    },
+    {
+      "category": "earthing",
+      "description": "Type A vertical earth rod 3.0m with driving stud",
+      "item_code": "EARTH-ROD-3M",
+      "quantity": 4.0,
+      "unit": "pcs"
+    },
+    {
+      "category": "spd",
+      "description": "Type 1 Spark Gap SPD (I_imp=25kA 10/350us) for main switchboard",
+      "item_code": "SPD-T1-25KA",
+      "quantity": 1.0,
+      "unit": "sets"
+    },
+    {
+      "category": "spd",
+      "description": "Type 2 Varistor SPD (I_n=20kA, I_max=40kA 8/20us) for sub-boards",
+      "item_code": "SPD-T2-40KA",
+      "quantity": 2.0,
+      "unit": "sets"
+    }
+  ],
+  "lps_class": "I",
+  "project_name": "Test",
+  "total_components_count": 9
+}

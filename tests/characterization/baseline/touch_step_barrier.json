@@ -1,0 +1,13 @@
+{
+  "prospective_step_voltage_v": 561.7,
+  "prospective_touch_voltage_v": 0.0,
+  "recommended_mitigations": [],
+  "status": "COMPLIANT",
+  "step_hazard_controlled": true,
+  "step_safety_margin_v": 561.7,
+  "surface_derating_factor_cs": 1.0,
+  "tolerable_step_voltage_v": 1123.4,
+  "tolerable_touch_voltage_v": 807.4,
+  "touch_hazard_controlled": true,
+  "touch_safety_margin_v": 807.4
+}

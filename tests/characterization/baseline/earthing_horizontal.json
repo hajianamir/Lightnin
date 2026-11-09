@@ -1,0 +1,14 @@
+{
+  "actual_effective_length_m": 30.0,
+  "effective_soil_resistivity_ohm_m": 100.0,
+  "impulse_efficiency_factor": 0.75,
+  "impulse_impedance_z_ohm": 4.57,
+  "lps_class": "I",
+  "meets_iec_l1_requirement": true,
+  "meets_recommended_10_ohm": true,
+  "method_details": "Type A Horizontal Strip (L=30.0m, depth=0.5m, Sunde formula): R_stat=6.09 ohm",
+  "minimum_length_l1_m": 5.0,
+  "stationary_resistance_r_ohm": 6.09,
+  "status": "PASS",
+  "warnings": []
+}

@@ -1,0 +1,9 @@
+{
+  "actual_horizontal_distance_m": 2.0,
+  "applicable": true,
+  "clearance_margin_m": 3.0,
+  "protected": true,
+  "protected_radius_at_z_m": 5.0,
+  "protective_angle_deg": 45.0,
+  "status": "PROTECTED"
+}

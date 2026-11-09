@@ -1,0 +1,43 @@
+{
+  "coordination_details": [
+    "Type 1 SPD installed at main service entrance boundary",
+    "Type 2 SPD installed at secondary power distribution board",
+    "Voltage protection level Up (1.2 kV) complies with equipment withstand (2.5 kV)",
+    "Maximum effective protective distance without terminal SPD: 13.0 m"
+  ],
+  "effective_protection_distance_m": 13.0,
+  "energy_coordination_verified": false,
+  "equipment": {
+    "category": "Cat II",
+    "uw_kv": 2.5
+  },
+  "spds": [
+    {
+      "cable_length_to_downstream_m": 5.0,
+      "i_imp_ka": 25.0,
+      "i_n_ka": 20.0,
+      "id": "t1",
+      "installed_lpz_boundary": "LPZ 0B / 1",
+      "spd_class": "Type 1",
+      "technology": "spark_gap",
+      "uc_volts": 275.0,
+      "up_kv": 1.5
+    },
+    {
+      "cable_length_to_downstream_m": 15.0,
+      "i_imp_ka": 25.0,
+      "i_n_ka": 20.0,
+      "id": "t2",
+      "installed_lpz_boundary": "LPZ 0B / 1",
+      "spd_class": "Type 2",
+      "technology": "varistor_mov",
+      "uc_volts": 275.0,
+      "up_kv": 1.2
+    }
+  ],
+  "status": "ACTION_REQUIRED",
+  "voltage_protection_verified": true,
+  "warnings": [
+    "Cable length between Type 1 spark gap and downstream SPD (5.0m) is less than 10m. Risk of premature MOV destruction before spark-gap fires without decoupling inductor."
+  ]
+}

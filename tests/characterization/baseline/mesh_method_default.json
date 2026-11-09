@@ -1,0 +1,15 @@
+{
+  "actual_mesh_dimensions": [
+    5.0,
+    5.0
+  ],
+  "is_fully_compliant": true,
+  "lps_class": "I",
+  "max_permitted_mesh_dim_m": 5.0,
+  "mesh_size_compliant": true,
+  "perimeter_conductor_compliant": true,
+  "recommendations": [],
+  "status": "COMPLIANT",
+  "unprotected_protrusions_count": 0,
+  "warnings": []
+}

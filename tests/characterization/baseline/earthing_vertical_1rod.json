@@ -1,0 +1,17 @@
+{
+  "actual_effective_length_m": 3.0,
+  "effective_soil_resistivity_ohm_m": 100.0,
+  "impulse_efficiency_factor": 0.189,
+  "impulse_impedance_z_ohm": 6.79,
+  "lps_class": "I",
+  "meets_iec_l1_requirement": false,
+  "meets_recommended_10_ohm": false,
+  "method_details": "Type A Vertical (1 rods x 3.0m, spacing=5.0m, Dwight + Mutual Coupling): R_stat=35.99 ohm",
+  "minimum_length_l1_m": 5.0,
+  "stationary_resistance_r_ohm": 35.99,
+  "status": "NON_COMPLIANT",
+  "warnings": [
+    "Electrode effective length (3.0m) is below mandatory IEC 62305-3 l1 requirement (5.0m)",
+    "Stationary resistance (35.99 ohm) exceeds standard 10 ohm recommendation"
+  ]
+}

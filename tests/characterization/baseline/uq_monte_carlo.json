@@ -1,0 +1,51 @@
+{
+  "earthing_p95_resistance_ohm": 3.01,
+  "engineering_insights": [
+    "Evaluated 2,000 stochastic Monte Carlo realizations for LPS Class I.",
+    "Nominal separation distance: 0.653m | 95th Percentile (P95): 0.837m | 99th Percentile (P99): 0.925m.",
+    "Probability of separation-distance violation at physical clearance 1.00m is 0.1%.",
+    "Primary sensitivity driver: 'current_sharing_kc' accounts for 55.0% of output variance.",
+    "95% confidence upper bound for earthing resistance is 3.01 ohm."
+  ],
+  "histogram_bins": [
+    0.384873675,
+    0.446104116,
+    0.507334557,
+    0.568564998,
+    0.629795438,
+    0.691025879,
+    0.75225632,
+    0.813486761,
+    0.874717202,
+    0.935947643,
+    0.997178084,
+    1.05840852
+  ],
+  "histogram_counts": [
+    8,
+    66,
+    206,
+    357,
+    458,
+    405,
+    272,
+    141,
+    56,
+    24,
+    6,
+    1
+  ],
+  "mean_s_req_m": 0.653,
+  "num_samples": 2000,
+  "p50_median_s_m": 0.646,
+  "p95_s_m": 0.837,
+  "p99_s_m": 0.925,
+  "probability_of_violation_pct": 0.1,
+  "sobol_first_order_indices": {
+    "conductor_length_l": 0.366,
+    "current_sharing_kc": 0.55,
+    "insulation_medium_km": 0.084
+  },
+  "status": "RELIABLE",
+  "std_s_req_m": 0.106
+}

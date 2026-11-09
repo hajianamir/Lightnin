@@ -1,0 +1,17 @@
+[
+  {
+    "clearance_z_m": 4.97498436,
+    "protected": true,
+    "protective_height_z_m": 9.97498436
+  },
+  {
+    "clearance_z_m": 4.36491673,
+    "protected": true,
+    "protective_height_z_m": 9.36491673
+  },
+  {
+    "clearance_z_m": 4.0,
+    "protected": true,
+    "protective_height_z_m": 6.0
+  }
+]

@@ -1,0 +1,38 @@
+{
+  "coverage_percentage": 100.0,
+  "diagnostics": [
+    "Evaluated 5 critical rooftop target coordinates.",
+    "Optimal configuration achieved 100.0% coverage with 3 rods."
+  ],
+  "iterations_run": 150,
+  "pareto_score": 65.75,
+  "selected_rods": [
+    {
+      "cost_units": 100.0,
+      "height_m": 4.62925209,
+      "id": "rod-1",
+      "x": 13.1485794,
+      "y": -9.7141079,
+      "z": 15.0
+    },
+    {
+      "cost_units": 100.0,
+      "height_m": 4.07159339,
+      "id": "rod-opt-29",
+      "x": -7.6059441,
+      "y": 2.21672797,
+      "z": 15.0
+    },
+    {
+      "cost_units": 100.0,
+      "height_m": 5.0,
+      "id": "rod-opt-56",
+      "x": 5.89785347,
+      "y": 4.68261656,
+      "z": 15.0
+    }
+  ],
+  "status": "CONVERGED",
+  "total_rod_cost": 685.04,
+  "uncovered_targets_count": 0
+}
