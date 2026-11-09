@@ -174,12 +174,25 @@ def compute_all_snapshots() -> Dict[str, Any]:
     # 3. TouchStepEngine
     ts_engine = TouchStepEngine()
     raw["touch_step"] = {
-        "default": ts_engine.evaluate(TouchStepAssessmentInput()),
+        "default": ts_engine.evaluate(
+            TouchStepAssessmentInput(
+                earth_potential_rise_v=10000.0,
+                electrode_equivalent_radius_m=2.0,
+            )
+        ),
         "restricted_access_perimeter": ts_engine.evaluate(
-            TouchStepAssessmentInput(has_restricted_access_perimeter=True)
+            TouchStepAssessmentInput(
+                has_restricted_access_perimeter=True,
+                earth_potential_rise_v=10000.0,
+                electrode_equivalent_radius_m=2.0,
+            )
         ),
         "physical_insulation_barrier": ts_engine.evaluate(
-            TouchStepAssessmentInput(has_physical_insulation_barrier=True)
+            TouchStepAssessmentInput(
+                has_physical_insulation_barrier=True,
+                earth_potential_rise_v=10000.0,
+                electrode_equivalent_radius_m=2.0,
+            )
         ),
     }
 

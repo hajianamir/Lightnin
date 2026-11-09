@@ -43,22 +43,26 @@ def test_touch_and_step_hazard_control_dalziel():
     inp_hazard = TouchStepAssessmentInput(
         soil_resistivity_ohm_m=100.0,
         surface_layer_material="bare_soil",
-        has_physical_insulation_barrier=False
+        has_physical_insulation_barrier=False,
+        earth_potential_rise_v=10000.0,
+        electrode_equivalent_radius_m=2.0,
     )
     res_hazard = engine.evaluate(inp_hazard)
     assert res_hazard.status == "HAZARD_DETECTED"
     assert len(res_hazard.recommended_mitigations) > 0
 
-    # Compliant: High-resistivity asphalt surface layer and insulated barrier
+    # Compliant: High-resistivity asphalt surface layer (C_s derating raises U_touch,tol above prospective)
     inp_safe = TouchStepAssessmentInput(
         soil_resistivity_ohm_m=100.0,
         surface_layer_material="asphalt_5cm",
-        has_physical_insulation_barrier=True
+        has_physical_insulation_barrier=True,
+        earth_potential_rise_v=10000.0,
+        electrode_equivalent_radius_m=2.0,
     )
     res_safe = engine.evaluate(inp_safe)
     assert res_safe.status == "COMPLIANT"
     assert res_safe.touch_hazard_controlled is True
-    assert res_safe.prospective_touch_voltage_v == 0.0
+    assert res_safe.prospective_touch_voltage_v == pytest.approx(10000.0 / 3.0, abs=0.1)
 
 def test_spd_lpz_coordination_advanced():
     engine = SPDCoordinationEngine()
