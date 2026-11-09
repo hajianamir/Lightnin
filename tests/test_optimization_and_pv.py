@@ -4,6 +4,7 @@ from aegislps_engine.pv_module import PVEngineeringModule, PVArraySpecification
 from aegislps_engine.cad_export import GLTF3DExporter
 from aegislps_domain.integrity import ProjectIntegrityEngine
 
+@pytest.mark.xfail(strict=True, reason="C1 physics: ground-referenced single-rod protection at roof z=15 m with R=20 m is <= 0.635 m; no roof coverage is reached by the 1..5 m rods in the current search space. Known open finding; see docs/KNOWN_ISSUES.md H7 / optimizer redesign (step 3.3).")
 def test_design_optimization_coverage_improvement():
     engine = DesignOptimizationEngine()
     inp = OptimizationInput(
@@ -15,8 +16,7 @@ def test_design_optimization_coverage_improvement():
     )
     res = engine.optimize_air_terminations(inp)
     assert len(res.selected_rods) >= 2
-    # Ground-referenced (z = 0) Class I R = 20 m single-rod radius at z = 15 m is <= 0.635 m
-    assert res.coverage_percentage == 0.0
+    assert res.coverage_percentage >= 50.0
     assert res.total_rod_cost > 0
     assert res.iterations_run == 50
 

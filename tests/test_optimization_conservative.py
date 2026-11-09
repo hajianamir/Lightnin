@@ -105,22 +105,24 @@ def test_best_score_never_worse_than_any_visited_state():
 def test_regression_h7a_preserves_best_state_after_late_degradation():
     """D.3: Regression against H7-a (overwriting best_* with accepted worse walker states).
 
-    Construction:
-    - Set roof_height_m = 4.0 m with Class I sphere radius R = 20.0 m and default perimeter
-      targets t1..t4 at (±13, ±8, z = 4.0) plus HVAC target t5 at (0, 0, z = 5.5).
-    - Initial 4 corner rods sit at (±14, ±9, z = 4.0) with height_m = 3.0 (tip_z = 7.0 m),
-      horizontal distance sqrt(2) ~= 1.414 m from t1..t4. Under ground-referenced rolling
-      sphere geometry, rho(4.0) = sqrt(231) - 12 ~= 3.199 m >= 1.414 m, so initial state
-      covers 4/5 targets (80.0%, 4 rods, score = 4 - 0.2 * 4 = 3.2).
-    - With random_seed = 1 and iterations = 11, high-temperature simulated annealing accepts
-      worsening mutations at step 2 (4/5 with 4 rods -> 3/5 with 3 rods, score 3.2 -> 2.4),
-      step 4 (3/5 with 3 rods -> 3/5 with 4 rods, score 2.4 -> 2.2), and on the final step 11
-      (3/5 with 4 rods -> 3/5 with 5 rods, score 2.2 -> 2.0), never recovering before
-      iterations runs out.
-    - Because the annealing walker in _search uses the exact same mutations and RNG draws as
-      the old H7-a loop, trajectory[-1] == (3, 5) (60.0% coverage, score 2.0) is the exact
-      degraded state the old code would have returned, whereas strict best-state tracking
-      preserves (4, 4) (80.0% coverage, score 3.2).
+    Input:
+    - OptimizationInput(roof_height_m=4.0, iterations=11, random_seed=1) with default
+      Class I sphere radius R = 20.0 m, building_bounds = (-15.0, -10.0, 15.0, 10.0),
+      perimeter targets t1..t4 at (±13, ±8, z = 4.0), and HVAC target t5 at (0, 0, z = 5.5).
+    - Under ground-referenced rolling-sphere geometry, the initial 4 corner rods at
+      (±14, ±9, z = 4.0, height_m = 3.0, tip_z = 7.0 m) cover 4/5 targets (80.0%, 4 rods,
+      score = 3.2), while simulated annealing accepts worsening transitions at steps 2, 4,
+      and 11, ending at walker state (3, 5) (60.0% coverage, 5 rods, score = 2.0) with no
+      remaining iterations to recover.
+
+    Validation:
+    - Validated by the runtime mutation test in
+      test_mutation_h7a_last_accepted_logic_fails_d3_expectation, which restores ONLY the
+      old H7-a last-accepted best-state overwrite logic on top of the corrected
+      RollingSphereEngine coverage rule (that mutant returns 60.0% coverage with 5 rods).
+    - Unmodified commit 31796ba does NOT return 60.0% on this input; 31796ba returns
+      100.0% coverage with 7 rods because its coverage geometry was the old ungrounded
+      tip-suspended sphere formula (C1).
     """
     engine = DesignOptimizationEngine()
     inp = OptimizationInput(roof_height_m=4.0, iterations=11, random_seed=1)
@@ -234,3 +236,76 @@ def test_geometry_rule_matches_rolling_sphere_oracle_and_rejects_old_formula():
     )
     assert res_exposed.coverage_percentage == (100.0 if oracle_outside else 0.0)
     assert res_exposed.uncovered_targets_count == (0 if oracle_outside else 1)
+
+
+def test_mutation_h7a_last_accepted_logic_fails_d3_expectation(tmp_path, monkeypatch):
+    """Mutation check for D.3: swapping in H7-a last-accepted best-state logic degrades 80%/4 rods -> 60%/5 rods.
+
+    Method:
+    - First run the real DesignOptimizationEngine on the D.3 input and verify 80.0% coverage
+      with 4 rods (score = 3.2).
+    - Next write a temporary copy of optimization.py into tmp_path (outside the repository)
+      replacing ONLY the strict best-state update (`if cand_score > best_score:`) with the
+      old H7-a behavior (overwriting best_* whenever a simulated-annealing step is accepted),
+      keeping the corrected RollingSphereEngine coverage rule unchanged.
+    - Monkeypatch DesignOptimizationEngine._search at runtime with the mutant implementation
+      and assert that it returns 60.0% coverage with 5 rods (score = 2.0), causing the D.3
+      expectation (80.0% coverage with 4 rods) to fail.
+    """
+    import importlib.util
+    import inspect
+    from pathlib import Path
+
+    inp = OptimizationInput(roof_height_m=4.0, iterations=11, random_seed=1)
+
+    real_res = DesignOptimizationEngine().optimize_air_terminations(inp)
+    assert real_res.coverage_percentage == pytest.approx(80.0)
+    assert len(real_res.selected_rods) == 4
+    assert real_res.uncovered_targets_count == 1
+
+    opt_path = Path(inspect.getfile(DesignOptimizationEngine))
+    src = opt_path.read_text(encoding="utf-8")
+
+    fixed_block = """            if cand_score > best_score:
+                best_rods = list(temp_rods)
+                best_covered = cur_cov
+                best_pct = cur_pct
+                best_score = cand_score
+
+            # Objective: Maximize coverage, minimize rod count
+            score_delta = (cur_cov - current_covered) - 0.2 * (len(temp_rods) - len(current_rods))
+            if score_delta > 0 or np.exp(score_delta / max(1e-4, temperature)) > np.random.rand():
+                current_rods = temp_rods
+                current_covered = cur_cov
+                current_pct = cur_pct"""
+
+    mutant_block = """            # Objective: Maximize coverage, minimize rod count (H7-a mutant)
+            score_delta = (cur_cov - current_covered) - 0.2 * (len(temp_rods) - len(current_rods))
+            if score_delta > 0 or np.exp(score_delta / max(1e-4, temperature)) > np.random.rand():
+                current_rods = temp_rods
+                current_covered = cur_cov
+                current_pct = cur_pct
+                best_rods = list(temp_rods)
+                best_covered = cur_cov
+                best_pct = cur_pct"""
+
+    assert fixed_block in src
+    mutant_file = tmp_path / "optimization_h7a_mutant.py"
+    mutant_file.write_text(src.replace(fixed_block, mutant_block, 1), encoding="utf-8")
+
+    spec = importlib.util.spec_from_file_location("optimization_h7a_mutant", mutant_file)
+    assert spec is not None and spec.loader is not None
+    mutant_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mutant_mod)
+
+    monkeypatch.setattr(
+        DesignOptimizationEngine, "_search", mutant_mod.DesignOptimizationEngine._search
+    )
+    mutant_res = DesignOptimizationEngine().optimize_air_terminations(inp)
+
+    assert mutant_res.coverage_percentage == pytest.approx(60.0)
+    assert len(mutant_res.selected_rods) == 5
+    assert mutant_res.uncovered_targets_count == 2
+
+    with pytest.raises(AssertionError):
+        test_regression_h7a_preserves_best_state_after_late_degradation()
