@@ -22,8 +22,8 @@ This register tracks all known engineering, mathematical-formulation, security, 
 | H8 | High | `protective_angle.py` | open | 2.4 | Table values. |
 | H9 | High | All modules | open | 2.7 | Invalid inputs silently defaulted. |
 | H10 | High | `docs/33`, `docs/35`, `docs/28`, `docs/29` | open | 0.3 (documentation part only) | Documentation labelled in 0.3. Entry stays `open` until the claims are corrected by code. |
-| H11 | High | `packages/domain-model/integrity.py` | open | 4.3 | Hard-coded HMAC secret. |
-| H12 | High | `apps/web/src/App.tsx`, `services/api/main.py` | open | 4.1, 4.2 | localhost fetch and CORS. |
+| H11 | High | `packages/domain-model/aegislps_domain/integrity.py` | open | 4.3 | Hard-coded HMAC secret. |
+| H12 | High | `apps/web/src/App.tsx`, `services/api/aegislps_api/main.py` | open | 4.1, 4.2 | localhost fetch and CORS. |
 | H13 | High | `ifc_importer.py` | open | 4.4 | Stub returns fixed dimensions. |
 | H14 | High | `tests/` | open | 5.1, 3.4 | Tautological assertions. |
 | H15 | High | `spd_coordination.py` | open | 2.6 | Empirical l_prot. Documented in step 0.3. |
@@ -34,7 +34,7 @@ This register tracks all known engineering, mathematical-formulation, security, 
 | M5 | Low | `pv_module.py` | open | UNASSIGNED | Plan gap. kc fixed at 0.5, unused inputs. |
 | M6 | Low | `earth_pit.py` | open | UNASSIGNED | Plan gap. rho_c values need a source. |
 | M7 | Low | `earth_rod_sizing.py` | open | UNASSIGNED | Plan gap. Copper-clad diameter mismatch between docstring and code. |
-| M8 | Medium | `.github/workflows/ci.yml` | open | 5.2 | build step uses `|| true`. |
+| M8 | Medium | `.github/workflows/ci.yml` | open | 5.2 | build step uses `\|\| true`. |
 | M9 | Medium | `apps/desktop/tauri.conf.json` | open | 5.3 | Old schema, missing sidecar, unsafe-eval in CSP. |
 | M10 | Low | `run_aegislps.py` | open | 4.5 | Message says server is running but it is not started. |
 | M11 | Low | Git index | open | 0.2 | Bytecode removed from the index in step 0.2. Entry stays `open` until verified in the phase 6 review. |
