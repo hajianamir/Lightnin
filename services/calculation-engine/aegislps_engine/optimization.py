@@ -2,6 +2,8 @@ import numpy as np
 from typing import List, Dict, Any, Tuple
 from pydantic import BaseModel, Field
 
+from aegislps_geometry.rolling_sphere import RollingSphereEngine
+
 class CandidateRod(BaseModel):
     id: str
     x: float
@@ -46,10 +48,18 @@ class DesignOptimizationEngine:
     - Maximal rolling-sphere geometric protection coverage
     - Zero separation-distance violation constraints
     Uses simulated annealing with stochastic multi-candidate mutations.
+
+    Geometric coverage is evaluated via RollingSphereEngine(r).check_surface_exposure
+    using ground z = 0 as the reference plane and absolute rod tip elevation
+    tip_z = rod.z + rod.height_m above z = 0 (replacing the earlier sphere
+    formula referenced only to the rod tip without ground contact).
     """
-    def optimize_air_terminations(self, inp: OptimizationInput) -> OptimizationResult:
+    def _search(
+        self, inp: OptimizationInput
+    ) -> Tuple[OptimizationResult, List[Tuple[int, float]]]:
         np.random.seed(inp.random_seed)
         r = inp.target_sphere_radius_m
+        rs = RollingSphereEngine(r)
         min_x, min_y, max_x, max_y = inp.building_bounds
         targets = inp.targets_to_protect
 
@@ -80,24 +90,28 @@ class DesignOptimizationEngine:
                 target_covered = False
                 for rod in rods:
                     tip_z = rod.z + rod.height_m
-                    d_horiz = np.sqrt((t.x - rod.x)**2 + (t.y - rod.y)**2)
-                    if d_horiz <= r:
-                        # Bottom of rolling sphere resting on rod tip
-                        sphere_bottom = tip_z - (r - np.sqrt(max(0.0, r**2 - d_horiz**2)))
-                        if t.z <= sphere_bottom:
-                            target_covered = True
-                            break
+                    if rs.check_surface_exposure(
+                        t.x, t.y, t.z, rod.x, rod.y, tip_z
+                    )["protected"]:
+                        target_covered = True
+                        break
                 if target_covered:
                     covered_count += 1
             return covered_count, (covered_count / max(1, len(targets))) * 100.0
 
+        def score(covered: int, n_rods: int) -> float:
+            return covered - 0.2 * n_rods
+
+        current_covered, current_pct = evaluate_coverage(current_rods)
         best_rods = list(current_rods)
-        best_covered, best_pct = evaluate_coverage(best_rods)
+        best_covered, best_pct = current_covered, current_pct
+        best_score = score(best_covered, len(best_rods))
+        trajectory: List[Tuple[int, float]] = [(current_covered, len(current_rods))]
         temperature = 1.0
 
         # Simulated annealing search
         for step in range(inp.iterations):
-            temp_rods = list(best_rods)
+            temp_rods = list(current_rods)
             mutation_choice = np.random.choice(["move", "height", "add", "remove"])
 
             if mutation_choice == "move" and temp_rods:
@@ -123,21 +137,29 @@ class DesignOptimizationEngine:
                 temp_rods.pop(idx)
 
             cur_cov, cur_pct = evaluate_coverage(temp_rods)
+            cand_score = score(cur_cov, len(temp_rods))
 
-            # Objective: Maximize coverage, minimize rod count
-            score_delta = (cur_cov - best_covered) - 0.2 * (len(temp_rods) - len(best_rods))
-            if score_delta > 0 or np.exp(score_delta / max(1e-4, temperature)) > np.random.rand():
-                best_rods = temp_rods
+            if cand_score > best_score:
+                best_rods = list(temp_rods)
                 best_covered = cur_cov
                 best_pct = cur_pct
+                best_score = cand_score
 
+            # Objective: Maximize coverage, minimize rod count
+            score_delta = (cur_cov - current_covered) - 0.2 * (len(temp_rods) - len(current_rods))
+            if score_delta > 0 or np.exp(score_delta / max(1e-4, temperature)) > np.random.rand():
+                current_rods = temp_rods
+                current_covered = cur_cov
+                current_pct = cur_pct
+
+            trajectory.append((current_covered, len(current_rods)))
             temperature *= 0.98
 
         uncovered = len(targets) - best_covered
         total_cost = sum([r.cost_units * (r.height_m / 2.0) for r in best_rods])
         pareto = float(best_pct - 0.05 * total_cost)
 
-        return OptimizationResult(
+        result = OptimizationResult(
             selected_rods=best_rods,
             uncovered_targets_count=uncovered,
             coverage_percentage=round(best_pct, 1),
@@ -150,3 +172,9 @@ class DesignOptimizationEngine:
                 f"Optimal configuration achieved {best_pct:.1f}% coverage with {len(best_rods)} rods."
             ]
         )
+        return result, trajectory
+
+    def optimize_air_terminations(self, inp: OptimizationInput) -> OptimizationResult:
+        """ Optimize air-termination rods using ground-referenced (z = 0) rolling-sphere coverage. """
+        result, _ = self._search(inp)
+        return result
