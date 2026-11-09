@@ -9,7 +9,7 @@
       "face_id": "tri_under",
       "is_protected": true,
       "penetration_depth_m": 0.0,
-      "sphere_bottom_z_m": 9.91,
+      "sphere_bottom_z_m": 9.44,
       "status": "PROTECTED"
     },
     {
@@ -18,12 +18,12 @@
       "centroid_z": 2.0,
       "face_id": "tri_far",
       "is_protected": false,
-      "penetration_depth_m": 1.95,
-      "sphere_bottom_z_m": 0.07,
+      "penetration_depth_m": 2.0,
+      "sphere_bottom_z_m": 0.0,
       "status": "EXPOSED"
     }
   ],
-  "sphere_radius_m": 313.0,
+  "sphere_radius_m": 20.0,
   "status": "PARTIAL_EXPOSURE",
   "unprotected_faces_count": 1
 }

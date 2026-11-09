@@ -14,7 +14,6 @@ from aegislps_engine.optimization import (
 from aegislps_geometry.rolling_sphere import (
     RollingSphereEngine,
     protected_radius_at_height,
-    rolling_sphere_radius_m,
 )
 
 
@@ -69,14 +68,14 @@ def _score(covered: int, n_rods: float) -> float:
 
 
 def test_coverage_consistency_with_rolling_sphere_engine():
-    """D.1: Returned coverage_percentage matches RollingSphereEngine(Class I) on default targets."""
+    """D.1: Returned coverage_percentage matches RollingSphereEngine(20) on default targets."""
     engine = DesignOptimizationEngine()
     inp = OptimizationInput()
     result = engine.optimize_air_terminations(inp)
 
     targets = _default_targets(inp)
     recomputed_pct = _oracle_coverage_pct(
-        result.selected_rods, targets, sphere_radius_m=rolling_sphere_radius_m("I")
+        result.selected_rods, targets, sphere_radius_m=20.0
     )
     assert abs(recomputed_pct - result.coverage_percentage) <= 0.1
 
@@ -126,12 +125,7 @@ def test_regression_h7a_preserves_best_state_after_late_degradation():
       tip-suspended sphere formula (C1).
     """
     engine = DesignOptimizationEngine()
-    inp = OptimizationInput(
-        roof_height_m=4.0,
-        target_sphere_radius_m=20.0,
-        iterations=11,
-        random_seed=1,
-    )
+    inp = OptimizationInput(roof_height_m=4.0, iterations=11, random_seed=1)
 
     result = engine.optimize_air_terminations(inp)
     targets = _default_targets(inp)
@@ -262,12 +256,7 @@ def test_mutation_h7a_last_accepted_logic_fails_d3_expectation(tmp_path, monkeyp
     import inspect
     from pathlib import Path
 
-    inp = OptimizationInput(
-        roof_height_m=4.0,
-        target_sphere_radius_m=20.0,
-        iterations=11,
-        random_seed=1,
-    )
+    inp = OptimizationInput(roof_height_m=4.0, iterations=11, random_seed=1)
 
     real_res = DesignOptimizationEngine().optimize_air_terminations(inp)
     assert real_res.coverage_percentage == pytest.approx(80.0)

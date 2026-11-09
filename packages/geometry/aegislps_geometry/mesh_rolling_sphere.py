@@ -3,10 +3,7 @@ import numpy as np
 from typing import List, Dict, Any, Tuple
 from pydantic import BaseModel, Field
 
-from aegislps_geometry.rolling_sphere import (
-    protected_radius_at_height,
-    rolling_sphere_radius_m,
-)
+from aegislps_geometry.rolling_sphere import protected_radius_at_height
 
 BARYCENTRIC_SUBDIVISION_N: int = 12
 
@@ -43,9 +40,7 @@ class TriangleFace(BaseModel):
 
 
 class MeshRollingSphereInput(BaseModel):
-    sphere_radius_m: float = Field(
-        default_factory=lambda: rolling_sphere_radius_m(lps_class="I")
-    )
+    sphere_radius_m: float = 20.0  # Class I default 20m
     triangles: List[TriangleFace] = Field(default_factory=list)
     air_termination_tips: List[Tuple[float, float, float]] = Field(default_factory=list)
 

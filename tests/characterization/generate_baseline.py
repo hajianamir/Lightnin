@@ -283,7 +283,7 @@ def compute_all_snapshots() -> Dict[str, Any]:
     }
 
     # 9. RollingSphereEngine
-    rs_engine = RollingSphereEngine()
+    rs_engine = RollingSphereEngine(20.0)
     raw["rolling_sphere"] = {
         "point_1_protected": rs_engine.check_surface_exposure(1.0, 0.0, 5.0, 0.0, 0.0, 10.0),
         "point_2_exposed_inside_radius": rs_engine.check_surface_exposure(
@@ -374,6 +374,7 @@ def compute_all_snapshots() -> Dict[str, Any]:
     )
     raw["mesh_rolling_sphere"] = ArbitraryMeshRollingSphereEngine().evaluate_mesh_protection(
         MeshRollingSphereInput(
+            sphere_radius_m=20.0,
             triangles=[tri_under, tri_far],
             air_termination_tips=[(0.0, 0.0, 10.0)],
         )
