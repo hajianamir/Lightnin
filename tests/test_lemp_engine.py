@@ -15,9 +15,9 @@ def test_heidler_first_positive_stroke_properties():
     )
     # Peak current must reach ~100 kA
     assert pytest.approx(np.max(current_ka), 0.05) == 100.0
-    # Peak occurs around 10-20 us
+    # With IEC 62305-1 Table A.1 parameters (tau1=19 us, tau2=485 us), peak occurs at ~31.4 us
     peak_time = t_us[np.argmax(current_ka)]
-    assert 5.0 <= peak_time <= 25.0
+    assert 28.0 <= peak_time <= 35.0
     assert max_di_dt > 0.0
 
 def test_heidler_subsequent_negative_stroke_steepness():
