@@ -1,5 +1,5 @@
 import math
-from typing import Dict, Optional
+from typing import Dict
 import numpy as np
 
 
@@ -21,58 +21,22 @@ ROLLING_SPHERE_RADIUS_M_BY_CLASS: Dict[str, float] = {
 }
 
 
-def rolling_sphere_radius_m(
-    lps_class: Optional[str] = None,
-    *,
-    current_ka: Optional[float] = None,
-) -> float:
+def rolling_sphere_radius_m(lps_class: str) -> float:
     """
     Return the rolling-sphere radius r [m] for the given LPS class per
     IEC 62305-3:2024, Clause 5.2.2.1, Table 2 (p. 21).
-
-    Valid classes are 'I' (20 m), 'II' (30 m), 'III' (45 m), and 'IV' (60 m).
-    Raises ValueError on unknown class, non-positive or unsupported current input,
-    NaN/infinite values, or boolean inputs.
     """
-    if isinstance(lps_class, bool) or isinstance(current_ka, bool):
+    if isinstance(lps_class, bool):
         raise ValueError("Boolean input is not valid for rolling_sphere_radius_m.")
-
-    if current_ka is not None:
-        if not isinstance(current_ka, (int, float)):
-            raise ValueError("current_ka must be a finite positive number.")
-        c_val = float(current_ka)
-        if not math.isfinite(c_val) or c_val <= 0.0:
-            raise ValueError(f"current_ka must be finite and > 0, got {current_ka!r}.")
-        raise ValueError(
-            "IEC 62305-3:2024, Clause 5.2.2.1, Table 2 specifies rolling-sphere "
-            "radius by LPS class ('I', 'II', 'III', 'IV'), not by current."
-        )
-
-    if lps_class is None:
-        raise ValueError("lps_class is required ('I', 'II', 'III', 'IV').")
-
-    if isinstance(lps_class, (int, float)):
-        num_val = float(lps_class)
-        if not math.isfinite(num_val):
-            raise ValueError(f"NaN or infinite input is not valid: {lps_class!r}.")
-        if num_val <= 0.0:
-            raise ValueError(f"Non-positive numeric/current input is not valid: {lps_class!r}.")
-        raise ValueError(
-            "lps_class must be a string ('I', 'II', 'III', 'IV') per "
-            "IEC 62305-3:2024, Clause 5.2.2.1, Table 2."
-        )
-
     if not isinstance(lps_class, str):
         raise ValueError(
             f"lps_class must be a string ('I', 'II', 'III', 'IV'), got {type(lps_class).__name__}."
         )
-
     cls = lps_class.strip().upper()
     if cls not in ROLLING_SPHERE_RADIUS_M_BY_CLASS:
         raise ValueError(
             f"Unknown LPS class {lps_class!r}. Expected one of 'I', 'II', 'III', 'IV'."
         )
-
     return float(ROLLING_SPHERE_RADIUS_M_BY_CLASS[cls])
 
 
@@ -88,8 +52,8 @@ def protected_radius_at_height(R: float, h: float, z: float) -> float:
         rho(z) = 0.0                                              for z >= h
 
     Domain:
-        R > 0, 0 <= h <= 2 * R, z >= 0 (all finite, non-boolean).
-        Raises ValueError if R <= 0, h < 0, h > 2 * R, z < 0, NaN/inf, or bool.
+        R > 0, 0 <= h <= 2 * R, z >= 0.
+        Raises ValueError if R <= 0, h < 0, h > 2 * R, or z < 0.
 
     Reference values (R = 20 m, h = 10 m):
         rho(0) = 17.3205 m
@@ -97,15 +61,10 @@ def protected_radius_at_height(R: float, h: float, z: float) -> float:
         rho(5) =  4.0917 m
         rho(8) =  1.3205 m
     """
-    if isinstance(R, bool) or isinstance(h, bool) or isinstance(z, bool):
-        raise ValueError("Boolean input is not valid for protected_radius_at_height.")
-
     r_val = float(R)
     h_val = float(h)
     z_val = float(z)
 
-    if not (math.isfinite(r_val) and math.isfinite(h_val) and math.isfinite(z_val)):
-        raise ValueError(f"Inputs R, h, z must be finite numbers, got ({R}, {h}, {z})")
     if r_val <= 0.0:
         raise ValueError(f"Sphere radius R must be > 0, got {R}")
     if h_val < 0.0 or h_val > 2.0 * r_val:
@@ -123,30 +82,13 @@ def protected_radius_at_height(R: float, h: float, z: float) -> float:
 
 class RollingSphereEngine:
     """
-    3D Analytical Rolling Sphere Engine for IEC 62305-3:2024 protection assessment.
+    3D Analytical Rolling Sphere Engine for IEC 62305-3 protection assessment.
     Determines surface exposure and clearance without depending on WebGL rendering.
-
-    Default sphere radius corresponds to LPS Class I (20 m) from
-    IEC 62305-3:2024, Clause 5.2.2.1, Table 2 (p. 21).
     """
-    def __init__(
-        self,
-        sphere_radius_m: Optional[float] = None,
-        *,
-        lps_class: Optional[str] = None,
-    ):
-        if sphere_radius_m is not None and lps_class is not None:
-            raise ValueError("Specify either sphere_radius_m or lps_class, not both.")
-        if sphere_radius_m is None:
-            cls = "I" if lps_class is None else lps_class
-            r_val = rolling_sphere_radius_m(cls)
-        else:
-            if isinstance(sphere_radius_m, bool):
-                raise ValueError("Boolean input is not valid for sphere_radius_m.")
-            r_val = float(sphere_radius_m)
-            if not math.isfinite(r_val) or r_val <= 0.0:
-                raise ValueError(f"sphere_radius_m must be finite and > 0, got {sphere_radius_m}")
-        self.r = r_val
+    def __init__(self, sphere_radius_m: float = 20.0):  # 20m for Class I
+        if float(sphere_radius_m) <= 0.0:
+            raise ValueError(f"sphere_radius_m must be > 0, got {sphere_radius_m}")
+        self.r = float(sphere_radius_m)
 
     def check_surface_exposure(self, point_x: float, point_y: float, point_z: float,
                                rod_x: float, rod_y: float, rod_height_m: float) -> dict:
