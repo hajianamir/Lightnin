@@ -3,6 +3,8 @@
 This register tracks all known engineering, mathematical-formulation, security, build, integration, and test findings identified in the AegisLPS codebase review, recording each finding's base ID, severity, affected module or file(s), current remediation status, and planned remediation step.
 
 > Status `open` means the finding is not yet fixed in code. A finding can be documented-as-unverified (step 0.3) and still be `open`.
+>
+> Status `fixed in code, pending verification` means the code change has passed supervisor review at the stated commit, but the finding is not yet closed in the register.
 
 ## Findings
 
@@ -12,8 +14,8 @@ This register tracks all known engineering, mathematical-formulation, security, 
 | C2 | Critical | `touch_step.py` | open | 1.3 | Documented as UNVERIFIED in step 0.3. Progress: 1.3 PASS 19a607a. |
 | C3 | Critical | `lemp_engine.py` | open | 1.4 | Sub-item C3-b (K_MS) is planned in step 1.5. Progress: 1.4 PASS 434a727. C3-b: 1.5 PASS 6719bb9. |
 | C4 | Critical | `rolling_sphere.py`, `mesh_rolling_sphere.py` | open | 1.6 (done) | Base C4: rolling-sphere radius per IEC 62305-3:2024, Clause 5.2.2.1, Table 2. Step 1.6 PASS at f9d880b. Sub-item C4-b (l1 table, `earthing.py`, `get_iec_min_length_l1`) is planned in step 2.4. The earlier file list (`earthing.py`, `earth_pit.py`, `separation.py`) was incorrect; those files are covered by H1, H2, H4, H5 and M6. |
-| H1 | High | `separation.py` | open | 1.7 | kc from segment count. |
-| H2 | High | `separation.py` | open | 1.7 | l in s equals node height, not route length. |
+| H1 | High | `separation.py` | fixed in code, pending verification | 1.7 | kc from segment count. Step 1.7 PASS at 8e422f8 (Table 11–13 k_c by conductor count, 6.3.1). Status stays until verification is closed. |
+| H2 | High | `separation.py` | fixed in code, pending verification | 1.7 | l in s equals node height, not route length. Step 1.7 PASS at 8e422f8 (route length used when given, otherwise node height with WARNING). Open notes: Eq. (5) multi-segment deferred; 6.3.1 NOTE 1 and bonded-framework exemption not implemented. |
 | H3 | High | `risk.py`, `comprehensive_risk.py` | open | 2.5 | |
 | H4 | High | `earthing.py`, `earth_rod_sizing.py` | open | 2.3 | Multi-rod coupling term. |
 | H5 | High | `earthing.py` | open | 2.1, 2.2 | Ring and strip prefactors. |
