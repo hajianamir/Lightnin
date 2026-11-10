@@ -2,7 +2,7 @@
   "segments_1": [
     {
       "actual_distance_m": 1.0,
-      "formula_trace": "s = ki * (kc / km) * l = 0.08 * (1.0 / 1.0) * 15.00m = 1.2000m",
+      "formula_trace": "IEC 62305-3:2024 Clause 6.3.2 Eq. (6): s = (ki / km) * kc * l = (0.08 / 1.0) * 1.0 * 15.00m = 1.2000m [kc: Table 13 fallback (kc=1.0); l: node.z vertical approximation (node n1)] | WARNING: down_conductor_count was not given; kc = 1.0 assumed per Table 13; route length was not given; approximated l = max(0, node.z), valid only for a straight vertical down conductor from the point to earth",
       "kc_used": 1.0,
       "ki_used": 0.08,
       "km_used": 1.0,
@@ -12,23 +12,23 @@
       "required_distance_s_m": 1.2,
       "safety_margin_m": -0.2,
       "separation_point_id": "sp1",
-      "status": "CALCULATED"
+      "status": "WARNING"
     }
   ],
   "segments_2": [
     {
       "actual_distance_m": 1.0,
-      "formula_trace": "s = ki * (kc / km) * l = 0.08 * (0.5 / 1.0) * 15.00m = 0.6000m",
-      "kc_used": 0.5,
+      "formula_trace": "IEC 62305-3:2024 Clause 6.3.2 Eq. (6): s = (ki / km) * kc * l = (0.08 / 1.0) * 1.0 * 15.00m = 1.2000m [kc: Table 13 fallback (kc=1.0); l: node.z vertical approximation (node n1)] | WARNING: down_conductor_count was not given; kc = 1.0 assumed per Table 13; route length was not given; approximated l = max(0, node.z), valid only for a straight vertical down conductor from the point to earth",
+      "kc_used": 1.0,
       "ki_used": 0.08,
       "km_used": 1.0,
       "length_l_m": 15.0,
       "lps_class": "I",
-      "pass_compliance": true,
-      "required_distance_s_m": 0.6,
-      "safety_margin_m": 0.4,
+      "pass_compliance": false,
+      "required_distance_s_m": 1.2,
+      "safety_margin_m": -0.2,
       "separation_point_id": "sp1",
-      "status": "CALCULATED"
+      "status": "WARNING"
     }
   ]
 }

@@ -1,6 +1,7 @@
 from enum import Enum
-from typing import List, Optional, Dict
-from pydantic import BaseModel, Field
+import math
+from typing import Any, List, Optional, Dict
+from pydantic import BaseModel, Field, field_validator
 import uuid
 
 class CalculationStatus(str, Enum):
@@ -39,8 +40,25 @@ class SeparationPoint(BaseModel):
     y: float
     z: float
     associated_node_id: str
-    insulation_medium: str = "air" # air, solid
+    insulation_medium: str = "air" # air, solid, insulating_standoff
     physical_distance_m: float
+    route_length_to_bonding_m: Optional[float] = None
+
+    @field_validator("route_length_to_bonding_m", mode="before")
+    @classmethod
+    def _validate_route_length_to_bonding_m(cls, v: Any) -> Optional[float]:
+        if v is None:
+            return None
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError(
+                "route_length_to_bonding_m must be a finite number > 0, not bool."
+            )
+        val = float(v)
+        if not math.isfinite(val) or val <= 0.0:
+            raise ValueError(
+                f"route_length_to_bonding_m must be finite and > 0, got {v!r}."
+            )
+        return val
 
 class Building(BaseModel):
     length_m: float = 20.0
@@ -66,9 +84,37 @@ class Project(BaseModel):
     project_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str = "New AegisLPS Project"
     lps_class: str = "I"
+    down_conductor_count: Optional[int] = None
+    earth_resistances_within_factor_2: Optional[bool] = None
     building: Building = Field(default_factory=Building)
     nodes: List[ConductorNode] = Field(default_factory=list)
     segments: List[ConductorSegment] = Field(default_factory=list)
     separation_points: List[SeparationPoint] = Field(default_factory=list)
     results: List[SeparationCalculationResult] = Field(default_factory=list)
     schema_version: str = "1.0.0"
+
+    @field_validator("down_conductor_count", mode="before")
+    @classmethod
+    def _validate_down_conductor_count(cls, v: Any) -> Optional[int]:
+        if v is None:
+            return None
+        if isinstance(v, bool) or not isinstance(v, int):
+            raise ValueError(
+                "down_conductor_count must be a positive int, not bool."
+            )
+        if v <= 0:
+            raise ValueError(
+                f"down_conductor_count must be a positive int (> 0), got {v}."
+            )
+        return v
+
+    @field_validator("earth_resistances_within_factor_2", mode="before")
+    @classmethod
+    def _validate_earth_resistances_within_factor_2(cls, v: Any) -> Optional[bool]:
+        if v is None:
+            return None
+        if not isinstance(v, bool):
+            raise ValueError(
+                "earth_resistances_within_factor_2 must be a bool or None."
+            )
+        return v
