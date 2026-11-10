@@ -164,6 +164,7 @@ def compute_all_snapshots() -> Dict[str, Any]:
             EarthingAssessmentInput(
                 electrode_type="type_a_horizontal",
                 ring_radius_m=15.0,
+                strip_length_m=30.0,
             )
         ),
         "foundation": earthing_engine.evaluate_earthing_system(

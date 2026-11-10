@@ -2,6 +2,10 @@ import numpy as np
 from typing import Dict, List, Any, Optional
 from pydantic import BaseModel, Field
 
+RING_METHOD_LABEL = (
+    "Sunde equivalent-radius form (approximate; primary-source confirmation pending)"
+)
+
 class SoilLayerModel(BaseModel):
     is_two_layer: bool = False
     rho_upper_ohm_m: float = 100.0
@@ -13,6 +17,7 @@ class EarthingAssessmentInput(BaseModel):
     soil: SoilLayerModel = Field(default_factory=SoilLayerModel)
     electrode_type: str = "type_b_ring" # type_a_vertical, type_a_horizontal, type_b_ring, foundation
     ring_radius_m: float = 15.0
+    strip_length_m: Optional[float] = None
     conductor_diameter_m: float = 0.01 # 10mm round conductor
     burial_depth_m: float = 0.5
     vertical_rod_length_m: float = 3.0
@@ -41,7 +46,9 @@ class EarthingEngine:
     Advanced IEC 62305-3 Section 5.4 & IEEE 80 Earthing Analysis Engine.
     
     Includes:
-    - Dwight & Sunde analytical formulations for rods, rings, and foundation meshes
+    - Dwight vertical-rod formulation, Sunde horizontal-strip formulation,
+      buried ring via Sunde equivalent-radius form (approximate; primary-source confirmation pending),
+      and Laurent & Nieman foundation mesh
     - Mutual coupling and array shielding efficiency factors for multiple vertical rods
     - Two-layer soil apparent resistivity modeling via Sunde reflection coefficient
     - Non-linear soil ionization impulse impedance reduction (Z_p) under high lightning currents
@@ -92,13 +99,13 @@ class EarthingEngine:
         if inp.electrode_type == "type_b_ring":
             r_ring = max(1.0, inp.ring_radius_m)
             effective_len = float(2.0 * np.pi * r_ring)
-            # Dwight's exact formulation for buried circular ring electrode:
-            # R = (rho / (2 * pi^2 * D)) * [ ln(8 * D / r) + ln(4 * D / h) ]
+            # Sunde equivalent-radius form (approximate; primary-source confirmation pending):
+            # R_ring = (rho / (pi^2 * D)) * ln(4 * D / sqrt(2 * a * h))
             d_ring = 2.0 * r_ring
-            term1 = np.log((8.0 * d_ring) / r_cond)
-            term2 = np.log((4.0 * d_ring) / h_depth)
-            r_dc = float((rho / (2.0 * (np.pi ** 2) * d_ring)) * (term1 + term2))
-            trace = f"Type B Ring (R_ring={r_ring}m, depth={h_depth}m, Dwight formula): R_stat={r_dc:.2f} ohm"
+            equiv_radius = np.sqrt(2.0 * r_cond * h_depth)
+            r_dc = float((rho / ((np.pi ** 2) * d_ring)) * np.log((4.0 * d_ring) / equiv_radius))
+            trace = f"Type B Ring (R_ring={r_ring}m, depth={h_depth}m, {RING_METHOD_LABEL}): R_stat={r_dc:.4f} ohm"
+            warnings.append(RING_METHOD_LABEL)
 
         elif inp.electrode_type == "type_a_vertical":
             l_rod = max(0.5, inp.vertical_rod_length_m)
@@ -120,7 +127,16 @@ class EarthingEngine:
             trace = f"Type A Vertical ({n_rods} rods x {l_rod}m, spacing={s_spacing}m, Dwight + Mutual Coupling): R_stat={r_dc:.2f} ohm"
 
         elif inp.electrode_type == "type_a_horizontal":
-            l_strip = max(1.0, inp.ring_radius_m * 2.0)
+            if (
+                inp.strip_length_m is None
+                or isinstance(inp.strip_length_m, bool)
+                or not np.isfinite(inp.strip_length_m)
+                or inp.strip_length_m <= 0.0
+            ):
+                raise ValueError(
+                    f"strip_length_m must be provided and > 0 for electrode_type='type_a_horizontal', got {inp.strip_length_m!r}."
+                )
+            l_strip = float(inp.strip_length_m)
             effective_len = float(l_strip)
             # Sunde formula for horizontal strip electrode buried at depth h:
             # R = (rho / (pi * L)) * [ ln(2 * L / sqrt(2 * r * h)) - 1 ]
@@ -158,13 +174,18 @@ class EarthingEngine:
             warnings.append(f"Stationary resistance ({r_dc:.2f} ohm) exceeds standard 10 ohm recommendation")
 
         status = "PASS" if (meets_l1 and meets_10) else ("WARNING" if meets_l1 else "NON_COMPLIANT")
+        r_stat_out = (
+            float(r_dc)
+            if inp.electrode_type in ("type_b_ring", "type_a_horizontal")
+            else round(float(r_dc), 2)
+        )
 
         return EarthingAssessmentResult(
             lps_class=inp.lps_class,
             effective_soil_resistivity_ohm_m=round(float(rho), 2),
             minimum_length_l1_m=round(float(l1), 2),
             actual_effective_length_m=round(float(effective_len), 2),
-            stationary_resistance_r_ohm=round(float(r_dc), 2),
+            stationary_resistance_r_ohm=r_stat_out,
             impulse_impedance_z_ohm=round(float(z_impulse), 2),
             impulse_efficiency_factor=round(float(impulse_factor), 3),
             meets_iec_l1_requirement=meets_l1,
