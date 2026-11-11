@@ -3,10 +3,10 @@
   "collection_area_ad_m2": 11461.7,
   "mitigation_recommendations": [],
   "risk_acceptable": true,
-  "risk_r1_loss_of_life": 8.59629384e-07,
+  "risk_r1_loss_of_life": 8.23811493e-07,
   "risk_ra_touch_step": 7.1635782e-07,
   "risk_rb_physical_damage": 7.1635782e-08,
-  "risk_rc_internal_systems": 7.1635782e-08,
+  "risk_rc_internal_systems": 3.5817891e-08,
   "status": "ACCEPTABLE (R1 <= RT)",
   "tolerable_risk_rt": 1e-05
 }
