@@ -6,7 +6,7 @@
     "Conforms to IEC 62561-2 Table 1 minimum diameter: 16.0 mm.",
     "Coating: Electroplated copper coating (250.0 um).",
     "Single rod resistance: 40.19 ohm.",
-    "Total array: 6 rods x 3.0 m spaced at 6.0 m achieves R_tot = 9.63 ohm (Target <= 10.0 ohm).",
+    "Total array: 5 rods x 3.0 m spaced at 6.0 m achieves R_tot = 9.65 ohm (Target <= 10.0 ohm).",
     "Foundation setback clearance: 1.0 m verified."
   ],
   "nominal_diameter_mm": 16.0,
@@ -30,17 +30,13 @@
     [
       -18.0,
       -13.5
-    ],
-    [
-      24.0,
-      -13.5
     ]
   ],
-  "required_number_of_rods": 6,
+  "required_number_of_rods": 5,
   "selected_material": "copper_bonded_steel",
   "single_rod_resistance_ohm": 40.19,
   "status": "SIZED_AND_COMPLIANT",
   "target_achieved": true,
-  "total_array_resistance_ohm": 9.63,
+  "total_array_resistance_ohm": 9.65,
   "unit_rod_length_m": 3.0
 }
