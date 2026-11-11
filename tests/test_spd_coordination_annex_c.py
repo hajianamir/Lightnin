@@ -18,7 +18,7 @@ from aegislps_engine.spd_coordination import (
 
 
 def test_rule1_simplified_up_limit():
-    """IEC 62305-4:2024 Clause C.2.3.1 & NOTE (pp. 87–89): conservative Rule 1 U_p <= 0.5 * U_w."""
+    """IEC 62305-4:2024 Clause C.2.3.1.2 (p. 88): U_p should not exceed 80 % of U_w when the equipment is <= 10 m from the entrance SPD. Clause C.2.3.1.4 (p. 89): for > 10 m, one-port SPD at the origin: U_p <= 50 % of U_w. The code applies the stricter 0.5 * U_w bound to all cases as a conservative screen (conservative screening bound (C.2.3.1.4))."""
     assert SPDCoordinationEngine.check_rule1_up(1.25, 2.5) is True
     assert SPDCoordinationEngine.check_rule1_up(1.20, 2.5) is True
     assert SPDCoordinationEngine.check_rule1_up(1.26, 2.5) is False
@@ -242,7 +242,7 @@ def test_limiting_vs_switching_give_distinct_l_max_for_identical_inputs():
 
 
 def test_default_lead_length_and_default_kr_emit_warnings():
-    """Omitting lead_length_m (0.5 m per C.2.5) or reflection_coefficient_kr (2.0 per C.2.3.2) emits warnings."""
+    """Omitting lead_length_m (should not be greater than 0,5 m per C.2.5) or reflection_coefficient_kr (2.0 per C.2.3.2) emits warnings."""
     engine = SPDCoordinationEngine()
     res = engine.evaluate_coordination(
         [

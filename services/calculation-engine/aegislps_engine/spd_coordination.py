@@ -9,9 +9,11 @@ _VALID_TECHNOLOGIES = ("spark_gap", "varistor_mov", "hybrid")
 
 # IEC 62305-4:2024 Clause C.2.3.3 Eq. (C.4) (p. 90): ΔU = 0.1 * I_SPD [kV/m]
 _EQ_C4_KV_PER_KA_M: float = 0.1
-# IEC 62305-4:2024 Clause C.2.5 (pp. 92–93): connecting lead length design limit 0.5 m
+# IEC 62305-4:2024 Clause C.2.5 (pp. 92–93): connecting lead length should not be greater than 0,5 m
 _DEFAULT_CONNECTING_LEAD_M: float = 0.5
-# IEC 62305-4:2024 Clause C.2.3.1 Rule 1 NOTE (p. 89): conservative one-port ratio 0.5 * U_w
+# IEC 62305-4:2024 Clause C.2.3.1.2 (p. 88): U_p should not exceed 80 % of U_w when the equipment is <= 10 m
+# from the entrance SPD. Clause C.2.3.1.4 (p. 89): for > 10 m, one-port SPD at the origin: U_p <= 50 % of U_w.
+# The code applies the stricter 0.5 * U_w bound to all cases as a conservative screen (conservative screening bound (C.2.3.1.4)).
 _RULE1_UW_FACTOR: float = 0.5
 
 
@@ -146,7 +148,11 @@ class SPDCoordinationEngine:
 
     Implements:
     - LPZ boundary presence & 10 m Type 1 spark-gap decoupling screening (IEC 61643-12)
-    - Simplified Rule 1 check ``U_p <= 0.5 * U_w`` (Clause C.2.3.1, conservative one-port rule)
+    - Simplified Rule 1 check ``U_p <= 0.5 * U_w`` (IEC 62305-4:2024 Clause C.2.3.1.2 (p. 88):
+      U_p should not exceed 80 % of U_w when the equipment is <= 10 m from the entrance SPD;
+      Clause C.2.3.1.4 (p. 89): for > 10 m, one-port SPD at the origin: U_p <= 50 % of U_w;
+      the code applies the stricter 0.5 * U_w bound to all cases as a conservative screen —
+      conservative screening bound (C.2.3.1.4))
     - Detailed Rule 2 effective protection level ``U_req = (U_w - U_i) / k_r`` (Clause C.2.3.2, Eq. C.1)
     - Connecting-lead inductive drop ``ΔU = 0.1 * I_SPD * L`` (Clause C.2.3.3, Eq. C.4)
     - ``U_p/f`` for voltage-limiting / hybrid (Eq. C.2) and voltage-switching (Eq. C.3) SPDs
@@ -155,7 +161,7 @@ class SPDCoordinationEngine:
 
     @staticmethod
     def check_rule1_up(up_kv: float, uw_kv: float) -> bool:
-        """IEC 62305-4:2024 Clause C.2.3.1 (pp. 87–89, NOTE): conservative ``U_p <= 0.5 * U_w``."""
+        """IEC 62305-4:2024 Clause C.2.3.1.2 (p. 88): U_p should not exceed 80 % of U_w when the equipment is <= 10 m from the entrance SPD. Clause C.2.3.1.4 (p. 89): for > 10 m, one-port SPD at the origin: U_p <= 50 % of U_w. The code applies the stricter 0.5 * U_w bound to all cases as a conservative screen (conservative screening bound (C.2.3.1.4))."""
         return up_kv <= _RULE1_UW_FACTOR * uw_kv
 
     @staticmethod
@@ -303,7 +309,7 @@ class SPDCoordinationEngine:
                     f"Decoupling length ({t1.cable_length_to_downstream_m}m) satisfies energy coordination criteria"
                 )
 
-        # Check 3: Rule 1 (U_p <= 0.5 * U_w) on Type 1 SPDs (Section 4.3)
+        # Check 3: Rule 1 (U_p <= 0.5 * U_w) on Type 1 SPDs — conservative screening bound (C.2.3.1.4)
         rule1_limit_kv = _RULE1_UW_FACTOR * equip.uw_kv
         type1_rule1_ok = True
         for t1 in type1_entries:

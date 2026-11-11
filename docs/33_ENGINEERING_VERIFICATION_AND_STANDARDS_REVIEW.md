@@ -142,7 +142,7 @@ Every calculation module is reviewed for:
     $$l_{\text{prot}} = (U_w - U_p) \cdot 10\text{ m}$$
 - **Classification**: Rules-based engineering coordination engine; NOT verified.
 
-> **Fixed in code, pending verification (H15, step 2.6 at `b1114b2`):** `spd_coordination.py` replaces the empirical `l_prot = (U_w - U_p) * 10` `[5, 30]` m heuristic with IEC 62305-4:2024 Annex C.2.3 & C.2.5 SPD connecting-lead relations (`max_connecting_lead_length_m`, Rule 1 `U_p <= 0.5 · U_w`, Equations C.1–C.5, and required `induced_voltage_kv`). Open items: Annex C.2.3.5 `U_i` calculation is not automated; Annex C.2.3.4 oscillation travel-length trigger is not modeled as a line-length gate; Annex C.2.4 two-port SPD rules are not modeled.
+> **Fixed in code, pending verification (H15, step 2.6 at `b1114b2`):** `spd_coordination.py` replaces the empirical `l_prot = (U_w - U_p) * 10` `[5, 30]` m heuristic with IEC 62305-4:2024 Annex C.2.3 & C.2.5 SPD connecting-lead relations (`max_connecting_lead_length_m`, conservative screening bound (C.2.3.1.4) `U_p <= 0.5 · U_w`, Equations C.1–C.5, and required `induced_voltage_kv`). Open items: Annex C.2.3.5 `U_i` calculation is not automated; Clause C.2.3.4: propagation-length criterion is qualitative; only C.5 (`U_p/f <= U_w`) is implemented. No line-length gate formula is in the standard text; Clause C.2.3.1.2 (≤ 10 m, 80 % of `U_w`) and C.2.3.1.4 (> 10 m, one-port 50 % of `U_w`): code uses `0.5·U_w` for all cases (conservative); distance-dependent rule not modeled; Annex C.2.4 two-port SPD rules are not modeled.
 
 ---
 
