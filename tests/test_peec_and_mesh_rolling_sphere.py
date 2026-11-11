@@ -68,6 +68,7 @@ def test_comprehensive_risk_2024_8_components():
         lps_class="I",
         has_coordinated_spd=True,
         has_tws_early_warning=True,
+        loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
         incoming_lines=[IncomingServiceLine(service_type="aerial_power", line_length_m=500.0)]
     )
     res = engine.evaluate_risk(inp)

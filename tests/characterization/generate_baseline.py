@@ -214,24 +214,32 @@ def compute_all_snapshots() -> Dict[str, Any]:
     )
 
     # 5. RiskManagementEngine
-    raw["risk_management"] = RiskManagementEngine().evaluate_r1_risk(RiskAssessmentInput())
+    # Test fixture assumption: normal-loss structure. Not a default.
+    raw["risk_management"] = RiskManagementEngine().evaluate_r1_risk(
+        RiskAssessmentInput(loss_category="normal")
+    )
 
     # 6. ComprehensiveRisk2024Engine
+    # Test fixture assumption: normal-loss structure. Not a default.
     comp_risk_engine = ComprehensiveRisk2024Engine()
     raw["comprehensive_risk"] = {
-        "default": comp_risk_engine.evaluate_risk(ComprehensiveRiskInput()),
+        "default": comp_risk_engine.evaluate_risk(
+            ComprehensiveRiskInput(loss_category="normal")
+        ),
         "incoming_line_transformer_unshielded": comp_risk_engine.evaluate_risk(
             ComprehensiveRiskInput(
+                loss_category="normal",
                 incoming_lines=[
                     IncomingServiceLine(transformer_present=True, shielded=False)
-                ]
+                ],
             )
         ),
         "incoming_line_no_transformer_shielded": comp_risk_engine.evaluate_risk(
             ComprehensiveRiskInput(
+                loss_category="normal",
                 incoming_lines=[
                     IncomingServiceLine(transformer_present=False, shielded=True)
-                ]
+                ],
             )
         ),
     }

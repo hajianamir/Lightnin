@@ -52,7 +52,8 @@ def test_risk_management_engine():
         structure_width_m=20.0,
         structure_height_m=15.0,
         ng_flashes_per_km2_year=2.5,
-        lps_class="I"
+        lps_class="I",
+        loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
     )
     res = risk_eng.evaluate_r1_risk(inp)
     assert res.collection_area_ad_m2 > 0

@@ -114,7 +114,8 @@ def test_iec62305_2_risk_components():
         structure_height_m=20.0,
         ng_flashes_per_km2_year=2.5,
         lps_class="I",
-        has_coordinated_spd=True
+        has_coordinated_spd=True,
+        loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
     )
     res = engine.evaluate_r1_risk(inp)
     assert res.collection_area_ad_m2 > 0
