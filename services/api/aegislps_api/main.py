@@ -9,7 +9,7 @@ from aegislps_engine.nodal import NodalCurrentSolver
 from aegislps_engine.risk import RiskManagementEngine, RiskAssessmentInput
 from aegislps_engine.earthing import EarthingEngine, EarthingAssessmentInput
 from aegislps_engine.touch_step import TouchStepEngine, TouchStepAssessmentInput
-from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDEntry
+from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDEntry, EquipmentWithstand
 from aegislps_engine.optimization import DesignOptimizationEngine, OptimizationInput
 from aegislps_engine.pv_module import PVEngineeringModule, PVArraySpecification
 from aegislps_engine.uq_engine import UncertaintyQuantificationEngine, UQSimulationConfig
@@ -97,8 +97,8 @@ def calculate_touch_step(inputs: TouchStepAssessmentInput):
     return touch_step_engine.evaluate(inputs)
 
 @app.post("/api/v1/calculations/spd-coordination")
-def calculate_spd_coordination(spds: list[SPDEntry]):
-    return spd_engine.evaluate_coordination(spds)
+def calculate_spd_coordination(spds: list[SPDEntry], equipment: EquipmentWithstand):
+    return spd_engine.evaluate_coordination(spds, equipment)
 
 @app.post("/api/v1/calculations/risk")
 def calculate_risk(inputs: RiskAssessmentInput):

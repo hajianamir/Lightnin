@@ -65,19 +65,27 @@ def test_touch_and_step_hazard_control_dalziel():
     assert res_safe.prospective_touch_voltage_v == pytest.approx(10000.0 / 3.0, abs=0.1)
 
 def test_spd_lpz_coordination_advanced():
+    """IEC 62305-4:2024 Annex C.2.3 & C.2.5 coordination check.
+
+    With Cat II U_w = 2.5 kV, k_r = 2.0 (U_req = 1.25 kV at U_i = 0.0 kV), and 0.5 m
+    connecting leads (C.2.5 limit), spd-1 (U_p = 1.5 kV > 0.5 * U_w) fails Rule 1 and
+    spd-2 (U_p/f = 1.2 + 0.1 * 20 * 0.5 = 2.2 kV > 1.25 kV) exceeds U_req, yielding
+    voltage_protection_verified=False, status='ACTION_REQUIRED', and L_max=0.0 m.
+    """
     engine = SPDCoordinationEngine()
     
-    # Coordinated setup: Type 1 at boundary with 15m cable + Type 2 sub-panel
+    # Cascaded setup: Type 1 at boundary with 15m cable + Type 2 sub-panel (0.5m leads)
     spds = [
-        SPDEntry(id="spd-1", spd_class="Type 1", technology="spark_gap", i_imp_ka=25.0, up_kv=1.5, cable_length_to_downstream_m=15.0),
-        SPDEntry(id="spd-2", spd_class="Type 2", technology="varistor_mov", i_n_ka=20.0, up_kv=1.2)
+        SPDEntry(id="spd-1", spd_class="Type 1", technology="spark_gap", i_imp_ka=25.0, up_kv=1.5, cable_length_to_downstream_m=15.0, lead_length_m=0.5),
+        SPDEntry(id="spd-2", spd_class="Type 2", technology="varistor_mov", i_n_ka=20.0, up_kv=1.2, lead_length_m=0.5)
     ]
-    equip = EquipmentWithstand(category="Cat II", uw_kv=2.5)
+    # Test fixture: induced voltage not evaluated (lower bound). Not a default.
+    equip = EquipmentWithstand(category="Cat II", uw_kv=2.5, induced_voltage_kv=0.0)
     res = engine.evaluate_coordination(spds, equip)
     assert res.energy_coordination_verified is True
-    assert res.voltage_protection_verified is True
-    assert res.status == "COORDINATED"
-    assert res.effective_protection_distance_m >= 10.0
+    assert res.voltage_protection_verified is False
+    assert res.status == "ACTION_REQUIRED"
+    assert res.max_connecting_lead_length_m == 0.0
 
     # Incomplete setup: Missing Type 1
     spds_incomplete = [

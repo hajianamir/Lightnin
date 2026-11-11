@@ -51,7 +51,11 @@ from aegislps_engine.peec_thermal import (
 from aegislps_engine.pv_module import PVArraySpecification, PVEngineeringModule
 from aegislps_engine.risk import RiskAssessmentInput, RiskManagementEngine
 from aegislps_engine.separation import SeparationDistanceEngine
-from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDEntry
+from aegislps_engine.spd_coordination import (
+    EquipmentWithstand,
+    SPDCoordinationEngine,
+    SPDEntry,
+)
 from aegislps_engine.touch_step import TouchStepAssessmentInput, TouchStepEngine
 from aegislps_engine.uq_engine import UQSimulationConfig, UncertaintyQuantificationEngine
 from aegislps_geometry.mesh_method import MeshMethodEngine, MeshMethodInput
@@ -198,6 +202,7 @@ def compute_all_snapshots() -> Dict[str, Any]:
     }
 
     # 4. SPDCoordinationEngine
+    # Test fixture: induced voltage not evaluated (lower bound). Not a default.
     raw["spd_coordination"] = SPDCoordinationEngine().evaluate_coordination(
         [
             SPDEntry(
@@ -205,12 +210,15 @@ def compute_all_snapshots() -> Dict[str, Any]:
                 spd_class="Type 1",
                 technology="spark_gap",
                 cable_length_to_downstream_m=5.0,
+                lead_length_m=0.5,
             ),
             SPDEntry(
                 id="spd_2",
                 spd_class="Type 2",
+                lead_length_m=0.5,
             ),
-        ]
+        ],
+        EquipmentWithstand(induced_voltage_kv=0.0),
     )
 
     # 5. RiskManagementEngine
