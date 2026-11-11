@@ -2,6 +2,11 @@ import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
 from pydantic import BaseModel, Field
 
+from aegislps_engine.earthing import (
+    array_resistance_identical_rods,
+    single_vertical_rod_resistance,
+)
+
 class EarthRodSizingInput(BaseModel):
     lps_class: str = "I"
     soil_resistivity_ohm_m: float = 120.0
@@ -81,21 +86,18 @@ class EarthRodSizingEngine:
         r_target = max(0.5, inp.target_resistance_ohm)
 
         # Single vertical rod Dwight resistance:
-        # R1 = (rho / 2pi*L) * [ln(4L/r) - 1]
-        r1 = float((rho / (2.0 * np.pi * l_rod)) * (np.log(4.0 * l_rod / radius_m) - 1.0))
+        # R1 = (rho / (2*pi*L)) * [ln(4L/r) - 1]
+        r1 = single_vertical_rod_resistance(rho, l_rod, radius_m)
 
-        # Inter-rod spacing rule: s >= 2 * L_rod to ensure mutual coupling efficiency > 80%
+        # Inter-rod spacing rule: s = 2 * L_rod
         s_spacing = 2.0 * l_rod
 
-        # Iterate to determine required number of rods N with Dwight mutual coupling
+        # Iterate to determine required number of rods N with pairwise uniform-leakage mutual coupling
         n_rods = 1
-        r_array = r1
+        r_array = array_resistance_identical_rods(rho, l_rod, radius_m, n_rods, s_spacing)
         while n_rods <= 20 and r_array > r_target:
             n_rods += 1
-            # Dwight multi-rod array mutual coupling formula (linear array)
-            # R_N = (R1 / N) * [ 1 + (L / (2pi*s)) * ln(1 + s/L) * (N - 1) ]
-            coupling_term = (l_rod / (2.0 * np.pi * s_spacing)) * np.log(1.0 + (s_spacing / l_rod))
-            r_array = float((r1 / n_rods) * (1.0 + (n_rods - 1) * coupling_term))
+            r_array = array_resistance_identical_rods(rho, l_rod, radius_m, n_rods, s_spacing)
 
         # Generate recommended coordinates along perimeter with foundation setback
         setback = max(1.0, inp.min_distance_to_building_foundation_m)

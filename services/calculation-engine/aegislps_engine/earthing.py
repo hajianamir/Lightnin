@@ -10,6 +10,77 @@ STRIP_MODEL_BOUNDARY_NOTE = (
     "round-conductor equivalent (k = 2 - ln 2); flat-strip model not implemented"
 )
 
+MULTI_ROD_METHOD_LABEL = (
+    "Dwight self-resistance + pairwise mutual "
+    "(uniform-leakage, equal-current; primary-source confirmation pending)"
+)
+
+
+def single_vertical_rod_resistance(rho: float, L: float, a: float) -> float:
+    """Single vertical rod resistance R1 = (rho / (2*pi*L)) * [ln(4*L/a) - 1]."""
+    if (
+        isinstance(rho, bool)
+        or isinstance(L, bool)
+        or isinstance(a, bool)
+        or not (np.isfinite(rho) and np.isfinite(L) and np.isfinite(a))
+        or rho <= 0.0
+        or L <= 0.0
+        or a <= 0.0
+    ):
+        raise ValueError(
+            f"rho, L, and a must be finite and > 0, got rho={rho!r}, L={L!r}, a={a!r}."
+        )
+    return float((rho / (2.0 * np.pi * L)) * (np.log((4.0 * L) / a) - 1.0))
+
+
+def mutual_resistance_rods(rho: float, L: float, s: float) -> float:
+    """
+    Pairwise mutual resistance between two identical vertical rods of length L at spacing s
+    under uniform current leakage:
+        R_m(s) = (rho / (pi * L^2)) * [L * asinh(L / s) - sqrt(L^2 + s^2) + s]
+    """
+    if (
+        isinstance(rho, bool)
+        or isinstance(L, bool)
+        or isinstance(s, bool)
+        or not (np.isfinite(rho) and np.isfinite(L) and np.isfinite(s))
+        or rho <= 0.0
+        or L <= 0.0
+        or s <= 0.0
+    ):
+        raise ValueError(
+            f"rho, L, and s must be finite and > 0, got rho={rho!r}, L={L!r}, s={s!r}."
+        )
+    rho_f = float(rho)
+    l_f = float(L)
+    s_f = float(s)
+    return float(
+        (rho_f / (np.pi * l_f * l_f))
+        * (l_f * np.arcsinh(l_f / s_f) - np.sqrt(l_f * l_f + s_f * s_f) + s_f)
+    )
+
+
+def array_resistance_identical_rods(
+    rho: float, L: float, a: float, n: int, s: float
+) -> float:
+    """
+    Linear array resistance of n identical vertical rods of length L and radius a at equal
+    spacing s under the equal-current approximation:
+        R_n = (1 / n^2) * [n * R_1 + 2 * sum_{k=1}^{n-1} (n - k) * R_m(k * s)]
+    """
+    if isinstance(n, bool) or not isinstance(n, int) or n < 1:
+        raise ValueError(f"n must be an integer >= 1, got {n!r}.")
+    r1 = single_vertical_rod_resistance(rho, L, a)
+    if n == 1:
+        if isinstance(s, bool) or not np.isfinite(s) or s <= 0.0:
+            raise ValueError(f"s must be finite and > 0, got {s!r}.")
+        return r1
+    pair_sum = sum(
+        (n - k) * mutual_resistance_rods(rho, L, k * float(s))
+        for k in range(1, n)
+    )
+    return float((n * r1 + 2.0 * pair_sum) / float(n * n))
+
 class SoilLayerModel(BaseModel):
     is_two_layer: bool = False
     rho_upper_ohm_m: float = 100.0
@@ -113,22 +184,15 @@ class EarthingEngine:
 
         elif inp.electrode_type == "type_a_vertical":
             l_rod = max(0.5, inp.vertical_rod_length_m)
-            n_rods = max(1, inp.vertical_rod_count)
+            n_rods = max(1, int(inp.vertical_rod_count))
             s_spacing = max(0.5, inp.vertical_rod_spacing_m)
             effective_len = float(n_rods * l_rod)
 
-            # Dwight's single vertical rod resistance:
-            # R_1 = (rho / (2 * pi * L)) * [ ln(4 * L / r) - 1 ]
-            r_single = (rho / (2.0 * np.pi * l_rod)) * (np.log(4.0 * l_rod / r_cond) - 1.0)
-
-            # Mutual coupling array efficiency factor eta (IEEE 80 / Tagg model)
-            # eta ~ (1 + alpha * (L / s)) / N
-            if n_rods > 1:
-                coupling_factor = (l_rod / (2.0 * np.pi * s_spacing)) * np.log(1.0 + (s_spacing / l_rod))
-                r_dc = float((r_single / n_rods) * (1.0 + (n_rods - 1) * coupling_factor))
-            else:
-                r_dc = float(r_single)
-            trace = f"Type A Vertical ({n_rods} rods x {l_rod}m, spacing={s_spacing}m, Dwight + Mutual Coupling): R_stat={r_dc:.2f} ohm"
+            r_dc = array_resistance_identical_rods(rho, l_rod, r_cond, n_rods, s_spacing)
+            method_label = (
+                MULTI_ROD_METHOD_LABEL if n_rods > 1 else "Dwight + Mutual Coupling"
+            )
+            trace = f"Type A Vertical ({n_rods} rods x {l_rod}m, spacing={s_spacing}m, {method_label}): R_stat={r_dc:.2f} ohm"
 
         elif inp.electrode_type == "type_a_horizontal":
             if (
