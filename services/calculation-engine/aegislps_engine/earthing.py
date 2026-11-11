@@ -6,6 +6,10 @@ RING_METHOD_LABEL = (
     "Sunde equivalent-radius form (approximate; primary-source confirmation pending)"
 )
 
+STRIP_MODEL_BOUNDARY_NOTE = (
+    "round-conductor equivalent (k = 2 - ln 2); flat-strip model not implemented"
+)
+
 class SoilLayerModel(BaseModel):
     is_two_layer: bool = False
     rho_upper_ohm_m: float = 100.0
@@ -138,8 +142,9 @@ class EarthingEngine:
                 )
             l_strip = float(inp.strip_length_m)
             effective_len = float(l_strip)
-            # Sunde formula for horizontal strip electrode buried at depth h:
-            # R = (rho / (pi * L)) * [ ln(2 * L / sqrt(2 * r * h)) - 1 ]
+            # Sunde form. Exactly equivalent to the round-conductor form
+            #   R = rho/(2*pi*L) * [ln(2L^2/(d*h)) - (2 - ln 2)],  d = conductor_diameter_m.
+            # Flat-strip (width-based, k = 1) model is NOT implemented.
             equiv_radius = np.sqrt(2.0 * r_cond * h_depth)
             r_dc = float((rho / (np.pi * l_strip)) * (np.log(2.0 * l_strip / equiv_radius) - 1.0))
             trace = f"Type A Horizontal Strip (L={l_strip}m, depth={h_depth}m, Sunde formula): R_stat={r_dc:.2f} ohm"
