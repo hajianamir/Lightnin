@@ -18,7 +18,7 @@ This register tracks all known engineering, mathematical-formulation, security, 
 | H2 | High | `separation.py` | fixed in code, pending verification | 1.7 | l in s equals node height, not route length. Step 1.7 PASS at 8e422f8 (route length used when given, otherwise node height with WARNING). Open notes: Eq. (5) multi-segment deferred; 6.3.1 NOTE 1 and bonded-framework exemption not implemented. |
 | H3 | High | `risk.py`, `comprehensive_risk.py` | open | 2.5 | |
 | H4 | High | `earthing.py`, `earth_rod_sizing.py` | open | 2.3 | Multi-rod coupling term. |
-| H5 | High | `earthing.py` | fixed in code, pending verification | 2.1, 2.2 | Ring and strip prefactors. Step 2.1 at dcc070d: Ring: Sunde candidate, primary-source pending. Strip: L is now an explicit input. |
+| H5 | High | `earthing.py` | fixed in code, pending verification | 2.1, 2.2 | Ring and strip prefactors. Step 2.1 at dcc070d: Ring: Sunde candidate, primary-source pending. Strip: L is now an explicit input. 2.2 (4235bd6): strip model is the round-conductor form, exact with k = 2 − ln 2; flat-strip model not implemented (needs width input and primary source). |
 | H6 | High | `uq_engine.py`, `earthing.py` | open | 2.1, 3.2 | UQ inconsistent with earthing. Sobol approximation. |
 | H7 | High | `optimization.py` | open | 1.2, 3.3 | Sub-items H7-a to H7-d. Strict xfail `test_design_optimization_coverage_improvement` accepted by the owner (step 1.2, ed7f69d). The label 'roof coverage not verified' is still to be added to the report and UI (later step). Status remains open. |
 | H8 | High | `protective_angle.py` | open | 2.4 | Table values. |
