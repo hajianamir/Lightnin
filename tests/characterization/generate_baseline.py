@@ -272,6 +272,7 @@ def compute_all_snapshots() -> Dict[str, Any]:
             lps_cls: {
                 f"{h}m": ProtectiveAngleEngine.get_protective_angle_deg(lps_cls, float(h))
                 for h in (2, 5, 10, 20, 45, 60)
+                if h <= ProtectiveAngleEngine.MAX_HEIGHTS[lps_cls]
             }
             for lps_cls in ("I", "II", "III", "IV")
         },

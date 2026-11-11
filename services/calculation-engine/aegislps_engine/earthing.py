@@ -151,14 +151,31 @@ class EarthingEngine:
     @staticmethod
     def get_iec_min_length_l1(lps_class: str, rho: float) -> float:
         """
-        IEC 62305-3 Figure 3 minimum length l1 as a function of soil resistivity and LPS Class.
+        IEC 62305-3:2024 Clause 5.4.2.2, Figure 5 (p. 34) minimum length l1 (m)
+        as a function of soil resistivity rho (ohm.m) and LPS Class.
+        Graphical reading of Figure 5; tolerance ±0.5 m.
+        - Figure 5 NOTE 1: Classes III and IV are independent of soil resistivity (5.0 m).
+        - Figure 5 NOTE 4: Figure 5 is defined for 0 < rho <= 3000 ohm.m (no extrapolation).
         """
+        if not isinstance(lps_class, str) or lps_class not in ("I", "II", "III", "IV"):
+            raise ValueError(
+                f"Unknown LPS class {lps_class!r}; expected one of ('I', 'II', 'III', 'IV')."
+            )
+        if isinstance(rho, bool) or not isinstance(rho, (int, float, np.number)):
+            raise ValueError(f"Soil resistivity rho must be a finite positive number, got {rho!r}.")
+        rho_f = float(rho)
+        if not np.isfinite(rho_f) or rho_f <= 0.0:
+            raise ValueError(f"Soil resistivity rho must be finite and > 0 ohm.m, got {rho!r}.")
+        if rho_f > 3000.0:
+            raise ValueError(
+                f"Soil resistivity rho={rho_f} ohm.m exceeds IEC 62305-3:2024 Figure 5 domain "
+                f"(rho <= 3000 ohm.m; see 5.4.2.2 NOTE 4)."
+            )
         if lps_class == "I":
-            return float(min(20.0, max(5.0, 20.0 * (rho / 800.0)))) if rho >= 100.0 else 5.0
-        elif lps_class == "II":
-            return float(min(15.0, max(5.0, 15.0 * (rho / 800.0)))) if rho >= 100.0 else 5.0
-        else:
-            return 5.0
+            return 5.0 if rho_f <= 500.0 else float(0.03 * rho_f - 10.0)
+        if lps_class == "II":
+            return 5.0 if rho_f <= 800.0 else float(5.0 + (rho_f - 800.0) * (43.5 / 2200.0))
+        return 5.0
 
     def evaluate_earthing_system(self, inp: EarthingAssessmentInput) -> EarthingAssessmentResult:
         rho = self.calculate_apparent_resistivity(inp.soil, inp.burial_depth_m)

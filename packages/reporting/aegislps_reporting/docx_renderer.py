@@ -224,13 +224,32 @@ class DOCXReportRenderer:
             "soil ionization model under high impulse currents."
         )
 
+        earthing_data = (
+            earthing_result.model_dump()
+            if hasattr(earthing_result, "model_dump")
+            else (earthing_result or {})
+        )
+        if earthing_data.get("minimum_length_l1_m") is not None:
+            min_l1_m = float(earthing_data["minimum_length_l1_m"])
+        else:
+            from aegislps_engine.earthing import EarthingEngine
+
+            earth_cls = str(earthing_data.get("lps_class", project.lps_class))
+            earth_rho = float(
+                earthing_data.get(
+                    "effective_soil_resistivity_ohm_m",
+                    earthing_data.get("soil_resistivity_ohm_m", 100.0),
+                )
+            )
+            min_l1_m = EarthingEngine.get_iec_min_length_l1(earth_cls, earth_rho)
+
         p_earth_details = doc.add_paragraph()
         p_earth_details.add_run(
             f"• Soil Resistivity: 100.0 ohm.m (Apparent uniform stratum)\n"
             f"• Earthing Topology: Type B Buried Circular Ring Conductor (Radius R = 15.0 m, Depth = 0.5 m)\n"
-            f"• Effective Electrode Length: {earthing_result.get('actual_effective_length_m', 94.2) if earthing_result else 94.2:.1f} m (IEC 62305-3 minimum l1 = 5.0 m)\n"
-            f"• Stationary DC Resistance (R_dc): {earthing_result.get('stationary_resistance_r_ohm', 1.83) if earthing_result else 1.83:.2f} ohm (Complies with <= 10 ohm criterion)\n"
-            f"• Impulse Impedance (Z_imp): {earthing_result.get('impulse_impedance_z_ohm', 1.25) if earthing_result else 1.25:.2f} ohm (Impulse efficiency factor = 0.68 due to soil ionization)"
+            f"• Effective Electrode Length: {earthing_data.get('actual_effective_length_m', 94.2):.1f} m (IEC 62305-3 minimum l1 = {min_l1_m:.1f} m)\n"
+            f"• Stationary DC Resistance (R_dc): {earthing_data.get('stationary_resistance_r_ohm', 1.83):.2f} ohm (Complies with <= 10 ohm criterion)\n"
+            f"• Impulse Impedance (Z_imp): {earthing_data.get('impulse_impedance_z_ohm', 1.25):.2f} ohm (Impulse efficiency factor = 0.68 due to soil ionization)"
         )
         p_earth_details.runs[0].font.size = Pt(9.5)
 
