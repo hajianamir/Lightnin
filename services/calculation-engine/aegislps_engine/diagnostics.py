@@ -39,9 +39,26 @@ class SystemDiagnostics:
         proj = Project(
             name="Diag Proj",
             lps_class="I",
-            building=Building(height_m=15.0),
-            nodes=[ConductorNode(id="n1", x=0, y=0, z=15.0)],
-            separation_points=[SeparationPoint(id="sp1", name="P1", x=0, y=0, z=15.0, associated_node_id="n1", physical_distance_m=1.5)]
+            building=Building(
+                length_m=20.0, width_m=10.0, height_m=15.0, roof_type="flat"
+            ),
+            nodes=[
+                ConductorNode(
+                    id="n1", x=0.0, y=0.0, z=15.0, node_type="air_termination"
+                )
+            ],
+            separation_points=[
+                SeparationPoint(
+                    id="sp1",
+                    name="P1",
+                    x=0.0,
+                    y=0.0,
+                    z=15.0,
+                    associated_node_id="n1",
+                    insulation_medium="air",
+                    physical_distance_m=1.5,
+                )
+            ],
         )
         sep_res = engine.calculate_project(proj)
         results["separation_engine"] = {

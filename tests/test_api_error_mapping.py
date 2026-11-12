@@ -44,14 +44,25 @@ def _assert_value_error_422(response) -> str:
 def test_separation_distance_invalid_lps_class_returns_422():
     payload = _valid_project_payload(lps_class="INVALID")
     response = client.post("/api/v1/calculations/separation-distance", json=payload)
-    detail = _assert_value_error_422(response)
-    assert "INVALID" in detail
+    assert response.status_code == 422
+    body = response.json()
+    assert isinstance(body, dict) and "detail" in body
+    assert isinstance(body["detail"], list) and len(body["detail"]) == 1
+    assert body["detail"][0]["loc"] == ["body", "lps_class"]
+    assert "INVALID" in body["detail"][0]["msg"]
+
+    # Engine-level missing associated_node_id ValueError still maps via B1 handler
+    bad_node_payload = _valid_project_payload(lps_class="I")
+    bad_node_payload["separation_points"][0]["associated_node_id"] = "missing_node"
+    detail = _assert_value_error_422(
+        client.post("/api/v1/calculations/separation-distance", json=bad_node_payload)
+    )
+    assert "missing_node" in detail
 
 
 def test_rolling_sphere_negative_point_z_returns_422():
-    # Scalar endpoint parameters bind as query params; values adapted from
-    # tests/test_advanced_modules.py::test_rolling_sphere_protection with point_z=-1.0.
-    params = {
+    payload = {
+        "lps_class": "I",
         "point_x": 1.0,
         "point_y": 0.0,
         "point_z": -1.0,
@@ -59,7 +70,7 @@ def test_rolling_sphere_negative_point_z_returns_422():
         "rod_y": 0.0,
         "rod_height_m": 15.0,
     }
-    response = client.post("/api/v1/calculations/rolling-sphere", params=params)
+    response = client.post("/api/v1/calculations/rolling-sphere", json=payload)
     detail = _assert_value_error_422(response)
     assert "-1.0" in detail
 
@@ -152,8 +163,23 @@ def test_mesh_rolling_sphere_negative_radius_returns_422():
         "air_termination_tips": [[0.0, 0.0, 20.0]],
     }
     response = client.post("/api/v1/calculations/mesh-rolling-sphere", json=payload)
-    detail = _assert_value_error_422(response)
-    assert "sphere_radius_m" in detail
+    assert response.status_code == 422
+    body = response.json()
+    assert isinstance(body, dict) and "detail" in body
+    assert isinstance(body["detail"], list) and len(body["detail"]) == 1
+    assert body["detail"][0]["loc"] == ["body", "sphere_radius_m"]
+    assert "sphere_radius_m" in body["detail"][0]["msg"]
+
+    # Engine-level empty triangles ValueError maps via B1 handler
+    empty_tri_payload = {
+        "sphere_radius_m": 20.0,
+        "triangles": [],
+        "air_termination_tips": [[0.0, 0.0, 10.0]],
+    }
+    detail = _assert_value_error_422(
+        client.post("/api/v1/calculations/mesh-rolling-sphere", json=empty_tri_payload)
+    )
+    assert detail == "triangles must not be empty"
 
 
 def test_optimize_rods_negative_sphere_radius_returns_422():
@@ -175,8 +201,12 @@ def test_pdf_report_invalid_lps_class_returns_422():
     # Shape from tests/test_api_endpoints.py::test_pdf_report_endpoint
     payload = _valid_project_payload(name="PDF Test Project", lps_class="INVALID")
     response = client.post("/api/v1/reports/pdf", json=payload)
-    detail = _assert_value_error_422(response)
-    assert "INVALID" in detail
+    assert response.status_code == 422
+    body = response.json()
+    assert isinstance(body, dict) and "detail" in body
+    assert isinstance(body["detail"], list) and len(body["detail"]) == 1
+    assert body["detail"][0]["loc"] == ["body", "lps_class"]
+    assert "INVALID" in body["detail"][0]["msg"]
 
 
 def test_docx_report_valid_project_returns_200():

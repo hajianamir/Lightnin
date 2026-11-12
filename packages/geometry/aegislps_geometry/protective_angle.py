@@ -179,9 +179,32 @@ class ProtectiveAngleEngine:
                 f"Unknown LPS class {lps_class!r}; expected one of {tuple(self.MAX_HEIGHTS)}."
             )
 
-        h_tip = float(rod_tip_z - ref_plane_z)
-        max_permitted_h = self.MAX_HEIGHTS[lps_class]
+        coords: Dict[str, float] = {}
+        for name, val in (
+            ("rod_tip_x", rod_tip_x),
+            ("rod_tip_y", rod_tip_y),
+            ("rod_tip_z", rod_tip_z),
+            ("ref_plane_z", ref_plane_z),
+            ("object_x", object_x),
+            ("object_y", object_y),
+            ("object_z", object_z),
+        ):
+            if isinstance(val, bool) or not isinstance(val, (int, float, np.number)):
+                raise ValueError(
+                    f"{name} must be a finite number, not bool; got {val!r}."
+                )
+            fval = float(val)
+            if not np.isfinite(fval):
+                raise ValueError(f"{name} must be finite, got {val!r}.")
+            coords[name] = fval
 
+        h_tip = float(coords["rod_tip_z"] - coords["ref_plane_z"])
+        if not np.isfinite(h_tip) or h_tip <= 0.0:
+            raise ValueError(
+                f"h_tip = rod_tip_z - ref_plane_z must be finite and > 0 m, got {h_tip!r}."
+            )
+
+        max_permitted_h = self.MAX_HEIGHTS[lps_class]
         if h_tip > max_permitted_h:
             return {
                 "protected": False,
@@ -193,17 +216,9 @@ class ProtectiveAngleEngine:
                 ),
             }
 
-        if not np.isfinite(h_tip) or h_tip <= 0.0:
-            return {
-                "protected": False,
-                "applicable": False,
-                "protective_angle_deg": 0.0,
-                "reason": "Protective angle unavailable for specified height.",
-            }
-
         alpha_deg = self.get_protective_angle_deg(lps_class, h_tip)
 
-        delta_z = rod_tip_z - object_z
+        delta_z = coords["rod_tip_z"] - coords["object_z"]
         if delta_z <= 0:
             return {
                 "protected": False,
@@ -212,7 +227,12 @@ class ProtectiveAngleEngine:
                 "reason": "Object elevation is at or above rod tip",
             }
 
-        d_horiz = float(np.sqrt((object_x - rod_tip_x) ** 2 + (object_y - rod_tip_y) ** 2))
+        d_horiz = float(
+            np.sqrt(
+                (coords["object_x"] - coords["rod_tip_x"]) ** 2
+                + (coords["object_y"] - coords["rod_tip_y"]) ** 2
+            )
+        )
         r_cone = float(delta_z * np.tan(np.radians(alpha_deg)))
         is_protected = d_horiz <= r_cone
 

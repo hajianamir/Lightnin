@@ -1,3 +1,4 @@
+import math
 from typing import List, Optional, Tuple
 from aegislps_domain.models import (
     CalculationStatus,
@@ -36,24 +37,30 @@ class SeparationDistanceEngine:
         return float(param.value)
 
     def _get_ki(self, lps_class: str) -> float:
-        cls = lps_class.strip().upper() if isinstance(lps_class, str) else ""
-        if cls == "I":
+        if not isinstance(lps_class, str):
+            raise ValueError(
+                f"Unknown LPS class {lps_class!r}. Expected 'I', 'II', 'III', or 'IV' (IEC 62305-3:2024 Table 11)."
+            )
+        if lps_class == "I":
             return self._require_parameter("ki_class_I")
-        if cls == "II":
+        if lps_class == "II":
             return self._require_parameter("ki_class_II")
-        if cls in ("III", "IV"):
+        if lps_class in ("III", "IV"):
             return self._require_parameter("ki_class_III_IV")
         raise ValueError(
             f"Unknown LPS class {lps_class!r}. Expected 'I', 'II', 'III', or 'IV' (IEC 62305-3:2024 Table 11)."
         )
 
     def _get_km(self, medium: str) -> float:
-        med = medium.strip().lower() if isinstance(medium, str) else ""
-        if med == "air":
+        if not isinstance(medium, str):
+            raise ValueError(
+                f"Unknown insulation medium {medium!r}. Expected 'air', 'solid', or 'insulating_standoff' (IEC 62305-3:2024 Table 12)."
+            )
+        if medium == "air":
             return self._require_parameter("km_air")
-        if med == "solid":
+        if medium == "solid":
             return self._require_parameter("km_solid")
-        if med == "insulating_standoff":
+        if medium == "insulating_standoff":
             return self._require_parameter("km_insulating_standoff")
         raise ValueError(
             f"Unknown insulation medium {medium!r}. Expected 'air', 'solid', or 'insulating_standoff' (IEC 62305-3:2024 Table 12)."
@@ -102,30 +109,51 @@ class SeparationDistanceEngine:
         self, sp: SeparationPoint, project: Project, node_map: dict
     ) -> Tuple[float, str, List[str]]:
         if sp.route_length_to_bonding_m is not None:
+            if (
+                isinstance(sp.route_length_to_bonding_m, bool)
+                or not isinstance(sp.route_length_to_bonding_m, (int, float))
+                or not math.isfinite(float(sp.route_length_to_bonding_m))
+                or float(sp.route_length_to_bonding_m) <= 0.0
+            ):
+                raise ValueError(
+                    f"route_length_to_bonding_m must be finite and > 0, got {sp.route_length_to_bonding_m!r}."
+                )
             return (
                 float(sp.route_length_to_bonding_m),
                 "route_length_to_bonding_m",
                 [],
             )
 
+        if not isinstance(sp.associated_node_id, str) or not sp.associated_node_id:
+            raise ValueError(
+                f"SeparationPoint {sp.id!r}: associated_node_id is required when route_length_to_bonding_m is not given."
+            )
         assoc_node = node_map.get(sp.associated_node_id)
-        if assoc_node is not None:
-            l_m = max(0.0, float(assoc_node.z))
-            l_source = f"node.z vertical approximation (node {assoc_node.id})"
-            reason = (
-                "route length was not given; approximated l = max(0, node.z), "
-                "valid only for a straight vertical down conductor from the point to earth"
+        if assoc_node is None:
+            raise ValueError(
+                f"SeparationPoint {sp.id!r}: associated_node_id {sp.associated_node_id!r} not found in project nodes."
             )
-        else:
-            l_m = max(0.0, float(project.building.height_m))
-            l_source = "building.height_m fallback (associated node not found)"
-            reason = (
-                "route length was not given and associated node was not found; "
-                "approximated l from building.height_m"
-            )
+
+        if (
+            isinstance(assoc_node.z, bool)
+            or not isinstance(assoc_node.z, (int, float))
+            or not math.isfinite(float(assoc_node.z))
+            or float(assoc_node.z) <= 0.0
+        ):
+            raise ValueError("associated node must be above ground for route length")
+
+        l_m = float(assoc_node.z)
+        l_source = f"node.z vertical approximation (node {assoc_node.id})"
+        reason = (
+            "route length was not given; approximated l = max(0, node.z), "
+            "valid only for a straight vertical down conductor from the point to earth"
+        )
         return l_m, l_source, [reason]
 
     def calculate_project(self, project: Project) -> List[SeparationCalculationResult]:
+        if project.building is None:
+            raise ValueError("Project.building is required.")
+
         results: List[SeparationCalculationResult] = []
         ki = self._get_ki(project.lps_class)
         kc, kc_source, kc_warnings = self._resolve_kc(project)
@@ -133,13 +161,22 @@ class SeparationDistanceEngine:
         node_map = {n.id: n for n in project.nodes}
 
         for sp in project.separation_points:
+            if (
+                isinstance(sp.physical_distance_m, bool)
+                or not isinstance(sp.physical_distance_m, (int, float))
+                or not math.isfinite(float(sp.physical_distance_m))
+                or float(sp.physical_distance_m) < 0.0
+            ):
+                raise ValueError(
+                    f"physical_distance_m must be finite and >= 0, got {sp.physical_distance_m!r}."
+                )
             km = self._get_km(sp.insulation_medium)
             l_m, l_source, l_warnings = self._resolve_length_l(sp, project, node_map)
 
             # IEC 62305-3:2024, Clause 6.3.2, Eq. (6): s = (k_i / k_m) * k_c * l
             s_m = (ki / km) * kc * l_m
 
-            actual_m = sp.physical_distance_m
+            actual_m = float(sp.physical_distance_m)
             pass_comp = actual_m >= s_m
             margin_m = actual_m - s_m
 

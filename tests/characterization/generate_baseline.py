@@ -101,16 +101,29 @@ def serialize_value(obj: Any) -> Any:
 
 
 def _build_separation_project(num_segments: int) -> Project:
+    # Explicit former defaults for Step 2.7-B5 domain-model fields.
     segments = [
-        ConductorSegment(id=f"seg_{i + 1}", start_node_id="n1", end_node_id="n1")
+        ConductorSegment(
+            id=f"seg_{i + 1}",
+            start_node_id="n1",
+            end_node_id="n1",
+            material="copper",
+            cross_section_mm2=50.0,
+        )
         for i in range(num_segments)
     ]
     return Project(
         project_id="baseline-project",
         name="Baseline Project",
         lps_class="I",
-        building=Building(height_m=15.0),
-        nodes=[ConductorNode(id="n1", x=0.0, y=0.0, z=15.0)],
+        building=Building(
+            length_m=20.0, width_m=10.0, height_m=15.0, roof_type="flat"
+        ),
+        nodes=[
+            ConductorNode(
+                id="n1", x=0.0, y=0.0, z=15.0, node_type="air_termination"
+            )
+        ],
         segments=segments,
         separation_points=[
             SeparationPoint(
@@ -378,8 +391,17 @@ def compute_all_snapshots() -> Dict[str, Any]:
         ),
     }
 
-    # 10. MeshMethodEngine
-    raw["mesh_method"] = MeshMethodEngine().validate_mesh_design(MeshMethodInput())
+    # 10. MeshMethodEngine (explicit former defaults)
+    raw["mesh_method"] = MeshMethodEngine().validate_mesh_design(
+        MeshMethodInput(
+            lps_class="I",
+            roof_length_m=30.0,
+            roof_width_m=20.0,
+            mesh_grid_dx_m=5.0,
+            mesh_grid_dy_m=5.0,
+            has_perimeter_conductor=True,
+        )
+    )
 
     # 11. EarthRodSizingEngine (explicit former defaults)
     raw["earth_rod_sizing"] = EarthRodSizingEngine().size_earth_rod_system(

@@ -1,7 +1,10 @@
-from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File
+import math
+from typing import Optional
+
+from fastapi import Body, FastAPI, HTTPException, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator, model_validator
 
 from aegislps_domain.models import Project, SeparationCalculationResult
 from aegislps_domain.integrity import ProjectIntegrityEngine
@@ -25,7 +28,10 @@ from aegislps_engine.bom_engine import BOMAndLifecycleEngine, ProjectBOMResult
 from aegislps_engine.lemp_engine import LEMPEngine, LEMPWaveformSpecification, ShieldingGrid, InternalCableLoop
 from aegislps_engine.cad_export import GLTF3DExporter
 from aegislps_geometry.protective_angle import ProtectiveAngleEngine
-from aegislps_geometry.rolling_sphere import RollingSphereEngine
+from aegislps_geometry.rolling_sphere import (
+    ROLLING_SPHERE_RADIUS_M_BY_CLASS,
+    RollingSphereEngine,
+)
 from aegislps_engine.dxf_exporter import DXFExporter
 from aegislps_engine.ifc_importer import IFCImporter
 from aegislps_standards.repository import StandardsRepository
@@ -51,10 +57,74 @@ app.add_middleware(
 async def value_error_exception_handler(request: Request, exc: ValueError):
     return JSONResponse(status_code=422, content={"detail": str(exc)})
 
+
+class RollingSphereRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    lps_class: Optional[str] = None
+    sphere_radius_m: Optional[float] = None
+    point_x: float
+    point_y: float
+    point_z: float
+    rod_x: float
+    rod_y: float
+    rod_height_m: float
+
+    @field_validator("lps_class", mode="before")
+    @classmethod
+    def _validate_lps_class(cls, v):
+        if v is None:
+            return None
+        if not isinstance(v, str) or v not in ROLLING_SPHERE_RADIUS_M_BY_CLASS:
+            raise ValueError(
+                f"Unknown LPS class {v!r}; expected one of {tuple(ROLLING_SPHERE_RADIUS_M_BY_CLASS)}."
+            )
+        return v
+
+    @field_validator(
+        "sphere_radius_m",
+        "point_x",
+        "point_y",
+        "point_z",
+        "rod_x",
+        "rod_y",
+        "rod_height_m",
+        mode="before",
+    )
+    @classmethod
+    def _validate_scalars(cls, v, info):
+        if v is None and info.field_name == "sphere_radius_m":
+            return None
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError(
+                f"{info.field_name} must be a finite number, not bool; got {v!r}."
+            )
+        val = float(v)
+        if not math.isfinite(val):
+            raise ValueError(f"{info.field_name} must be finite, got {v!r}.")
+        if info.field_name == "sphere_radius_m" and val <= 0.0:
+            raise ValueError(f"sphere_radius_m must be > 0, got {v!r}.")
+        return val
+
+    @model_validator(mode="after")
+    def _resolve_xor_radius(self) -> "RollingSphereRequest":
+        has_class = self.lps_class is not None
+        has_radius = self.sphere_radius_m is not None
+        if has_class == has_radius:
+            raise ValueError(
+                "Exactly one of 'lps_class' or 'sphere_radius_m' must be provided."
+            )
+        if has_class:
+            assert self.lps_class is not None
+            self.sphere_radius_m = float(
+                ROLLING_SPHERE_RADIUS_M_BY_CLASS[self.lps_class]
+            )
+        return self
+
+
 standards_repo = StandardsRepository()
 calc_engine = SeparationDistanceEngine(standards_repo)
 nodal_solver = NodalCurrentSolver()
-rolling_sphere_engine = RollingSphereEngine()
 protective_angle_engine = ProtectiveAngleEngine()
 risk_engine = RiskManagementEngine()
 earthing_engine = EarthingEngine()
@@ -87,8 +157,60 @@ def calculate_nodal_kc(nodes: list[dict], segments: list[dict], injection_node: 
     return nodal_solver.calculate_current_sharing(injection_node, earth_nodes)
 
 @app.post("/api/v1/calculations/rolling-sphere")
-def calculate_rolling_sphere(point_x: float, point_y: float, point_z: float, rod_x: float, rod_y: float, rod_height_m: float):
-    return rolling_sphere_engine.check_surface_exposure(point_x, point_y, point_z, rod_x, rod_y, rod_height_m)
+def calculate_rolling_sphere(
+    request: Request,
+    inputs: Optional[RollingSphereRequest] = Body(default=None),
+):
+    if inputs is None:
+        if not request.query_params:
+            raise ValueError(
+                "Request body or query parameters required for /api/v1/calculations/rolling-sphere."
+            )
+        qp = dict(request.query_params)
+        parsed: dict = {}
+        for k, raw in qp.items():
+            if k == "lps_class":
+                parsed[k] = raw
+            elif k in {
+                "sphere_radius_m",
+                "point_x",
+                "point_y",
+                "point_z",
+                "rod_x",
+                "rod_y",
+                "rod_height_m",
+            }:
+                if raw.strip().lower() in {"true", "false"}:
+                    raise ValueError(
+                        f"{k} must be a finite number, not bool; got {raw!r}."
+                    )
+                try:
+                    parsed[k] = float(raw)
+                except ValueError as exc:
+                    raise ValueError(
+                        f"{k} must be a finite number; got {raw!r}."
+                    ) from exc
+            else:
+                parsed[k] = raw
+        try:
+            inputs = RollingSphereRequest.model_validate(parsed)
+        except ValidationError as exc:
+            raise ValueError(str(exc)) from exc
+    elif request.query_params:
+        raise ValueError(
+            "Provide rolling-sphere inputs either as JSON body or query parameters, not both."
+        )
+
+    assert inputs.sphere_radius_m is not None
+    engine = RollingSphereEngine(sphere_radius_m=inputs.sphere_radius_m)
+    return engine.check_surface_exposure(
+        inputs.point_x,
+        inputs.point_y,
+        inputs.point_z,
+        inputs.rod_x,
+        inputs.rod_y,
+        inputs.rod_height_m,
+    )
 
 @app.post("/api/v1/calculations/protective-angle")
 def calculate_protective_angle(lps_class: str, rod_tip_x: float, rod_tip_y: float, rod_tip_z: float, ref_plane_z: float, object_x: float, object_y: float, object_z: float):

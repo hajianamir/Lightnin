@@ -9,6 +9,8 @@ def test_mesh_method_dimensions_class_I():
     # Compliant 5x5m mesh on flat roof with perimeter conductor
     inp_ok = MeshMethodInput(
         lps_class="I",
+        roof_length_m=30.0,
+        roof_width_m=20.0,
         mesh_grid_dx_m=5.0,
         mesh_grid_dy_m=5.0,
         has_perimeter_conductor=True,
@@ -23,6 +25,8 @@ def test_mesh_method_dimensions_class_I():
     # Non-compliant 10x10m mesh for Class I (max 5x5m)
     inp_bad = MeshMethodInput(
         lps_class="I",
+        roof_length_m=30.0,
+        roof_width_m=20.0,
         mesh_grid_dx_m=10.0,
         mesh_grid_dy_m=10.0,
         has_perimeter_conductor=True,

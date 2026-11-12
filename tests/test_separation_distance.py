@@ -32,8 +32,17 @@ def _run_single_point(
         lps_class=lps_class,
         down_conductor_count=down_conductor_count,
         earth_resistances_within_factor_2=earth_resistances_within_factor_2,
-        building=Building(length_m=20.0, width_m=10.0, height_m=max(15.0, node_z)),
-        nodes=[ConductorNode(id="n1", x=0.0, y=0.0, z=node_z)],
+        building=Building(
+            length_m=20.0,
+            width_m=10.0,
+            height_m=max(15.0, node_z),
+            roof_type="flat",
+        ),
+        nodes=[
+            ConductorNode(
+                id="n1", x=0.0, y=0.0, z=node_z, node_type="air_termination"
+            )
+        ],
         segments=segments or [],
         separation_points=[
             SeparationPoint(
@@ -88,8 +97,18 @@ def test_simplified_separation_distance_class_III_solid_medium():
         node_z=20.0,
         physical_distance_m=0.6,
         segments=[
-            ConductorSegment(start_node_id="n1", end_node_id="n2"),
-            ConductorSegment(start_node_id="n1", end_node_id="n3"),
+            ConductorSegment(
+                start_node_id="n1",
+                end_node_id="n2",
+                material="copper",
+                cross_section_mm2=50.0,
+            ),
+            ConductorSegment(
+                start_node_id="n1",
+                end_node_id="n3",
+                material="copper",
+                cross_section_mm2=50.0,
+            ),
         ],
     )
     assert res.kc_used == pytest.approx(1.0, abs=1e-12)
@@ -285,7 +304,14 @@ def test_table_12_note_1_insulating_standoff_km_07():
 @pytest.mark.parametrize("bad_count", [0, -1, -5, True, False, 2.5, "2"])
 def test_invalid_down_conductor_count_rejected(bad_count):
     with pytest.raises(ValueError):
-        Project(name="Bad Count", down_conductor_count=bad_count)
+        Project(
+            name="Bad Count",
+            lps_class="I",
+            building=Building(
+                length_m=20.0, width_m=10.0, height_m=15.0, roof_type="flat"
+            ),
+            down_conductor_count=bad_count,
+        )
 
 
 @pytest.mark.parametrize(
@@ -301,6 +327,7 @@ def test_invalid_route_length_to_bonding_rejected(bad_route_length):
             y=0.0,
             z=10.0,
             associated_node_id="n1",
+            insulation_medium="air",
             physical_distance_m=1.0,
             route_length_to_bonding_m=bad_route_length,
         )
@@ -320,7 +347,11 @@ def test_segment_list_does_not_change_kc():
         for seg_count in (0, 1, 2, 5):
             segs = [
                 ConductorSegment(
-                    id=f"seg_{i}", start_node_id="n1", end_node_id="n1"
+                    id=f"seg_{i}",
+                    start_node_id="n1",
+                    end_node_id="n1",
+                    material="copper",
+                    cross_section_mm2=50.0,
                 )
                 for i in range(seg_count)
             ]
@@ -378,7 +409,14 @@ def test_standards_repository_clause_6_3_parameters_and_no_silent_fallback():
         lps_class="I",
         down_conductor_count=2,
         earth_resistances_within_factor_2=True,
-        nodes=[ConductorNode(id="n1", x=0.0, y=0.0, z=10.0)],
+        building=Building(
+            length_m=20.0, width_m=10.0, height_m=15.0, roof_type="flat"
+        ),
+        nodes=[
+            ConductorNode(
+                id="n1", x=0.0, y=0.0, z=10.0, node_type="air_termination"
+            )
+        ],
         separation_points=[
             SeparationPoint(
                 id="sp1",
@@ -387,6 +425,7 @@ def test_standards_repository_clause_6_3_parameters_and_no_silent_fallback():
                 y=0.0,
                 z=10.0,
                 associated_node_id="n1",
+                insulation_medium="air",
                 physical_distance_m=1.0,
                 route_length_to_bonding_m=5.0,
             )

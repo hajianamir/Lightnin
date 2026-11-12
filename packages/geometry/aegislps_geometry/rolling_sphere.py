@@ -1,5 +1,5 @@
 import math
-from typing import Dict
+from typing import Any, Dict
 import numpy as np
 
 
@@ -19,6 +19,15 @@ ROLLING_SPHERE_RADIUS_M_BY_CLASS: Dict[str, float] = {
     "III": 45.0,
     "IV": 60.0,
 }
+
+
+def _require_finite_float(name: str, val: Any) -> float:
+    if isinstance(val, bool) or not isinstance(val, (int, float, np.number)):
+        raise ValueError(f"{name} must be a finite number, not bool; got {val!r}")
+    fval = float(val)
+    if not math.isfinite(fval):
+        raise ValueError(f"{name} must be finite, got {val!r}")
+    return fval
 
 
 def rolling_sphere_radius_m(lps_class: str) -> float:
@@ -52,8 +61,8 @@ def protected_radius_at_height(R: float, h: float, z: float) -> float:
         rho(z) = 0.0                                              for z >= h
 
     Domain:
-        R > 0, 0 <= h <= 2 * R, z >= 0.
-        Raises ValueError if R <= 0, h < 0, h > 2 * R, or z < 0.
+        R > 0, 0 <= h <= 2 * R, z >= 0 (all finite, not bool).
+        Raises ValueError if R <= 0, h < 0, h > 2 * R, z < 0, non-finite, or bool.
 
     Reference values (R = 20 m, h = 10 m):
         rho(0) = 17.3205 m
@@ -61,9 +70,9 @@ def protected_radius_at_height(R: float, h: float, z: float) -> float:
         rho(5) =  4.0917 m
         rho(8) =  1.3205 m
     """
-    r_val = float(R)
-    h_val = float(h)
-    z_val = float(z)
+    r_val = _require_finite_float("R", R)
+    h_val = _require_finite_float("h", h)
+    z_val = _require_finite_float("z", z)
 
     if r_val <= 0.0:
         raise ValueError(f"Sphere radius R must be > 0, got {R}")
@@ -85,24 +94,50 @@ class RollingSphereEngine:
     3D Analytical Rolling Sphere Engine for IEC 62305-3 protection assessment.
     Determines surface exposure and clearance without depending on WebGL rendering.
     """
-    def __init__(self, sphere_radius_m: float = 20.0):  # 20m for Class I
-        if float(sphere_radius_m) <= 0.0:
-            raise ValueError(f"sphere_radius_m must be > 0, got {sphere_radius_m}")
-        self.r = float(sphere_radius_m)
 
-    def check_surface_exposure(self, point_x: float, point_y: float, point_z: float,
-                               rod_x: float, rod_y: float, rod_height_m: float) -> dict:
+    def __init__(self, sphere_radius_m: float = 20.0):
+        # Constructor default 20.0 m (IEC 62305-3:2024 Clause 5.2.2.1 Table 2, Class I)
+        # is retained only for unit-test compatibility; the public HTTP API route
+        # requires explicit lps_class or sphere_radius_m.
+        r_val = _require_finite_float("sphere_radius_m", sphere_radius_m)
+        if r_val <= 0.0:
+            raise ValueError(f"sphere_radius_m must be > 0, got {sphere_radius_m}")
+        self.r = r_val
+
+    def check_surface_exposure(
+        self,
+        point_x: float,
+        point_y: float,
+        point_z: float,
+        rod_x: float,
+        rod_y: float,
+        rod_height_m: float,
+    ) -> dict:
         """
         Calculates if a target rooftop point is protected under a rolling sphere of radius R
         resting on the reference ground plane (z = 0) and touching an air-termination rod tip
         (rod_x, rod_y, rod_height_m).
         """
-        r_val = float(self.r)
-        h_val = float(rod_height_m)
-        z_val = float(point_z)
+        r_val = _require_finite_float("sphere_radius_m", self.r)
+        if r_val <= 0.0:
+            raise ValueError(f"sphere_radius_m must be > 0, got {self.r}")
+
+        px = _require_finite_float("point_x", point_x)
+        py = _require_finite_float("point_y", point_y)
+        z_val = _require_finite_float("point_z", point_z)
+        rx = _require_finite_float("rod_x", rod_x)
+        ry = _require_finite_float("rod_y", rod_y)
+        h_val = _require_finite_float("rod_height_m", rod_height_m)
+
+        if z_val < 0.0:
+            raise ValueError(f"Target height point_z must be >= 0, got {point_z}")
+        if h_val <= 0.0 or h_val > 2.0 * r_val:
+            raise ValueError(
+                f"rod_height_m must satisfy 0 < rod_height_m <= 2R ({2.0 * r_val}), got {rod_height_m}"
+            )
 
         rho_allowed = protected_radius_at_height(r_val, h_val, z_val)
-        d_horiz = float(np.hypot(point_x - rod_x, point_y - rod_y))
+        d_horiz = float(np.hypot(px - rx, py - ry))
 
         rho_c = math.sqrt(max(0.0, 2.0 * r_val * h_val - h_val * h_val))
         if h_val > 0.0 and d_horiz <= rho_c:

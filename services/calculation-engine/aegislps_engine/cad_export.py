@@ -1,6 +1,17 @@
 import json
 import base64
+import math
 from typing import Dict, List, Any
+
+
+def _require_positive_finite(name: str, val: Any) -> float:
+    if isinstance(val, bool) or not isinstance(val, (int, float)):
+        raise ValueError(f"{name} must be a finite number > 0, not bool; got {val!r}.")
+    fval = float(val)
+    if not math.isfinite(fval) or fval <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0, got {val!r}.")
+    return fval
+
 
 class GLTF3DExporter:
     """
@@ -14,6 +25,12 @@ class GLTF3DExporter:
         building_height: float,
         nodes: List[Dict[str, Any]]
     ) -> str:
+        _require_positive_finite("building_length", building_length)
+        _require_positive_finite("building_width", building_width)
+        _require_positive_finite("building_height", building_height)
+        if not isinstance(nodes, list):
+            raise ValueError(f"nodes must be a list, got {type(nodes).__name__}.")
+
         # Standard glTF 2.0 JSON structure
         gltf = {
             "asset": {
