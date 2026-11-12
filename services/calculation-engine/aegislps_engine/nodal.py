@@ -115,8 +115,8 @@ class NodalCurrentSolver:
     Experimental Frequency-Domain Current-Sharing Solver.
 
     ENGINEERING STATUS:
-    - Status: Experimental, unverified.
-    - Simplified frequency-domain approximation Z = R_dc + omega * L_eff.
+    - Experimental, unverified; not in IEC 62305-3:2024. Phasor AC circuit relation Z = R + jX (IEEE Std 142-2007, Clause 2.1.5).
+    - Simplified frequency-domain approximation Z = R_dc + j * omega * L_eff, y = 1 / Z.
     - Note: This is a simplified single-frequency approximation representing the high-frequency
       inductive behavior of lightning transients. It omits frequency-dependent skin effect,
       capacitive coupling to ground, and non-uniform ground-return impedances.
@@ -212,16 +212,29 @@ class NodalCurrentSolver:
                 * max(1.0, (np.log(max(1.0, 2.0 * length / radius_m)) - 0.75)),
             )
 
+            # Experimental, unverified; not in IEC 62305-3:2024. Phasor AC circuit relation Z = R + jX (IEEE Std 142-2007, Clause 2.1.5).
             if s.z_surge is not None:
                 z_surge = float(s.z_surge)
+                if not math.isfinite(z_surge) or z_surge <= 0.0:
+                    raise ValueError(
+                        f"Segment {s.id!r} surge impedance z_surge must be > 0, got {z_surge!r}."
+                    )
+                z_complex = complex(z_surge, 0.0)
             else:
-                z_surge = float(np.sqrt(r_dc**2 + (self.omega * l_inductance) ** 2))
+                x_inductive = self.omega * l_inductance
+                z_complex = complex(r_dc, x_inductive)
+                z_surge = float(abs(z_complex))
+                if not (
+                    math.isfinite(z_complex.real)
+                    and math.isfinite(z_complex.imag)
+                    and math.isfinite(z_surge)
+                    and z_surge > 0.0
+                ):
+                    raise ValueError(
+                        f"Segment {s.id!r} surge impedance z_surge must be > 0, got {z_surge!r}."
+                    )
 
-            if not math.isfinite(z_surge) or z_surge <= 0.0:
-                raise ValueError(
-                    f"Segment {s.id!r} surge impedance z_surge must be > 0, got {z_surge!r}."
-                )
-            admittance = 1.0 / z_surge
+            admittance = complex(1.0) / z_complex
 
             self.graph.add_edge(
                 u,
@@ -230,7 +243,8 @@ class NodalCurrentSolver:
                 length_m=length,
                 resistance_ohm=r_dc,
                 inductance_h=l_inductance,
-                impedance_ohm=z_surge,
+                impedance_ohm=z_complex,
+                impedance_magnitude_ohm=z_surge,
                 admittance_siemens=admittance,
             )
 
@@ -286,10 +300,10 @@ class NodalCurrentSolver:
 
         N = len(node_list)
         idx = {node: i for i, node in enumerate(node_list)}
-        Y = lil_matrix((N, N), dtype=np.float64)
-        I = np.zeros(N, dtype=np.float64)
+        Y = lil_matrix((N, N), dtype=np.complex128)
+        I = np.zeros(N, dtype=np.complex128)
 
-        I[idx[injection_node]] = i_total
+        I[idx[injection_node]] = complex(i_total, 0.0)
 
         for u, v, data in self.graph.edges(data=True):
             i_u, i_v = idx[u], idx[v]
@@ -302,8 +316,8 @@ class NodalCurrentSolver:
         for en in connected_earth:
             e_i = idx[en]
             Y[e_i, :] = 0.0
-            Y[e_i, e_i] = 1.0
-            I[e_i] = 0.0
+            Y[e_i, e_i] = 1.0 + 0.0j
+            I[e_i] = 0.0 + 0.0j
 
         Y_csc = Y.tocsc()
         diag_elements = np.abs(Y_csc.diagonal())
@@ -316,7 +330,7 @@ class NodalCurrentSolver:
         cond_estimate = diag_max / max(1e-12, diag_min)
 
         try:
-            V = spsolve(Y_csc, I)
+            V = np.atleast_1d(spsolve(Y_csc, I))
         except Exception as err:
             return {
                 "kc_factors": {},
@@ -330,14 +344,14 @@ class NodalCurrentSolver:
                 "warnings": [f"Sparse linear solver failed: {str(err)}"],
             }
 
-        node_potentials = {node: float(V[idx[node]]) for node in node_list}
+        node_potentials = {node: float(abs(V[idx[node]])) for node in node_list}
 
         kc_factors = {}
         segment_currents = {}
         for u, v, data in self.graph.edges(data=True):
             i_u, i_v = idx[u], idx[v]
-            v_drop = abs(V[i_u] - V[i_v])
-            i_branch = float(v_drop * data["admittance_siemens"])
+            i_branch_phasor = (V[i_u] - V[i_v]) * data["admittance_siemens"]
+            i_branch = float(abs(i_branch_phasor))
             segment_currents[data["id"]] = i_branch
             kc_factors[data["id"]] = float(min(1.0, max(0.0, i_branch / i_total)))
 
@@ -347,26 +361,29 @@ class NodalCurrentSolver:
             if node in connected_earth:
                 continue
             n_i = idx[node]
-            sum_current = 0.0
+            sum_current = 0.0 + 0.0j
             for neighbor in self.graph.neighbors(node):
                 nb_i = idx[neighbor]
-                g = self.graph[node][neighbor]["admittance_siemens"]
-                sum_current += (V[n_i] - V[nb_i]) * g
-            injected = i_total if node == injection_node else 0.0
-            res = abs(sum_current - injected)
-            kcl_residuals[node] = float(res)
+                y_branch = self.graph[node][neighbor]["admittance_siemens"]
+                sum_current += (V[n_i] - V[nb_i]) * y_branch
+            injected = (
+                complex(i_total, 0.0) if node == injection_node else 0.0 + 0.0j
+            )
+            res = float(abs(sum_current - injected))
+            kcl_residuals[node] = res
             if res > max_kcl_res:
-                max_kcl_res = float(res)
+                max_kcl_res = res
 
-        total_earth_current = 0.0
+        i_earth = 0.0 + 0.0j
         for en in connected_earth:
             e_i = idx[en]
             for neighbor in self.graph.neighbors(en):
                 nb_i = idx[neighbor]
-                g = self.graph[en][neighbor]["admittance_siemens"]
-                total_earth_current += abs(V[nb_i] - V[e_i]) * g
+                y_branch = self.graph[en][neighbor]["admittance_siemens"]
+                i_earth += (V[nb_i] - V[e_i]) * y_branch
 
-        conservation_residual = abs(i_total - total_earth_current)
+        total_earth_current = float(abs(i_earth))
+        conservation_residual = float(abs(complex(i_total, 0.0) - i_earth))
         rel_residual = float(conservation_residual / i_total)
         converged = bool(rel_residual < 0.02)
 
