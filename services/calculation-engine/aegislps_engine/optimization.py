@@ -17,6 +17,11 @@ from aegislps_geometry.rolling_sphere import (
 #   Class of LPS IV : Rolling sphere radius r = 60 m
 _VALID_LPS_CLASSES = ("I", "II", "III", "IV")
 
+ROOF_COVERAGE_VERIFICATION_NOTE = (
+    "Roof coverage not verified (H7): the optimizer evaluates "
+    "ground-referenced (z = 0) rolling-sphere coverage only."
+)
+
 
 def _check_finite_float(name: str, v: Any) -> float:
     if isinstance(v, bool) or not isinstance(v, (int, float)):
@@ -217,7 +222,12 @@ class OptimizationResult(BaseModel):
     iterations_run: int
     pareto_score: float
     status: str
+    roof_coverage_verification_note: str = ROOF_COVERAGE_VERIFICATION_NOTE
     diagnostics: List[str] = Field(default_factory=list)
+
+    @property
+    def engineering_insights(self) -> List[str]:
+        return self.diagnostics
 
 
 class DesignOptimizationEngine:
@@ -351,10 +361,12 @@ class DesignOptimizationEngine:
             iterations_run=inp.iterations,
             pareto_score=round(pareto, 2),
             status="CONVERGED" if uncovered == 0 else "PARTIAL_COVERAGE",
+            roof_coverage_verification_note=ROOF_COVERAGE_VERIFICATION_NOTE,
             diagnostics=[
                 f"Evaluated {len(targets)} critical rooftop target coordinates.",
-                f"Optimal configuration achieved {best_pct:.1f}% coverage with {len(best_rods)} rods."
-            ]
+                f"Optimal configuration achieved {best_pct:.1f}% coverage with {len(best_rods)} rods.",
+                ROOF_COVERAGE_VERIFICATION_NOTE,
+            ],
         )
         return result, trajectory
 
