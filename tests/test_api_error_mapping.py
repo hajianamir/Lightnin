@@ -89,11 +89,23 @@ def test_earthing_invalid_lps_class_returns_422():
         "soil": {"rho_upper_ohm_m": 100.0},
         "electrode_type": "type_b_ring",
         "ring_radius_m": 15.0,
+        "conductor_diameter_m": 0.01,
         "burial_depth_m": 0.5,
     }
     response = client.post("/api/v1/calculations/earthing", json=payload)
-    detail = _assert_value_error_422(response)
-    assert "BAD" in detail
+    assert response.status_code == 422
+    body = response.json()
+    assert isinstance(body, dict) and "detail" in body
+    assert isinstance(body["detail"], list) and len(body["detail"]) == 1
+    assert body["detail"][0]["loc"] == ["body", "lps_class"]
+    assert "BAD" in body["detail"][0]["msg"]
+
+    # Engine-level Figure 5 domain ValueError (> 3000 ohm.m) still maps via B1 handler
+    payload_fig5 = {**payload, "lps_class": "I", "soil": {"rho_upper_ohm_m": 3500.0}}
+    detail = _assert_value_error_422(
+        client.post("/api/v1/calculations/earthing", json=payload_fig5)
+    )
+    assert "3500.0" in detail
 
 
 def test_touch_step_empty_body_returns_422():

@@ -31,7 +31,9 @@ def test_earth_rod_sizing_multi_material():
         soil_resistivity_ohm_m=120.0,
         target_resistance_ohm=10.0,
         electrode_material="copper_bonded_steel",
-        rod_length_per_unit_m=3.0
+        rod_length_per_unit_m=3.0,
+        site_boundary_length_m=40.0,
+        site_boundary_width_m=25.0,
     )
     res_cu = engine.size_earth_rod_system(inp_cu_bond)
     assert res_cu.nominal_diameter_mm == 16.0
@@ -47,7 +49,9 @@ def test_earth_rod_sizing_multi_material():
         soil_resistivity_ohm_m=80.0,
         target_resistance_ohm=10.0,
         electrode_material="galvanized_steel",
-        rod_length_per_unit_m=3.0
+        rod_length_per_unit_m=3.0,
+        site_boundary_length_m=40.0,
+        site_boundary_width_m=25.0,
     )
     res_galv = engine.size_earth_rod_system(inp_galv)
     assert res_galv.nominal_diameter_mm == 20.0

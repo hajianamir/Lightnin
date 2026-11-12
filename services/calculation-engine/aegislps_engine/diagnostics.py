@@ -7,7 +7,11 @@ from aegislps_standards.repository import StandardsRepository
 from aegislps_domain.models import Project, Building, ConductorNode, SeparationPoint
 from aegislps_engine.separation import SeparationDistanceEngine
 from aegislps_engine.nodal import NodalCurrentSolver
-from aegislps_engine.earthing import EarthingEngine, EarthingAssessmentInput
+from aegislps_engine.earthing import (
+    EarthingAssessmentInput,
+    EarthingEngine,
+    SoilLayerModel,
+)
 from aegislps_engine.touch_step import TouchStepEngine, TouchStepAssessmentInput
 from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDEntry
 from aegislps_geometry.rolling_sphere import RollingSphereEngine
@@ -59,7 +63,15 @@ class SystemDiagnostics:
 
         # 4. Earthing Dwight Formula
         earth = EarthingEngine()
-        e_res = earth.evaluate_earthing_system(EarthingAssessmentInput(lps_class="I", ring_radius_m=15.0))
+        e_res = earth.evaluate_earthing_system(
+            EarthingAssessmentInput(
+                lps_class="I",
+                soil=SoilLayerModel(rho_upper_ohm_m=100.0),
+                electrode_type="type_b_ring",
+                conductor_diameter_m=0.01,
+                ring_radius_m=15.0,
+            )
+        )
         results["earthing_engine"] = {
             "status": "PASS" if e_res.stationary_resistance_r_ohm > 0 else "FAIL",
             "message": f"Type B ring resistance: {e_res.stationary_resistance_r_ohm:.2f} ohm"

@@ -12,7 +12,9 @@ def test_earthing_type_b_ring_dwight():
         soil=SoilLayerModel(rho_upper_ohm_m=100.0),
         electrode_type="type_b_ring",
         ring_radius_m=15.0,
-        burial_depth_m=0.5
+        conductor_diameter_m=0.01,
+        burial_depth_m=0.5,
+        peak_impulse_current_ka=100.0,
     )
     res = engine.evaluate_earthing_system(inp)
     assert res.minimum_length_l1_m > 0
@@ -27,9 +29,11 @@ def test_earthing_type_a_vertical_dwight_mutual_coupling():
         lps_class="II",
         soil=SoilLayerModel(rho_upper_ohm_m=200.0),
         electrode_type="type_a_vertical",
+        conductor_diameter_m=0.01,
         vertical_rod_length_m=3.0,
         vertical_rod_count=4,
-        vertical_rod_spacing_m=5.0
+        vertical_rod_spacing_m=5.0,
+        peak_impulse_current_ka=100.0,
     )
     res = engine.evaluate_earthing_system(inp)
     assert res.actual_effective_length_m == 12.0

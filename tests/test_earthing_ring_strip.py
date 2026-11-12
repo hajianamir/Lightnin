@@ -65,6 +65,7 @@ def test_ring_sunde_matches_independent_values_within_1e6_rel(
             ring_radius_m=ring_radius_m,
             conductor_diameter_m=conductor_diameter_m,
             burial_depth_m=burial_depth_m,
+            peak_impulse_current_ka=100.0,
         )
     )
     assert f"{res.stationary_resistance_r_ohm:.4g}" == expected_4sig
@@ -81,6 +82,7 @@ def test_ring_carries_pending_confirmation_warning_and_keeps_status():
             ring_radius_m=15.0,
             conductor_diameter_m=0.01,
             burial_depth_m=0.5,
+            peak_impulse_current_ka=100.0,
         )
     )
     assert RING_METHOD_LABEL in res.warnings
@@ -92,8 +94,9 @@ def test_ring_carries_pending_confirmation_warning_and_keeps_status():
 
 
 def test_ring_preserves_lower_bounds_on_radius_and_burial_depth():
-    # Clamped at r_ring = 1.0 m (D = 2.0 m) and h_depth = 0.1 m:
-    # R_ring = 100 / (pi^2 * 2) * ln(8 / sqrt(2 * 0.005 * 0.1)) = 28.03 ohm (4 sig figs)
+    # Unclamped Sunde formula at r_ring = 0.4 m (D = 0.8 m), a = 0.005 m, and h_depth = 0.02 m
+    # (both (0.4, 0.02) pass the > 0 validators after removing silent lower-bound clamps):
+    # R_ring = 100 / (pi^2 * 0.8) * ln(3.2 / sqrt(2 * 0.005 * 0.02)) = 68.667233067054 ohm
     engine = EarthingEngine()
     res = engine.evaluate_earthing_system(
         EarthingAssessmentInput(
@@ -103,11 +106,16 @@ def test_ring_preserves_lower_bounds_on_radius_and_burial_depth():
             ring_radius_m=0.4,
             conductor_diameter_m=0.01,
             burial_depth_m=0.02,
+            peak_impulse_current_ka=100.0,
         )
     )
-    assert f"{res.stationary_resistance_r_ohm:.4g}" == "28.03"
+    expected_unclamped = (100.0 / ((math.pi ** 2) * 0.8)) * math.log(
+        3.2 / math.sqrt(2.0 * 0.005 * 0.02)
+    )
+    assert expected_unclamped == pytest.approx(68.667233067054, rel=1e-12)
+    assert f"{res.stationary_resistance_r_ohm:.4g}" == "68.67"
     assert res.stationary_resistance_r_ohm == pytest.approx(
-        28.032122445354364, rel=1e-6
+        68.667233067054, rel=1e-6
     )
 
 
@@ -134,6 +142,7 @@ def test_strip_sunde_matches_independent_values_within_1e6_rel(
             strip_length_m=strip_length_m,
             conductor_diameter_m=conductor_diameter_m,
             burial_depth_m=burial_depth_m,
+            peak_impulse_current_ka=100.0,
         )
     )
     assert f"{res.stationary_resistance_r_ohm:.4g}" == expected_4sig
@@ -153,6 +162,7 @@ def test_strip_uses_strip_length_m_and_ignores_ring_radius_m():
                 ring_radius_m=ring_r,
                 conductor_diameter_m=0.01,
                 burial_depth_m=0.5,
+                peak_impulse_current_ka=100.0,
             )
         )
         for ring_r in (2.0, 15.0, 80.0)
@@ -168,9 +178,13 @@ def test_strip_uses_strip_length_m_and_ignores_ring_radius_m():
 def test_strip_missing_or_non_positive_length_raises_value_error(bad_strip_length):
     engine = EarthingEngine()
     inp = EarthingAssessmentInput(
+        lps_class="I",
+        soil=SoilLayerModel(rho_upper_ohm_m=100.0),
         electrode_type="type_a_horizontal",
         ring_radius_m=15.0,
         strip_length_m=bad_strip_length,
+        conductor_diameter_m=0.01,
+        peak_impulse_current_ka=100.0,
     )
     with pytest.raises(ValueError, match="strip_length_m"):
         engine.evaluate_earthing_system(inp)
@@ -180,14 +194,26 @@ def test_rod_and_foundation_paths_unchanged():
     engine = EarthingEngine()
     res_rod = engine.evaluate_earthing_system(
         EarthingAssessmentInput(
+            lps_class="I",
+            soil=SoilLayerModel(rho_upper_ohm_m=100.0),
             electrode_type="type_a_vertical",
+            conductor_diameter_m=0.01,
             vertical_rod_count=4,
             vertical_rod_spacing_m=5.0,
             vertical_rod_length_m=3.0,
+            peak_impulse_current_ka=100.0,
         )
     )
     res_found = engine.evaluate_earthing_system(
-        EarthingAssessmentInput(electrode_type="foundation")
+        EarthingAssessmentInput(
+            lps_class="I",
+            soil=SoilLayerModel(rho_upper_ohm_m=100.0),
+            electrode_type="foundation",
+            conductor_diameter_m=0.01,
+            foundation_perimeter_m=80.0,
+            foundation_area_m2=400.0,
+            peak_impulse_current_ka=100.0,
+        )
     )
     assert abs(res_rod.stationary_resistance_r_ohm - 10.68) < 0.01
     assert res_found.stationary_resistance_r_ohm == 3.47
@@ -238,6 +264,7 @@ def test_strip_identity_round_conductor_exact(
             strip_length_m=strip_length_m,
             conductor_diameter_m=conductor_diameter_m,
             burial_depth_m=burial_depth_m,
+            peak_impulse_current_ka=100.0,
         )
     )
     assert res.stationary_resistance_r_ohm == pytest.approx(
@@ -252,9 +279,13 @@ def test_strip_model_boundary_note_is_defined():
     engine = EarthingEngine()
     res = engine.evaluate_earthing_system(
         EarthingAssessmentInput(
+            lps_class="I",
+            soil=SoilLayerModel(rho_upper_ohm_m=100.0),
             electrode_type="type_a_horizontal",
             ring_radius_m=15.0,
             strip_length_m=30.0,
+            conductor_diameter_m=0.01,
+            peak_impulse_current_ka=100.0,
         )
     )
     assert (

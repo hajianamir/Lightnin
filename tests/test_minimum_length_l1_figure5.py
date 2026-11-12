@@ -39,6 +39,10 @@ def test_class_i_l1_figure5_values(rho: float, expected_m: float) -> None:
         EarthingAssessmentInput(
             lps_class="I",
             soil=SoilLayerModel(rho_upper_ohm_m=rho),
+            electrode_type="type_b_ring",
+            ring_radius_m=15.0,
+            conductor_diameter_m=0.01,
+            peak_impulse_current_ka=100.0,
         )
     )
     assert res.minimum_length_l1_m == pytest.approx(round(computed, 2), abs=1e-9)
@@ -95,6 +99,10 @@ def test_docx_renderer_prints_computed_l1_not_constant_5() -> None:
         EarthingAssessmentInput(
             lps_class="I",
             soil=SoilLayerModel(rho_upper_ohm_m=2000.0),
+            electrode_type="type_b_ring",
+            ring_radius_m=15.0,
+            conductor_diameter_m=0.01,
+            peak_impulse_current_ka=100.0,
         )
     )
     assert abs(earthing_res.minimum_length_l1_m - 50.0) <= 0.5

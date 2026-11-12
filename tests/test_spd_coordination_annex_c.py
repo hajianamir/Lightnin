@@ -57,6 +57,7 @@ def test_equation_c2_voltage_limiting_and_hybrid_upf():
                 id="t1",
                 spd_class="Type 1",
                 technology="spark_gap",
+                i_imp_ka=25.0,
                 up_kv=1.8,
                 cable_length_to_downstream_m=15.0,
                 lead_length_m=0.5,
@@ -107,6 +108,7 @@ def test_equation_c4_lead_voltage_drop_10ka_1m():
                 id="t1",
                 spd_class="Type 1",
                 technology="spark_gap",
+                i_imp_ka=25.0,
                 up_kv=1.8,
                 cable_length_to_downstream_m=12.0,
                 lead_length_m=0.5,
@@ -161,6 +163,7 @@ def test_boundary_non_positive_numerator_gives_zero_length_and_not_coordinated(u
                 id="t1",
                 spd_class="Type 1",
                 technology="spark_gap",
+                i_imp_ka=25.0,
                 up_kv=1.2,
                 cable_length_to_downstream_m=15.0,
                 lead_length_m=0.2,
@@ -200,6 +203,7 @@ def test_limiting_vs_switching_give_distinct_l_max_for_identical_inputs():
         id="t1",
         spd_class="Type 1",
         technology="spark_gap",
+        i_imp_ka=25.0,
         up_kv=1.8,
         cable_length_to_downstream_m=15.0,
         lead_length_m=0.3,
@@ -250,6 +254,7 @@ def test_default_lead_length_and_default_kr_emit_warnings():
                 id="t1",
                 spd_class="Type 1",
                 technology="spark_gap",
+                i_imp_ka=25.0,
                 up_kv=1.8,
                 cable_length_to_downstream_m=15.0,
             ),
@@ -281,6 +286,7 @@ def test_equipment_side_stage_selects_smallest_up_type2_or_type3_and_missing_sta
         id="t1",
         spd_class="Type 1",
         technology="spark_gap",
+        i_imp_ka=25.0,
         up_kv=1.2,
         cable_length_to_downstream_m=15.0,
         lead_length_m=0.5,
@@ -323,10 +329,10 @@ def test_missing_or_invalid_induced_voltage_raises_value_error():
     with pytest.raises(ValueError):
         EquipmentWithstand()  # type: ignore[call-arg]
     with pytest.raises(ValueError):
-        EquipmentWithstand(induced_voltage_kv=None)  # type: ignore[arg-type]
+        EquipmentWithstand(uw_kv=2.5, induced_voltage_kv=None)  # type: ignore[arg-type]
     for bad_ui in (-0.01, float("nan"), float("inf"), True):
         with pytest.raises(ValueError):
-            EquipmentWithstand(induced_voltage_kv=bad_ui)  # type: ignore[arg-type]
+            EquipmentWithstand(uw_kv=2.5, induced_voltage_kv=bad_ui)  # type: ignore[arg-type]
 
     engine = SPDCoordinationEngine()
     with pytest.raises(ValueError):
@@ -337,7 +343,7 @@ def test_missing_or_invalid_induced_voltage_raises_value_error():
 def test_reflection_coefficient_outside_bounds_raises_value_error(bad_kr):
     """reflection_coefficient_kr outside [1.0, 2.0] or non-finite raises ValueError."""
     with pytest.raises(ValueError):
-        EquipmentWithstand(induced_voltage_kv=0.0, reflection_coefficient_kr=bad_kr)
+        EquipmentWithstand(uw_kv=2.5, induced_voltage_kv=0.0, reflection_coefficient_kr=bad_kr)
     with pytest.raises(ValueError):
         SPDCoordinationEngine.calculate_required_upf_c1(2.5, 0.0, bad_kr)
 
@@ -346,13 +352,27 @@ def test_invalid_spd_technology_class_and_lead_length_raise_value_error():
     """Unknown technology, unknown spd_class, or negative/non-finite lead_length_m raises ValueError."""
     for bad_tech in ("gas_tube", "combination", "", "MOV"):
         with pytest.raises(ValueError):
-            SPDEntry(id="s", spd_class="Type 2", technology=bad_tech)
+            SPDEntry(id="s", spd_class="Type 2", technology=bad_tech, i_n_ka=20.0, up_kv=1.5)
     for bad_cls in ("Type 4", "Class I", "1", ""):
         with pytest.raises(ValueError):
-            SPDEntry(id="s", spd_class=bad_cls)
+            SPDEntry(
+                id="s",
+                spd_class=bad_cls,
+                technology="varistor_mov",
+                i_imp_ka=25.0,
+                i_n_ka=20.0,
+                up_kv=1.5,
+            )
     for bad_lead in (-0.1, float("nan"), float("inf"), True):
         with pytest.raises(ValueError):
-            SPDEntry(id="s", spd_class="Type 2", lead_length_m=bad_lead)  # type: ignore[arg-type]
+            SPDEntry(
+                id="s",
+                spd_class="Type 2",
+                technology="varistor_mov",
+                i_n_ka=20.0,
+                up_kv=1.5,
+                lead_length_m=bad_lead,  # type: ignore[arg-type]
+            )
 
 
 def test_api_spd_coordination_requires_equipment_and_induced_voltage():
@@ -363,6 +383,7 @@ def test_api_spd_coordination_requires_equipment_and_induced_voltage():
             "id": "spd-1",
             "spd_class": "Type 1",
             "technology": "spark_gap",
+            "i_imp_ka": 25.0,
             "up_kv": 1.2,
             "cable_length_to_downstream_m": 15.0,
             "lead_length_m": 0.3,

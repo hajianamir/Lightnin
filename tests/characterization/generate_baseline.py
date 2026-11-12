@@ -139,40 +139,57 @@ def compute_all_snapshots() -> Dict[str, Any]:
     }
 
     # 2. EarthingEngine
+    # Test fixture assumptions: explicit former defaults (peak_impulse_current_ka=100.0
+    # passed explicitly per Step 2.7-B3 Decision 8; 1-rod Type A removed per Decision 1).
     earthing_engine = EarthingEngine()
     raw["earthing"] = {
         "type_b_ring": earthing_engine.evaluate_earthing_system(
             EarthingAssessmentInput(
+                lps_class="I",
+                soil=SoilLayerModel(rho_upper_ohm_m=100.0),
                 electrode_type="type_b_ring",
                 ring_radius_m=15.0,
-                soil=SoilLayerModel(rho_upper_ohm_m=100.0),
-            )
-        ),
-        "type_a_vertical_1_rod": earthing_engine.evaluate_earthing_system(
-            EarthingAssessmentInput(
-                electrode_type="type_a_vertical",
-                vertical_rod_count=1,
-                vertical_rod_spacing_m=5.0,
-                vertical_rod_length_m=3.0,
+                conductor_diameter_m=0.01,
+                burial_depth_m=0.5,
+                peak_impulse_current_ka=100.0,
             )
         ),
         "type_a_vertical_4_rods": earthing_engine.evaluate_earthing_system(
             EarthingAssessmentInput(
+                lps_class="I",
+                soil=SoilLayerModel(rho_upper_ohm_m=100.0),
                 electrode_type="type_a_vertical",
+                conductor_diameter_m=0.01,
+                burial_depth_m=0.5,
                 vertical_rod_count=4,
                 vertical_rod_spacing_m=5.0,
                 vertical_rod_length_m=3.0,
+                peak_impulse_current_ka=100.0,
             )
         ),
         "type_a_horizontal": earthing_engine.evaluate_earthing_system(
             EarthingAssessmentInput(
+                lps_class="I",
+                soil=SoilLayerModel(rho_upper_ohm_m=100.0),
                 electrode_type="type_a_horizontal",
                 ring_radius_m=15.0,
                 strip_length_m=30.0,
+                conductor_diameter_m=0.01,
+                burial_depth_m=0.5,
+                peak_impulse_current_ka=100.0,
             )
         ),
         "foundation": earthing_engine.evaluate_earthing_system(
-            EarthingAssessmentInput(electrode_type="foundation")
+            EarthingAssessmentInput(
+                lps_class="I",
+                soil=SoilLayerModel(rho_upper_ohm_m=100.0),
+                electrode_type="foundation",
+                conductor_diameter_m=0.01,
+                burial_depth_m=0.5,
+                foundation_perimeter_m=80.0,
+                foundation_area_m2=400.0,
+                peak_impulse_current_ka=100.0,
+            )
         ),
     }
 
@@ -202,23 +219,35 @@ def compute_all_snapshots() -> Dict[str, Any]:
     }
 
     # 4. SPDCoordinationEngine
-    # Test fixture: induced voltage not evaluated (lower bound). Not a default.
+    # Test fixture: induced voltage not evaluated (lower bound) + explicit former defaults.
     raw["spd_coordination"] = SPDCoordinationEngine().evaluate_coordination(
         [
             SPDEntry(
                 id="spd_1",
                 spd_class="Type 1",
                 technology="spark_gap",
+                uc_volts=275.0,
+                i_imp_ka=25.0,
+                i_n_ka=20.0,
+                up_kv=1.5,
+                installed_lpz_boundary="LPZ 0B / 1",
                 cable_length_to_downstream_m=5.0,
                 lead_length_m=0.5,
             ),
             SPDEntry(
                 id="spd_2",
                 spd_class="Type 2",
+                technology="spark_gap",
+                uc_volts=275.0,
+                i_imp_ka=25.0,
+                i_n_ka=20.0,
+                up_kv=1.5,
+                installed_lpz_boundary="LPZ 0B / 1",
+                cable_length_to_downstream_m=15.0,
                 lead_length_m=0.5,
             ),
         ],
-        EquipmentWithstand(induced_voltage_kv=0.0),
+        EquipmentWithstand(category="Cat II", uw_kv=2.5, induced_voltage_kv=0.0),
     )
 
     # 5. RiskManagementEngine
@@ -338,14 +367,31 @@ def compute_all_snapshots() -> Dict[str, Any]:
     # 10. MeshMethodEngine
     raw["mesh_method"] = MeshMethodEngine().validate_mesh_design(MeshMethodInput())
 
-    # 11. EarthRodSizingEngine
+    # 11. EarthRodSizingEngine (explicit former defaults)
     raw["earth_rod_sizing"] = EarthRodSizingEngine().size_earth_rod_system(
-        EarthRodSizingInput()
+        EarthRodSizingInput(
+            lps_class="I",
+            soil_resistivity_ohm_m=120.0,
+            target_resistance_ohm=10.0,
+            electrode_material="copper_bonded_steel",
+            rod_length_per_unit_m=3.0,
+            min_distance_to_building_foundation_m=1.0,
+            site_boundary_length_m=40.0,
+            site_boundary_width_m=25.0,
+        )
     )
 
-    # 12. EarthPitEngine
+    # 12. EarthPitEngine (explicit former defaults)
     raw["earth_pit"] = EarthPitEngine().evaluate_earth_pit_and_backfill(
-        EarthPitSizingInput()
+        EarthPitSizingInput(
+            is_disconnect_testing_required=True,
+            traffic_loading_area="pedestrian",
+            electrode_rod_diameter_mm=16.0,
+            auger_hole_diameter_mm=100.0,
+            treatment_depth_m=3.0,
+            enhancement_material="carbon_gem",
+            native_soil_resistivity_ohm_m=150.0,
+        )
     )
 
     # 13. PVEngineeringModule

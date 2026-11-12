@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 _VALID_SPD_CLASSES = ("Type 1", "Type 2", "Type 3")
 _VALID_TECHNOLOGIES = ("spark_gap", "varistor_mov", "hybrid")
+_VALID_EQUIPMENT_CATEGORIES = ("Cat I", "Cat II", "Cat III", "Cat IV")
 
 # IEC 62305-4:2024 Clause C.2.3.3 Eq. (C.4) (p. 90): ΔU = 0.1 * I_SPD [kV/m]
 _EQ_C4_KV_PER_KA_M: float = 0.1
@@ -18,19 +19,26 @@ _RULE1_UW_FACTOR: float = 0.5
 
 
 class SPDEntry(BaseModel):
-    """Single SPD stage entry for LPZ boundary coordination."""
+    """Single SPD stage entry for LPZ boundary coordination.
+
+    Metadata fields retaining documented defaults (do not enter the Annex C.2.3
+    ``U_p/f`` / ``U_w`` equations):
+    - ``uc_volts`` (default ``275.0`` V): maximum continuous operating voltage label;
+      validated ``> 0`` if provided.
+    - ``installed_lpz_boundary`` (default ``"LPZ 0B / 1"``): installation zone label.
+    """
 
     model_config = ConfigDict(allow_inf_nan=False)
 
     id: str
     spd_class: str  # Type 1, Type 2, Type 3
-    technology: str = "spark_gap"  # spark_gap, varistor_mov, hybrid
-    uc_volts: float = 275.0
-    i_imp_ka: float = 25.0  # 10/350 µs for Type 1 (Clause C.2.3.2 NOTE 2)
-    i_n_ka: float = 20.0  # 8/20 µs for Type 2 / Type 3
-    up_kv: float = 1.5
+    technology: str  # spark_gap, varistor_mov, hybrid (required)
+    uc_volts: Optional[float] = 275.0
+    i_imp_ka: Optional[float] = None  # 10/350 µs; required for Type 1 (Clause C.2.3.2 NOTE 2)
+    i_n_ka: Optional[float] = None  # 8/20 µs; required for Type 2 and Type 3
+    up_kv: float  # Required voltage protection level U_p [kV] (> 0)
     installed_lpz_boundary: str = "LPZ 0B / 1"
-    cable_length_to_downstream_m: float = 15.0  # Inter-stage decoupling cable length [m]
+    cable_length_to_downstream_m: Optional[float] = None  # Required for Type 1 spark_gap [m]
     lead_length_m: Optional[float] = None  # Connecting lead length L = L1 + L2 + L3 [m] (Figure C.3)
 
     @field_validator(
@@ -58,14 +66,43 @@ class SPDEntry(BaseModel):
             raise ValueError(
                 f"Unknown technology {self.technology!r}; expected one of {_VALID_TECHNOLOGIES}."
             )
-        for name in ("uc_volts", "i_imp_ka", "i_n_ka", "up_kv"):
-            val = getattr(self, name)
-            if not math.isfinite(val) or val <= 0.0:
-                raise ValueError(f"{name} must be finite and > 0, got {val!r}.")
-        if not math.isfinite(self.cable_length_to_downstream_m) or self.cable_length_to_downstream_m < 0.0:
+        if not math.isfinite(self.up_kv) or self.up_kv <= 0.0:
+            raise ValueError(f"up_kv must be finite and > 0, got {self.up_kv!r}.")
+        if self.uc_volts is not None:
+            if not math.isfinite(self.uc_volts) or self.uc_volts <= 0.0:
+                raise ValueError(f"uc_volts must be finite and > 0, got {self.uc_volts!r}.")
+
+        if self.i_imp_ka is not None:
+            if not math.isfinite(self.i_imp_ka) or self.i_imp_ka <= 0.0:
+                raise ValueError(f"i_imp_ka must be finite and > 0, got {self.i_imp_ka!r}.")
+        if self.spd_class == "Type 1" and self.i_imp_ka is None:
+            raise ValueError("i_imp_ka is required when spd_class == 'Type 1'.")
+
+        if self.i_n_ka is not None:
+            if not math.isfinite(self.i_n_ka) or self.i_n_ka <= 0.0:
+                raise ValueError(f"i_n_ka must be finite and > 0, got {self.i_n_ka!r}.")
+        if self.spd_class in ("Type 2", "Type 3") and self.i_n_ka is None:
             raise ValueError(
-                f"cable_length_to_downstream_m must be finite and >= 0, got {self.cable_length_to_downstream_m!r}."
+                f"i_n_ka is required when spd_class is {self.spd_class!r}."
             )
+
+        if self.cable_length_to_downstream_m is not None:
+            if (
+                not math.isfinite(self.cable_length_to_downstream_m)
+                or self.cable_length_to_downstream_m < 0.0
+            ):
+                raise ValueError(
+                    f"cable_length_to_downstream_m must be finite and >= 0, got {self.cable_length_to_downstream_m!r}."
+                )
+        if (
+            self.spd_class == "Type 1"
+            and self.technology == "spark_gap"
+            and self.cable_length_to_downstream_m is None
+        ):
+            raise ValueError(
+                "cable_length_to_downstream_m is required when spd_class == 'Type 1' and technology == 'spark_gap'."
+            )
+
         if self.lead_length_m is not None:
             if not math.isfinite(self.lead_length_m) or self.lead_length_m < 0.0:
                 raise ValueError(
@@ -80,9 +117,11 @@ class EquipmentWithstand(BaseModel):
     Parameters
     ----------
     category : str
-        Overvoltage category label (Table C.1, default ``"Cat II"``).
+        Overvoltage category label (IEC 62305-4:2024 Table A.1 / Table C.1:
+        one of ``{"Cat I", "Cat II", "Cat III", "Cat IV"}``, default ``"Cat II"``;
+        label metadata only — ``uw_kv`` carries the impulse withstand value).
     uw_kv : float
-        Rated impulse withstand voltage ``U_w`` in kV (default ``2.5``).
+        Required rated impulse withstand voltage ``U_w`` in kV (``> 0``; no silent default).
     induced_voltage_kv : float
         Required loop induced overvoltage ``U_i`` in kV (Clause C.2.3.5; no silent default).
     reflection_coefficient_kr : float
@@ -91,8 +130,8 @@ class EquipmentWithstand(BaseModel):
 
     model_config = ConfigDict(allow_inf_nan=False)
 
-    category: str = "Cat II"  # Cat I (1.5kV), Cat II (2.5kV), Cat III (4kV), Cat IV (6kV)
-    uw_kv: float = 2.5
+    category: str = "Cat II"  # Cat I, Cat II, Cat III, Cat IV (Table A.1 / Table C.1 metadata)
+    uw_kv: float
     induced_voltage_kv: float
     reflection_coefficient_kr: float = 2.0
 
@@ -107,6 +146,13 @@ class EquipmentWithstand(BaseModel):
 
     @model_validator(mode="after")
     def _validate_equipment(self) -> "EquipmentWithstand":
+        if (
+            not isinstance(self.category, str)
+            or self.category not in _VALID_EQUIPMENT_CATEGORIES
+        ):
+            raise ValueError(
+                f"Unknown equipment category {self.category!r}; expected one of {_VALID_EQUIPMENT_CATEGORIES}."
+            )
         if not math.isfinite(self.uw_kv) or self.uw_kv <= 0.0:
             raise ValueError(f"uw_kv must be finite and > 0, got {self.uw_kv!r}.")
         if not math.isfinite(self.induced_voltage_kv) or self.induced_voltage_kv < 0.0:
@@ -227,8 +273,12 @@ class SPDCoordinationEngine:
     def get_spd_test_current_ka(spd: SPDEntry) -> float:
         """Return ``I_SPD`` in kA: ``i_imp_ka`` for Type 1, ``i_n_ka`` for Type 2 and Type 3."""
         if spd.spd_class == "Type 1":
+            if spd.i_imp_ka is None or not math.isfinite(spd.i_imp_ka) or spd.i_imp_ka <= 0.0:
+                raise ValueError("i_imp_ka must be finite and > 0 for Type 1 SPD.")
             return float(spd.i_imp_ka)
         if spd.spd_class in ("Type 2", "Type 3"):
+            if spd.i_n_ka is None or not math.isfinite(spd.i_n_ka) or spd.i_n_ka <= 0.0:
+                raise ValueError(f"i_n_ka must be finite and > 0 for {spd.spd_class} SPD.")
             return float(spd.i_n_ka)
         raise ValueError(
             f"Unknown spd_class {spd.spd_class!r}; expected one of {_VALID_SPD_CLASSES}."
@@ -266,8 +316,11 @@ class SPDCoordinationEngine:
     ) -> SPDCoordinationAssessment:
         if equipment is None or not isinstance(equipment, EquipmentWithstand):
             raise ValueError(
-                "equipment (EquipmentWithstand with explicit induced_voltage_kv) is required."
+                "equipment (EquipmentWithstand with explicit uw_kv and induced_voltage_kv) is required."
             )
+        equipment._validate_equipment()
+        for spd in spds:
+            spd._validate_spd()
 
         equip = equipment
         warnings: List[str] = []
@@ -298,16 +351,27 @@ class SPDCoordinationEngine:
         type1_entries = [s for s in spds if s.spd_class == "Type 1"]
         energy_coordinated = True
         for t1 in type1_entries:
-            if t1.technology == "spark_gap" and t1.cable_length_to_downstream_m < 10.0:
-                warnings.append(
-                    f"Cable length between Type 1 spark gap and downstream SPD ({t1.cable_length_to_downstream_m}m) is less than 10m. "
-                    "Risk of premature MOV destruction before spark-gap fires without decoupling inductor."
-                )
-                energy_coordinated = False
+            if t1.technology == "spark_gap":
+                assert t1.cable_length_to_downstream_m is not None
+                if t1.cable_length_to_downstream_m < 10.0:
+                    warnings.append(
+                        f"Cable length between Type 1 spark gap and downstream SPD ({t1.cable_length_to_downstream_m}m) is less than 10m. "
+                        "Risk of premature MOV destruction before spark-gap fires without decoupling inductor."
+                    )
+                    energy_coordinated = False
+                else:
+                    details.append(
+                        f"Decoupling length ({t1.cable_length_to_downstream_m}m) satisfies energy coordination criteria"
+                    )
             else:
-                details.append(
-                    f"Decoupling length ({t1.cable_length_to_downstream_m}m) satisfies energy coordination criteria"
-                )
+                if t1.cable_length_to_downstream_m is not None:
+                    details.append(
+                        f"Decoupling length ({t1.cable_length_to_downstream_m}m) satisfies energy coordination criteria"
+                    )
+                else:
+                    details.append(
+                        f"Type 1 {t1.technology} SPD '{t1.id}' satisfies energy coordination criteria"
+                    )
 
         # Check 3: Rule 1 (U_p <= 0.5 * U_w) on Type 1 SPDs — conservative screening bound (C.2.3.1.4)
         rule1_limit_kv = _RULE1_UW_FACTOR * equip.uw_kv

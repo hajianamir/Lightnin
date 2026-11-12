@@ -55,23 +55,24 @@ def test_r_m_far_field_asymptote():
     assert abs(rm_val - asym) / asym < 0.01
 
 
-def test_n1_equals_r1():
-    """N=1 returns R1 within 1e-12 and leaves the 1-rod method_details label unchanged."""
+def test_type_a_vertical_rejects_single_rod_per_clause_5_4_2_2():
+    """array_resistance_identical_rods(N=1) equals R1, while EarthingAssessmentInput rejects 1-rod Type A."""
     rho, L, a, s = 100.0, 3.0, 0.005, 5.0
     r1 = single_vertical_rod_resistance(rho, L, a)
     rn1 = array_resistance_identical_rods(rho, L, a, 1, s)
     assert abs(rn1 - r1) <= 1e-12 * r1
 
-    res_1 = EarthingEngine().evaluate_earthing_system(
+    with pytest.raises(ValueError, match="vertical_rod_count"):
         EarthingAssessmentInput(
+            lps_class="I",
+            soil=SoilLayerModel(rho_upper_ohm_m=100.0),
             electrode_type="type_a_vertical",
+            conductor_diameter_m=0.01,
             vertical_rod_count=1,
             vertical_rod_length_m=3.0,
             vertical_rod_spacing_m=5.0,
+            peak_impulse_current_ka=100.0,
         )
-    )
-    assert "Dwight + Mutual Coupling" in res_1.method_details
-    assert MULTI_ROD_METHOD_LABEL not in res_1.method_details
 
 
 def test_n2_at_spacing_L_within_ieee142_band():
@@ -125,12 +126,14 @@ def test_earthing_engine_vertical_multi_rod_uses_pairwise_mutual():
     """Exercises EarthingEngine type_a_vertical multi-rod path (guards M1)."""
     res = EarthingEngine().evaluate_earthing_system(
         EarthingAssessmentInput(
+            lps_class="I",
             electrode_type="type_a_vertical",
             soil=SoilLayerModel(rho_upper_ohm_m=100.0),
             vertical_rod_count=4,
             vertical_rod_length_m=3.0,
             vertical_rod_spacing_m=5.0,
             conductor_diameter_m=0.01,
+            peak_impulse_current_ka=100.0,
         )
     )
     assert abs(res.stationary_resistance_r_ohm - 10.68) < 0.01
@@ -139,7 +142,18 @@ def test_earthing_engine_vertical_multi_rod_uses_pairwise_mutual():
 
 def test_earth_rod_sizing_engine_uses_pairwise_mutual():
     """Exercises EarthRodSizingEngine multi-rod sizing loop (guards M2)."""
-    res = EarthRodSizingEngine().size_earth_rod_system(EarthRodSizingInput())
+    res = EarthRodSizingEngine().size_earth_rod_system(
+        EarthRodSizingInput(
+            lps_class="I",
+            soil_resistivity_ohm_m=120.0,
+            target_resistance_ohm=10.0,
+            electrode_material="copper_bonded_steel",
+            rod_length_per_unit_m=3.0,
+            min_distance_to_building_foundation_m=1.0,
+            site_boundary_length_m=40.0,
+            site_boundary_width_m=25.0,
+        )
+    )
     assert res.required_number_of_rods == 5
     assert abs(res.total_array_resistance_ohm - 9.65) < 0.01
     assert len(res.recommended_rod_coordinates) == 5
