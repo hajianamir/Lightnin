@@ -64,6 +64,29 @@ def test_class_ii_l1_figure5_values(rho: float, expected_m: float) -> None:
     assert abs(computed - expected_m) <= 0.5
 
 
+@pytest.mark.parametrize(
+    "rho,expected_m",
+    [
+        (500.0, 5.0),
+        (600.0, 5.0),
+        (700.0, 5.0),
+        (750.0, 5.0),
+        (799.0, 5.0),
+        (800.0, 5.0),
+        (801.0, 5.0 + (801.0 - 800.0) * 43.5 / 2200.0),
+        (3000.0, 48.5),
+    ],
+)
+def test_class_ii_l1_flat_segment_and_knee_threshold(
+    rho: float, expected_m: float
+) -> None:
+    """IEC 62305-3:2024 Clause 5.4.2.2, Figure 5 (p. 34) Class II knee at (800 ohm.m, 5 m)."""
+    computed = EarthingEngine.get_iec_min_length_l1("II", rho)
+    if rho <= 800.0:
+        assert computed == 5.0
+    assert computed == pytest.approx(expected_m, rel=0.0, abs=1e-9)
+
+
 @pytest.mark.parametrize("lps_cls", ["III", "IV"])
 @pytest.mark.parametrize("rho", [100.0, 1000.0, 3000.0])
 def test_class_iii_and_iv_l1_constant_per_note1(lps_cls: str, rho: float) -> None:
