@@ -8,16 +8,20 @@ from aegislps_engine.ifc_importer import IFCImporter
 def test_nodal_solver_current_sharing():
     solver = NodalCurrentSolver()
     nodes = [
-        {"id": "n1", "x": 0, "y": 0, "z": 15},
-        {"id": "n2", "x": 10, "y": 0, "z": 0},
-        {"id": "n3", "x": -10, "y": 0, "z": 0}
+        {"id": "n1", "x": 0, "y": 0, "z": 15, "node_type": "conductor"},
+        {"id": "n2", "x": 10, "y": 0, "z": 0, "node_type": "conductor"},
+        {"id": "n3", "x": -10, "y": 0, "z": 0, "node_type": "conductor"}
     ]
     segments = [
-        {"id": "s1", "start_node_id": "n1", "end_node_id": "n2", "cross_section_mm2": 50},
-        {"id": "s2", "start_node_id": "n1", "end_node_id": "n3", "cross_section_mm2": 50}
+        {"id": "s1", "start_node_id": "n1", "end_node_id": "n2", "cross_section_mm2": 50, "resistivity_ohm_m": 1.72e-8},
+        {"id": "s2", "start_node_id": "n1", "end_node_id": "n3", "cross_section_mm2": 50, "resistivity_ohm_m": 1.72e-8}
     ]
     solver.build_network(nodes, segments)
-    res = solver.calculate_current_sharing(injection_node="n1", earth_nodes=["n2", "n3"])
+    res = solver.calculate_current_sharing(
+        injection_node="n1",
+        earth_nodes=["n2", "n3"],
+        total_injection_current_a=100000.0,
+    )
     kc_factors = res["kc_factors"]
 
     assert "s1" in kc_factors
@@ -70,6 +74,8 @@ def test_dxf_exporter():
     assert len(dxf_bytes) > 100
 
 def test_ifc_importer_interface_stub():
-    res = IFCImporter.parse_ifc_building_elements(b"dummy ifc content")
+    res = IFCImporter.parse_ifc_building_elements(
+        b"ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nEND-ISO-10303-21;\n"
+    )
     assert res["parsed"] is True
     assert res["detected_building"]["length_m"] == 25.0

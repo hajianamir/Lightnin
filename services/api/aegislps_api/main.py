@@ -4,12 +4,12 @@ from typing import Optional
 from fastapi import Body, FastAPI, HTTPException, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, ValidationError, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from aegislps_domain.models import Project, SeparationCalculationResult
 from aegislps_domain.integrity import ProjectIntegrityEngine
 from aegislps_engine.separation import SeparationDistanceEngine
-from aegislps_engine.nodal import NodalCurrentSolver
+from aegislps_engine.nodal import NodalCurrentSolver, NodeIn, SegmentIn
 from aegislps_engine.risk import RiskManagementEngine, RiskAssessmentInput
 from aegislps_engine.earthing import EarthingEngine, EarthingAssessmentInput
 from aegislps_engine.touch_step import TouchStepEngine, TouchStepAssessmentInput
@@ -122,6 +122,139 @@ class RollingSphereRequest(BaseModel):
         return self
 
 
+class NodalKCRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    nodes: list[NodeIn]
+    segments: list[SegmentIn]
+    injection_node: str
+    earth_nodes: list[str]
+    total_injection_current_a: float
+    # experimental single-frequency heuristic; not in IEC 62305-3:2024 Annex C
+    equivalent_frequency_khz: float = 250.0
+
+    @field_validator("injection_node", mode="before")
+    @classmethod
+    def _validate_injection_node(cls, v):
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError(f"injection_node must be a non-empty string, got {v!r}.")
+        return v
+
+    @field_validator("earth_nodes", mode="before")
+    @classmethod
+    def _validate_earth_nodes(cls, v):
+        if not isinstance(v, list) or len(v) == 0:
+            raise ValueError("earth_nodes must be a non-empty list of node IDs.")
+        for item in v:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError(
+                    f"earth_nodes items must be non-empty strings, got {item!r}."
+                )
+        return v
+
+    @field_validator("total_injection_current_a", "equivalent_frequency_khz", mode="before")
+    @classmethod
+    def _validate_positive_scalars(cls, v, info):
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError(
+                f"{info.field_name} must be a finite number > 0, not bool; got {v!r}."
+            )
+        val = float(v)
+        if not math.isfinite(val) or val <= 0.0:
+            raise ValueError(f"{info.field_name} must be finite and > 0, got {v!r}.")
+        return val
+
+
+class GenerateBOMRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    project_name: str
+    lps_class: str
+    building_length_m: float = Field(
+        validation_alias=AliasChoices("building_length_m", "length_m")
+    )
+    building_width_m: float = Field(
+        validation_alias=AliasChoices("building_width_m", "width_m")
+    )
+    building_height_m: float = Field(
+        validation_alias=AliasChoices("building_height_m", "height_m")
+    )
+    rod_count: int
+    down_conductor_count: int
+
+    @field_validator("project_name", mode="before")
+    @classmethod
+    def _validate_project_name(cls, v):
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError(f"project_name must be a non-empty string, got {v!r}.")
+        return v
+
+    @field_validator("lps_class", mode="before")
+    @classmethod
+    def _validate_lps_class(cls, v):
+        if not isinstance(v, str) or v not in ROLLING_SPHERE_RADIUS_M_BY_CLASS:
+            raise ValueError(
+                f"Unknown LPS class {v!r}; expected one of {tuple(ROLLING_SPHERE_RADIUS_M_BY_CLASS)}."
+            )
+        return v
+
+    @field_validator(
+        "building_length_m", "building_width_m", "building_height_m", mode="before"
+    )
+    @classmethod
+    def _validate_dims(cls, v, info):
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError(
+                f"{info.field_name} must be a finite number > 0, not bool; got {v!r}."
+            )
+        val = float(v)
+        if not math.isfinite(val) or val <= 0.0:
+            raise ValueError(f"{info.field_name} must be finite and > 0, got {v!r}.")
+        return val
+
+    @field_validator("rod_count", "down_conductor_count", mode="before")
+    @classmethod
+    def _validate_counts(cls, v, info):
+        if isinstance(v, bool) or not isinstance(v, int):
+            raise ValueError(
+                f"{info.field_name} must be a strict int >= 1, not bool; got {v!r}."
+            )
+        if v < 1:
+            raise ValueError(f"{info.field_name} must be >= 1, got {v!r}.")
+        return v
+
+
+class PEECThermalRequest(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    props: ConductorThermalProperties
+    lps_class: str
+    parallel_conductor_spacing_m: float
+
+    @field_validator("lps_class", mode="before")
+    @classmethod
+    def _validate_lps_class(cls, v):
+        if not isinstance(v, str) or v not in ROLLING_SPHERE_RADIUS_M_BY_CLASS:
+            raise ValueError(
+                f"Unknown LPS class {v!r}; expected one of {tuple(ROLLING_SPHERE_RADIUS_M_BY_CLASS)}."
+            )
+        return v
+
+    @field_validator("parallel_conductor_spacing_m", mode="before")
+    @classmethod
+    def _validate_spacing(cls, v):
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise ValueError(
+                f"parallel_conductor_spacing_m must be a finite number > 0, not bool; got {v!r}."
+            )
+        val = float(v)
+        if not math.isfinite(val) or val <= 0.0:
+            raise ValueError(
+                f"parallel_conductor_spacing_m must be finite and > 0, got {v!r}."
+            )
+        return val
+
+
 standards_repo = StandardsRepository()
 calc_engine = SeparationDistanceEngine(standards_repo)
 nodal_solver = NodalCurrentSolver()
@@ -152,9 +285,16 @@ def calculate_separation_distance(project: Project):
     return calc_engine.calculate_project(project)
 
 @app.post("/api/v1/calculations/nodal-kc")
-def calculate_nodal_kc(nodes: list[dict], segments: list[dict], injection_node: str, earth_nodes: list[str]):
-    nodal_solver.build_network(nodes, segments)
-    return nodal_solver.calculate_current_sharing(injection_node, earth_nodes)
+def calculate_nodal_kc(inputs: NodalKCRequest):
+    solver = NodalCurrentSolver(
+        equivalent_frequency_khz=inputs.equivalent_frequency_khz
+    )
+    solver.build_network(inputs.nodes, inputs.segments)
+    return solver.calculate_current_sharing(
+        inputs.injection_node,
+        inputs.earth_nodes,
+        inputs.total_injection_current_a,
+    )
 
 @app.post("/api/v1/calculations/rolling-sphere")
 def calculate_rolling_sphere(
@@ -253,12 +393,24 @@ def calculate_hvi_selection(inputs: HVIConductorSelectionInput):
     return hvi_assistant.evaluate_hvi_selection(inputs)
 
 @app.post("/api/v1/projects/generate-bom")
-def generate_project_bom(project_name: str, lps_class: str, length_m: float, width_m: float, height_m: float):
-    return bom_engine.generate_project_bom(project_name, lps_class, length_m, width_m, height_m)
+def generate_project_bom(inputs: GenerateBOMRequest):
+    return bom_engine.generate_project_bom(
+        inputs.project_name,
+        inputs.lps_class,
+        inputs.building_length_m,
+        inputs.building_width_m,
+        inputs.building_height_m,
+        inputs.rod_count,
+        inputs.down_conductor_count,
+    )
 
 @app.post("/api/v1/calculations/peec-thermal")
-def calculate_peec_thermal(props: ConductorThermalProperties, lps_class: str = "I"):
-    return peec_engine.evaluate_thermal_and_electrodynamic_stress(props, lps_class)
+def calculate_peec_thermal(inputs: PEECThermalRequest):
+    return peec_engine.evaluate_thermal_and_electrodynamic_stress(
+        inputs.props,
+        inputs.lps_class,
+        inputs.parallel_conductor_spacing_m,
+    )
 
 @app.post("/api/v1/calculations/mesh-rolling-sphere")
 def calculate_mesh_rolling_sphere(inputs: MeshRollingSphereInput):

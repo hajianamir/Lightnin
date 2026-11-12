@@ -27,7 +27,9 @@ def test_neumann_mutual_inductance_parallel_segments():
 
 def test_conductor_adiabatic_heating_and_lorentz_force():
     props = ConductorThermalProperties(material="copper", cross_section_mm2=50.0, initial_temperature_c=20.0)
-    res = PEECThermalEngine.evaluate_thermal_and_electrodynamic_stress(props, lps_class="I")
+    res = PEECThermalEngine.evaluate_thermal_and_electrodynamic_stress(
+        props, lps_class="I", parallel_conductor_spacing_m=0.1
+    )
     
     assert res.thermal_stress_safe is True
     assert res.final_temperature_c > res.final_temperature_c - res.adiabatic_temp_rise_delta_theta_k

@@ -17,17 +17,38 @@ from aegislps_geometry.rolling_sphere import (
 )
 
 
-def _default_targets(inp: OptimizationInput) -> List[ProtectedTarget]:
-    if inp.targets_to_protect:
-        return list(inp.targets_to_protect)
-    min_x, min_y, max_x, max_y = inp.building_bounds
+def _make_five_rooftop_targets(
+    building_bounds=(-15.0, -10.0, 15.0, 10.0),
+    roof_height_m: float = 15.0,
+) -> List[ProtectedTarget]:
+    min_x, min_y, max_x, max_y = building_bounds
     return [
-        ProtectedTarget(id="t1", x=min_x + 2, y=min_y + 2, z=inp.roof_height_m),
-        ProtectedTarget(id="t2", x=max_x - 2, y=min_y + 2, z=inp.roof_height_m),
-        ProtectedTarget(id="t3", x=max_x - 2, y=max_y - 2, z=inp.roof_height_m),
-        ProtectedTarget(id="t4", x=min_x + 2, y=max_y - 2, z=inp.roof_height_m),
-        ProtectedTarget(id="t5", x=0.0, y=0.0, z=inp.roof_height_m + 1.5),
+        ProtectedTarget(id="t1", x=min_x + 2, y=min_y + 2, z=roof_height_m),
+        ProtectedTarget(id="t2", x=max_x - 2, y=min_y + 2, z=roof_height_m),
+        ProtectedTarget(id="t3", x=max_x - 2, y=max_y - 2, z=roof_height_m),
+        ProtectedTarget(id="t4", x=min_x + 2, y=max_y - 2, z=roof_height_m),
+        ProtectedTarget(id="t5", x=0.0, y=0.0, z=roof_height_m + 1.5),
     ]
+
+
+def _explicit_former_default_input(**overrides) -> OptimizationInput:
+    bounds = overrides.pop("building_bounds", (-15.0, -10.0, 15.0, 10.0))
+    roof_h = overrides.pop("roof_height_m", 15.0)
+    targets = overrides.pop(
+        "targets_to_protect", _make_five_rooftop_targets(bounds, roof_h)
+    )
+    lps_cls = overrides.pop("lps_class", "I")
+    return OptimizationInput(
+        lps_class=lps_cls,
+        building_bounds=bounds,
+        roof_height_m=roof_h,
+        targets_to_protect=targets,
+        **overrides,
+    )
+
+
+def _default_targets(inp: OptimizationInput) -> List[ProtectedTarget]:
+    return list(inp.targets_to_protect)
 
 
 def _initial_corner_rods(inp: OptimizationInput) -> List[CandidateRod]:
@@ -70,7 +91,7 @@ def _score(covered: int, n_rods: float) -> float:
 def test_coverage_consistency_with_rolling_sphere_engine():
     """D.1: Returned coverage_percentage matches RollingSphereEngine(20) on default targets."""
     engine = DesignOptimizationEngine()
-    inp = OptimizationInput()
+    inp = _explicit_former_default_input()
     result = engine.optimize_air_terminations(inp)
 
     targets = _default_targets(inp)
@@ -83,7 +104,7 @@ def test_coverage_consistency_with_rolling_sphere_engine():
 def test_best_score_never_worse_than_any_visited_state():
     """D.2: Returned best score is >= every visited trajectory state, including accepted worsening steps."""
     engine = DesignOptimizationEngine()
-    inp = OptimizationInput()
+    inp = _explicit_former_default_input()
     result, trajectory = engine._search(inp)
 
     targets = _default_targets(inp)
@@ -125,7 +146,7 @@ def test_regression_h7a_preserves_best_state_after_late_degradation():
       tip-suspended sphere formula (C1).
     """
     engine = DesignOptimizationEngine()
-    inp = OptimizationInput(roof_height_m=4.0, iterations=11, random_seed=1)
+    inp = _explicit_former_default_input(roof_height_m=4.0, iterations=11, random_seed=1)
 
     result = engine.optimize_air_terminations(inp)
     targets = _default_targets(inp)
@@ -152,9 +173,9 @@ def test_returned_coverage_at_least_initial_four_corner_coverage():
     engine = DesignOptimizationEngine()
 
     for inp in (
-        OptimizationInput(),
-        OptimizationInput(roof_height_m=4.0, iterations=11, random_seed=1),
-        OptimizationInput(roof_height_m=4.0, iterations=30, random_seed=7),
+        _explicit_former_default_input(),
+        _explicit_former_default_input(roof_height_m=4.0, iterations=11, random_seed=1),
+        _explicit_former_default_input(roof_height_m=4.0, iterations=30, random_seed=7),
     ):
         initial_rods = _initial_corner_rods(inp)
         targets = _default_targets(inp)
@@ -194,11 +215,13 @@ def test_geometry_rule_matches_rolling_sphere_oracle_and_rejects_old_formula():
 
     res_covered = engine.optimize_air_terminations(
         OptimizationInput(
+            lps_class="I",
             building_bounds=bounds,
             roof_height_m=roof_z,
             targets_to_protect=[target_under_tip],
             target_sphere_radius_m=r,
-            iterations=0,
+            iterations=1,
+            random_seed=42,
         )
     )
     assert res_covered.coverage_percentage == (100.0 if oracle_under_tip else 0.0)
@@ -227,11 +250,13 @@ def test_geometry_rule_matches_rolling_sphere_oracle_and_rejects_old_formula():
 
     res_exposed = engine.optimize_air_terminations(
         OptimizationInput(
+            lps_class="I",
             building_bounds=bounds,
             roof_height_m=roof_z,
             targets_to_protect=[target_outside],
             target_sphere_radius_m=r,
-            iterations=0,
+            iterations=1,
+            random_seed=42,
         )
     )
     assert res_exposed.coverage_percentage == (100.0 if oracle_outside else 0.0)
@@ -256,7 +281,7 @@ def test_mutation_h7a_last_accepted_logic_fails_d3_expectation(tmp_path, monkeyp
     import inspect
     from pathlib import Path
 
-    inp = OptimizationInput(roof_height_m=4.0, iterations=11, random_seed=1)
+    inp = _explicit_former_default_input(roof_height_m=4.0, iterations=11, random_seed=1)
 
     real_res = DesignOptimizationEngine().optimize_air_terminations(inp)
     assert real_res.coverage_percentage == pytest.approx(80.0)

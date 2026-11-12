@@ -11,6 +11,13 @@ def test_design_optimization_coverage_improvement():
         lps_class="I",
         building_bounds=(-15.0, -10.0, 15.0, 10.0),
         roof_height_m=15.0,
+        targets_to_protect=[
+            ProtectedTarget(id="t1", x=-13.0, y=-8.0, z=15.0),
+            ProtectedTarget(id="t2", x=13.0, y=-8.0, z=15.0),
+            ProtectedTarget(id="t3", x=13.0, y=8.0, z=15.0),
+            ProtectedTarget(id="t4", x=-13.0, y=8.0, z=15.0),
+            ProtectedTarget(id="t5", x=0.0, y=0.0, z=16.5),
+        ],
         iterations=50,
         random_seed=123
     )
@@ -25,9 +32,14 @@ def test_pv_rooftop_isolated_clearance():
     
     # Case 1: Adequate physical clearance (1.5m > 0.6m req) -> Isolated PASS
     pv_isolated = PVArraySpecification(
+        tilt_angle_deg=15.0,
+        panel_count=24,
+        array_length_m=12.0,
+        array_width_m=6.0,
         lps_class="I",
         down_conductor_length_l_m=15.0,
-        separation_to_lps_m=1.5
+        separation_to_lps_m=1.5,
+        insulation_medium="air",
     )
     res_iso = pv_engine.evaluate_pv_installation(pv_isolated)
     assert res_iso.is_isolated_lps_sufficient is True
@@ -36,9 +48,14 @@ def test_pv_rooftop_isolated_clearance():
 
     # Case 2: Inadequate physical clearance (0.3m < 0.6m req) -> Bonding Mandatory
     pv_close = PVArraySpecification(
+        tilt_angle_deg=15.0,
+        panel_count=24,
+        array_length_m=12.0,
+        array_width_m=6.0,
         lps_class="I",
         down_conductor_length_l_m=15.0,
-        separation_to_lps_m=0.3
+        separation_to_lps_m=0.3,
+        insulation_medium="air",
     )
     res_close = pv_engine.evaluate_pv_installation(pv_close)
     assert res_close.is_isolated_lps_sufficient is False

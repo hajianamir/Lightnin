@@ -1,7 +1,8 @@
 import numpy as np
 from typing import Any, Dict, List, Tuple
 
-# IEC 62305-3:2024, Clause 5.2.2.1, Table 2 (p. 21) & Figure 1 NOTE 1 (p. 22)
+# IEC 62305-3:2024, Clause 5.2.2.1, Table 2 (p. 21) & Figure 1 NOTE 1 (p. 22):
+# "The protection angle method is not applicable beyond the values marked with • in this Figure 1."
 MAX_HEIGHTS: Dict[str, float] = {
     "I": 20.0,
     "II": 30.0,
@@ -114,7 +115,8 @@ class ProtectiveAngleEngine:
     Uses piecewise-linear interpolation between consecutive digitized anchors as an
     approximation of the smooth Figure 1 curves.
     - Figure 1 NOTE 3: the protection angle does not change for 0 < h < 2 m (returns alpha(2 m)).
-    - Figure 1 NOTE 1 & Table 2 (p. 21): not applicable for h > MAX_HEIGHTS[class]
+    - Figure 1 NOTE 1 (p. 22) & Table 2 (p. 21):
+      "The protection angle method is not applicable beyond the values marked with • in this Figure 1."
       (20 m Class I, 30 m Class II, 45 m Class III, 60 m Class IV).
     """
 

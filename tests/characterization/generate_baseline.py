@@ -42,7 +42,11 @@ from aegislps_engine.lemp_engine import (
     ShieldingGrid,
 )
 from aegislps_engine.nodal import NodalCurrentSolver
-from aegislps_engine.optimization import DesignOptimizationEngine, OptimizationInput
+from aegislps_engine.optimization import (
+    DesignOptimizationEngine,
+    OptimizationInput,
+    ProtectedTarget,
+)
 from aegislps_engine.peec_thermal import (
     ConductorThermalProperties,
     PEECThermalEngine,
@@ -432,23 +436,41 @@ def compute_all_snapshots() -> Dict[str, Any]:
 
     # 13. PVEngineeringModule
     raw["pv_module"] = PVEngineeringModule().evaluate_pv_installation(
-        PVArraySpecification()
+        PVArraySpecification(
+            tilt_angle_deg=15.0,
+            panel_count=24,
+            array_length_m=12.0,
+            array_width_m=6.0,
+            metallic_frame_bonded=True,
+            separation_to_lps_m=0.85,
+            lps_class="I",
+            down_conductor_length_l_m=15.0,
+            insulation_medium="air",
+        )
     )
 
     # 14. HVIConductorAssistant
     raw["hvi_conductor"] = HVIConductorAssistant().evaluate_hvi_selection(
-        HVIConductorSelectionInput()
+        HVIConductorSelectionInput(
+            lps_class="I",
+            required_equivalent_separation_s_air_m=0.75,
+            down_conductor_route_length_m=18.0,
+            hvi_conductor_model="HVI_light_75",
+            ambient_installation_type="outdoor_façade",
+        )
     )
 
     # 15. BOMAndLifecycleEngine
     raw["bom_lifecycle"] = BOMAndLifecycleEngine().generate_project_bom(
-        "Test", "I", 30, 20, 15
+        "Test", "I", 30, 20, 15, rod_count=4, down_conductor_count=4
     )
 
     # 16. PEECThermalEngine
     raw["peec_thermal"] = {
         "thermal_and_electrodynamic_stress": PEECThermalEngine.evaluate_thermal_and_electrodynamic_stress(
-            ConductorThermalProperties(material="copper", cross_section_mm2=50.0), "I"
+            ConductorThermalProperties(material="copper", cross_section_mm2=50.0),
+            "I",
+            0.1,
         ),
         "mutual_inductance_neumann_h": PEECThermalEngine.calculate_mutual_inductance_neumann(
             SkewSegment3D(start=(0.0, 0.0, 0.0), end=(5.0, 0.0, 0.0)),
@@ -460,16 +482,28 @@ def compute_all_snapshots() -> Dict[str, Any]:
     nodal = NodalCurrentSolver()
     nodal.build_network(
         [
-            {"id": "n1", "x": 0, "y": 0, "z": 10},
-            {"id": "n2", "x": 0, "y": 0, "z": 0},
-            {"id": "n3", "x": 10, "y": 0, "z": 0},
+            {"id": "n1", "x": 0, "y": 0, "z": 10, "node_type": "conductor"},
+            {"id": "n2", "x": 0, "y": 0, "z": 0, "node_type": "conductor"},
+            {"id": "n3", "x": 10, "y": 0, "z": 0, "node_type": "conductor"},
         ],
         [
-            {"id": "s1", "start_node_id": "n1", "end_node_id": "n2"},
-            {"id": "s2", "start_node_id": "n1", "end_node_id": "n3"},
+            {
+                "id": "s1",
+                "start_node_id": "n1",
+                "end_node_id": "n2",
+                "cross_section_mm2": 50.0,
+                "resistivity_ohm_m": 1.72e-8,
+            },
+            {
+                "id": "s2",
+                "start_node_id": "n1",
+                "end_node_id": "n3",
+                "cross_section_mm2": 50.0,
+                "resistivity_ohm_m": 1.72e-8,
+            },
         ],
     )
-    raw["nodal_solver"] = nodal.calculate_current_sharing("n1", ["n2", "n3"])
+    raw["nodal_solver"] = nodal.calculate_current_sharing("n1", ["n2", "n3"], 100000.0)
 
     # 18. UncertaintyQuantificationEngine (scalar fields and histogram only; fixed seed=42)
     uq_res = UncertaintyQuantificationEngine().run_monte_carlo(
@@ -487,7 +521,20 @@ def compute_all_snapshots() -> Dict[str, Any]:
 
     # 19. DesignOptimizationEngine (fixed seed=42)
     raw["design_optimization"] = DesignOptimizationEngine().optimize_air_terminations(
-        OptimizationInput(random_seed=42)
+        OptimizationInput(
+            lps_class="I",
+            building_bounds=(-15.0, -10.0, 15.0, 10.0),
+            roof_height_m=15.0,
+            targets_to_protect=[
+                ProtectedTarget(id="t1", x=-13.0, y=-8.0, z=15.0),
+                ProtectedTarget(id="t2", x=13.0, y=-8.0, z=15.0),
+                ProtectedTarget(id="t3", x=13.0, y=8.0, z=15.0),
+                ProtectedTarget(id="t4", x=-13.0, y=8.0, z=15.0),
+                ProtectedTarget(id="t5", x=0.0, y=0.0, z=16.5),
+            ],
+            target_sphere_radius_m=20.0,
+            random_seed=42,
+        )
     )
 
     # 20. ArbitraryMeshRollingSphereEngine

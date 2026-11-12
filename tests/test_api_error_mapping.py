@@ -188,13 +188,18 @@ def test_optimize_rods_negative_sphere_radius_returns_422():
         "lps_class": "I",
         "building_bounds": [-15.0, -10.0, 15.0, 10.0],
         "roof_height_m": 15.0,
+        "targets_to_protect": [{"id": "t1", "x": 0.0, "y": 0.0, "z": 15.0}],
         "target_sphere_radius_m": -10.0,
         "iterations": 50,
         "random_seed": 123,
     }
     response = client.post("/api/v1/optimization/optimize-rods", json=payload)
-    detail = _assert_value_error_422(response)
-    assert "sphere_radius_m" in detail
+    assert response.status_code == 422
+    body = response.json()
+    assert isinstance(body, dict) and "detail" in body
+    assert isinstance(body["detail"], list) and len(body["detail"]) == 1
+    assert body["detail"][0]["loc"] == ["body", "target_sphere_radius_m"]
+    assert "sphere_radius_m" in body["detail"][0]["msg"]
 
 
 def test_pdf_report_invalid_lps_class_returns_422():

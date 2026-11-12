@@ -69,10 +69,29 @@ class SystemDiagnostics:
         # 3. Nodal Admittance Solver
         nodal = NodalCurrentSolver()
         nodal.build_network(
-            [{"id": "n1", "x": 0, "y": 0, "z": 10}, {"id": "n2", "x": 0, "y": 0, "z": 0}, {"id": "n3", "x": 10, "y": 0, "z": 0}],
-            [{"id": "s1", "start_node_id": "n1", "end_node_id": "n2"}, {"id": "s2", "start_node_id": "n1", "end_node_id": "n3"}]
+            [
+                {"id": "n1", "x": 0.0, "y": 0.0, "z": 10.0, "node_type": "conductor"},
+                {"id": "n2", "x": 0.0, "y": 0.0, "z": 0.0, "node_type": "conductor"},
+                {"id": "n3", "x": 10.0, "y": 0.0, "z": 0.0, "node_type": "conductor"},
+            ],
+            [
+                {
+                    "id": "s1",
+                    "start_node_id": "n1",
+                    "end_node_id": "n2",
+                    "cross_section_mm2": 50.0,
+                    "resistivity_ohm_m": 1.72e-8,
+                },
+                {
+                    "id": "s2",
+                    "start_node_id": "n1",
+                    "end_node_id": "n3",
+                    "cross_section_mm2": 50.0,
+                    "resistivity_ohm_m": 1.72e-8,
+                },
+            ],
         )
-        n_res = nodal.calculate_current_sharing("n1", ["n2", "n3"])
+        n_res = nodal.calculate_current_sharing("n1", ["n2", "n3"], 100000.0)
         results["nodal_solver"] = {
             "status": "PASS" if n_res["converged"] else "FAIL",
             "message": f"Current conservation relative residual: {n_res['relative_residual']*100:.2f}%"
