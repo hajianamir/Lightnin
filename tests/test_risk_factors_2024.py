@@ -306,25 +306,37 @@ def test_equation_b4_pb_product_all_combinations(
 def test_rp_applied_once_in_pb_and_legacy_half_factor_removed():
     """Confirm automatic provisions enter solely via r_p in P_B (no 0.5 double-counting in L_F)."""
     eng = RiskManagementEngine()
+    base_kwargs = dict(
+        structure_length_m=30.0,
+        structure_width_m=20.0,
+        structure_height_m=15.0,
+        ng_flashes_per_km2_year=2.5,
+        environmental_cd=1.0,
+        lps_class="I",
+        fire_risk_rf=0.01,
+        has_coordinated_spd=True,
+        time_in_structure_hours_per_year=2190.0,
+        loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
+    )
     base = eng.evaluate_r1_risk(
         RiskAssessmentInput(
+            **base_kwargs,
             provisions="none",
             has_automatic_fire_system=False,
-            loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
         )
     )
     legacy_flag_true = eng.evaluate_r1_risk(
         RiskAssessmentInput(
+            **base_kwargs,
             provisions="none",
             has_automatic_fire_system=True,
-            loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
         )
     )
     auto_prov = eng.evaluate_r1_risk(
         RiskAssessmentInput(
+            **base_kwargs,
             provisions="automatic",
             has_automatic_fire_system=True,
-            loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
         )
     )
     assert legacy_flag_true.risk_rb_physical_damage == pytest.approx(
@@ -381,7 +393,7 @@ def test_cross_engine_consistency_pb_pspd_and_loss(
     )
 
     res_r = risk_eng.evaluate_r1_risk(RiskAssessmentInput(**common))
-    res_c = comp_eng.evaluate_risk(ComprehensiveRiskInput(**common))
+    res_c = comp_eng.evaluate_risk(ComprehensiveRiskInput(**common, has_tws_early_warning=True))
 
     assert res_r.annual_strikes_nd == pytest.approx(res_c.annual_strikes_nd_direct, rel=1e-15)
     assert res_r.risk_rb_physical_damage == pytest.approx(
@@ -427,6 +439,7 @@ def test_t_occupancy_consistency_at_8760_hours():
             structure_width_m=25.0,
             structure_height_m=15.0,
             ng_flashes_per_km2_year=2.5,
+            environmental_cd=1.0,
             lps_class="I",
             fire_risk_rf=0.01,
             has_coordinated_spd=True,
@@ -440,26 +453,28 @@ def test_t_occupancy_consistency_at_8760_hours():
             structure_width_m=25.0,
             structure_height_m=15.0,
             ng_flashes_per_km2_year=2.5,
+            environmental_cd=1.0,
             lps_class="I",
             fire_risk_rf=0.01,
             has_coordinated_spd=True,
+            has_tws_early_warning=True,
             time_in_structure_hours_per_year=8760.0,
             loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
         )
     )
-    r_clamped = risk_eng.evaluate_r1_risk(
+    with pytest.raises(ValueError):
         RiskAssessmentInput(
             structure_length_m=40.0,
             structure_width_m=25.0,
             structure_height_m=15.0,
             ng_flashes_per_km2_year=2.5,
+            environmental_cd=1.0,
             lps_class="I",
             fire_risk_rf=0.01,
             has_coordinated_spd=True,
             time_in_structure_hours_per_year=10000.0,
-            loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
+            loss_category="normal",
         )
-    )
 
     nd = r_8760.annual_strikes_nd
     assert r_8760.risk_rb_physical_damage == pytest.approx(
@@ -473,9 +488,6 @@ def test_t_occupancy_consistency_at_8760_hours():
     )
     assert r_8760.risk_rc_internal_systems / nd == pytest.approx(
         p_spd("I", True, True, "S1") * loss("normal").l_o1, rel=1e-15
-    )
-    assert r_clamped.risk_rb_physical_damage == pytest.approx(
-        r_8760.risk_rb_physical_damage, rel=1e-15
     )
 
 
@@ -491,10 +503,20 @@ def test_unknown_lps_class_raises_value_error(bad_class):
         p_lps(bad_class)
     with pytest.raises(ValueError):
         p_spd(bad_class, True, True, "S1")
+    base_risk = dict(
+        structure_length_m=30.0,
+        structure_width_m=20.0,
+        structure_height_m=15.0,
+        ng_flashes_per_km2_year=2.5,
+        environmental_cd=1.0,
+        fire_risk_rf=0.01,
+        has_coordinated_spd=True,
+        loss_category="normal",
+    )
     with pytest.raises(ValueError):
-        RiskAssessmentInput(lps_class=bad_class, loss_category="normal")
+        RiskAssessmentInput(**base_risk, lps_class=bad_class)
     with pytest.raises(ValueError):
-        ComprehensiveRiskInput(lps_class=bad_class, loss_category="normal")
+        ComprehensiveRiskInput(**base_risk, has_tws_early_warning=True, lps_class=bad_class)
 
 
 @pytest.mark.parametrize("non_i_class", ["II", "III", "IV", "none", None])
@@ -561,12 +583,23 @@ def test_invalid_enums_and_float_mappings_raise_value_error():
 )
 def test_engine_input_models_reject_invalid_values(field: str, bad_val):
     """Both RiskAssessmentInput and ComprehensiveRiskInput reject negative, non-finite, and unknown values."""
-    base_kwargs = {"loss_category": "normal"}
-    kwargs = {**base_kwargs, field: bad_val}
+    base_risk = {
+        "structure_length_m": 30.0,
+        "structure_width_m": 20.0,
+        "structure_height_m": 15.0,
+        "ng_flashes_per_km2_year": 2.5,
+        "environmental_cd": 1.0,
+        "lps_class": "I",
+        "fire_risk_rf": 0.01,
+        "has_coordinated_spd": True,
+        "loss_category": "normal",
+    }
+    risk_kwargs = {**base_risk, field: bad_val}
+    comp_kwargs = {**base_risk, "has_tws_early_warning": True, field: bad_val}
     with pytest.raises(ValueError):
-        RiskAssessmentInput(**kwargs)
+        RiskAssessmentInput(**risk_kwargs)
     with pytest.raises(ValueError):
-        ComprehensiveRiskInput(**kwargs)
+        ComprehensiveRiskInput(**comp_kwargs)
 
 
 def test_incoming_service_line_validation():

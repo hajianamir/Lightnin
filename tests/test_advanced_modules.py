@@ -52,7 +52,11 @@ def test_risk_management_engine():
         structure_width_m=20.0,
         structure_height_m=15.0,
         ng_flashes_per_km2_year=2.5,
+        environmental_cd=1.0,
         lps_class="I",
+        fire_risk_rf=0.01,
+        has_coordinated_spd=True,
+        time_in_structure_hours_per_year=2190.0,
         loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
     )
     res = risk_eng.evaluate_r1_risk(inp)

@@ -15,14 +15,21 @@ from aegislps_engine.risk_factors import (
 )
 
 _VALID_SERVICE_TYPES = ("aerial_power", "buried_power", "telecom")
+_VALID_INPUT_LPS_CLASSES = ("none", "I", "II", "III", "IV")
 
 
 class IncomingServiceLine(BaseModel):
+    """Incoming HV/LV power or telecom service line specification.
+
+    ``line_length_m`` defaults to ``1000.0`` m (1 km) per IEC 62305-2:2024
+    Clause A.4 (p. 50) when section length information is not available.
+    """
+
     model_config = ConfigDict(allow_inf_nan=False)
 
     id: str = "power-line-1"
     service_type: str = "aerial_power"  # aerial_power, buried_power, telecom
-    line_length_m: float = 1000.0
+    line_length_m: float = 1000.0  # IEC 62305-2:2024 Clause A.4 (p. 50): assume L_L = 1000 m (1 km) when unknown
     transformer_present: bool = True
     shielded: bool = False
 
@@ -46,27 +53,30 @@ class IncomingServiceLine(BaseModel):
             raise ValueError(
                 f"Unknown service_type {self.service_type!r}; expected one of {_VALID_SERVICE_TYPES}."
             )
-        if not math.isfinite(self.line_length_m) or self.line_length_m < 0.0:
+        if not math.isfinite(self.line_length_m) or self.line_length_m <= 0.0:
             raise ValueError(
-                f"line_length_m must be finite and >= 0, got {self.line_length_m!r}."
+                f"line_length_m must be finite and > 0, got {self.line_length_m!r}."
             )
         return self
 
 
 def _validate_comprehensive_inputs(inp: "ComprehensiveRiskInput") -> None:
-    for name in ("structure_length_m", "structure_width_m", "structure_height_m"):
+    for name in (
+        "structure_length_m",
+        "structure_width_m",
+        "structure_height_m",
+        "ng_flashes_per_km2_year",
+        "environmental_cd",
+    ):
         val = getattr(inp, name)
         if isinstance(val, bool) or not math.isfinite(val) or val <= 0.0:
             raise ValueError(f"{name} must be finite and > 0, got {val!r}.")
 
-    for name in (
-        "ng_flashes_per_km2_year",
-        "environmental_cd",
-        "time_in_structure_hours_per_year",
-    ):
-        val = getattr(inp, name)
-        if isinstance(val, bool) or not math.isfinite(val) or val < 0.0:
-            raise ValueError(f"{name} must be finite and >= 0, got {val!r}.")
+    hrs = inp.time_in_structure_hours_per_year
+    if isinstance(hrs, bool) or not math.isfinite(hrs) or hrs < 0.0 or hrs > 8760.0:
+        raise ValueError(
+            f"time_in_structure_hours_per_year must be finite and in [0, 8760], got {hrs!r}."
+        )
 
     if isinstance(inp.occupants_count, bool) or inp.occupants_count < 0:
         raise ValueError(f"occupants_count must be >= 0, got {inp.occupants_count!r}.")
@@ -76,18 +86,41 @@ def _validate_comprehensive_inputs(inp: "ComprehensiveRiskInput") -> None:
             raise ValueError(
                 f"Unknown service_type {line.service_type!r}; expected one of {_VALID_SERVICE_TYPES}."
             )
-        if isinstance(line.line_length_m, bool) or not math.isfinite(line.line_length_m) or line.line_length_m < 0.0:
+        if (
+            isinstance(line.line_length_m, bool)
+            or not math.isfinite(line.line_length_m)
+            or line.line_length_m <= 0.0
+        ):
             raise ValueError(
-                f"line_length_m must be finite and >= 0, got {line.line_length_m!r}."
+                f"line_length_m must be finite and > 0, got {line.line_length_m!r}."
             )
+
+    if not isinstance(inp.lps_class, str) or inp.lps_class not in _VALID_INPUT_LPS_CLASSES:
+        raise ValueError(
+            f"lps_class must be one of {_VALID_INPUT_LPS_CLASSES}, got {inp.lps_class!r}."
+        )
 
     p_s(inp.structure_type)
     p_lps(inp.lps_class, inp.protection_variant)
     r_p(inp.provisions)
-    if inp.fire_risk_level is not None:
+
+    if inp.fire_risk_level is None and inp.fire_risk_rf is None:
+        raise ValueError(
+            "Either fire_risk_level or fire_risk_rf must be provided (IEC 62305-2:2024 Table B.6)."
+        )
+    if inp.fire_risk_level is not None and inp.fire_risk_rf is not None:
+        rf_from_level = r_f(inp.fire_risk_level)
+        mapped_level = map_fire_risk_rf(inp.fire_risk_rf)
+        if rf_from_level != r_f(mapped_level):
+            raise ValueError(
+                f"Conflicting fire_risk_level={inp.fire_risk_level!r} and fire_risk_rf={inp.fire_risk_rf!r}."
+            )
+    elif inp.fire_risk_level is not None:
         r_f(inp.fire_risk_level)
     else:
+        assert inp.fire_risk_rf is not None
         map_fire_risk_rf(inp.fire_risk_rf)
+
     for src in ("S1", "S2", "S3", "S4"):
         p_spd(inp.lps_class, inp.has_coordinated_spd, inp.has_coordinated_spd, source=src)
     loss(inp.loss_category)
@@ -99,40 +132,43 @@ class ComprehensiveRiskInput(BaseModel):
     Parameters
     ----------
     structure_type : {"wood_masonry", "continuous_rc_or_metal_framework"}
-        Structure construction category for ``P_S`` (Table B.4, default ``"wood_masonry"``).
+        Structure construction category for ``P_S`` (Table B.4 NOTE 1, p. 57, default ``"wood_masonry"``).
     protection_variant : {"standard", "framework_natural_downconductor", "metal_roof_full_protection"}
-        LPS variant for ``P_LPS`` (Table B.3, default ``"standard"``; special variants require ``lps_class="I"``).
+        LPS variant for ``P_LPS`` (Table B.3, p. 56, default ``"standard"``; special variants require ``lps_class="I"``).
     provisions : {"none", "passive_or_manual", "automatic"}
-        Fire-mitigation provisions for ``r_p`` in ``P_B`` (Table B.5, default ``"none"``).
+        Fire-mitigation provisions for ``r_p`` in ``P_B`` (Table B.5 NOTE, p. 58, default ``"none"``).
     loss_category : {"very_high", "high", "normal", "low"}
         Required Table C.2 structure/risk-zone loss category (upper-bound default rule, Clause C.2).
-    fire_risk_rf : float
-        Legacy numeric fire-risk factor mapped strictly to Table B.6 (default ``0.01`` ``fire_ordinary``).
+    fire_risk_rf : float, optional
+        Legacy numeric fire-risk factor mapped strictly to Table B.6 (``1, 1e-1, 1e-2, 1e-3, 0``).
+        Either ``fire_risk_level`` or ``fire_risk_rf`` must be explicitly provided.
     fire_risk_level : str, optional
         Explicit Table B.6 fire/explosion level (required for ``explosion_zone_1_21`` and ``explosion_zone_2_22``).
+    occupants_count : int
+        Unused in current R1 component formulas; retained for schema compatibility.
     time_in_structure_hours_per_year : float
-        Annual occupancy hours ``t_z`` for ``t_occ = min(1, hours / 8760)`` (Clause B.11 Eq. B.14 NOTE 1 default ``8760.0``).
+        Annual occupancy hours ``t_z`` in ``[0, 8760]`` for ``t_occ = hours / 8760`` (Clause B.11, Eq. B.14, NOTE 1, p. 70, default ``8760.0``).
     """
 
     model_config = ConfigDict(allow_inf_nan=False)
 
-    structure_length_m: float = 40.0
-    structure_width_m: float = 25.0
-    structure_height_m: float = 15.0
-    ng_flashes_per_km2_year: float = 2.5
-    environmental_cd: float = 1.0  # 1.0 isolated, 0.5 suburban, 0.25 urban
-    lps_class: str = "I"  # I, II, III, IV, or none
-    structure_type: str = "wood_masonry"
-    protection_variant: str = "standard"
-    provisions: str = "none"
+    structure_length_m: float
+    structure_width_m: float
+    structure_height_m: float
+    ng_flashes_per_km2_year: float  # Ground flash density Ng (> 0)
+    environmental_cd: float  # Location factor C_D (> 0; e.g. 1.0 isolated, 0.5 suburban, 0.25 urban)
+    lps_class: str  # Required: one of {"none", "I", "II", "III", "IV"}
+    structure_type: str = "wood_masonry"  # IEC 62305-2:2024 Table B.4 NOTE 1 (p. 57)
+    protection_variant: str = "standard"  # IEC 62305-2:2024 Table B.3 (p. 56)
+    provisions: str = "none"  # IEC 62305-2:2024 Table B.5 NOTE (p. 58)
     loss_category: str
-    has_coordinated_spd: bool = True
-    has_tws_early_warning: bool = True  # Thunderstorm Warning System (C_TWS)
+    has_coordinated_spd: bool
+    has_tws_early_warning: bool  # Thunderstorm Warning System (C_TWS)
     incoming_lines: List[IncomingServiceLine] = Field(default_factory=list)
-    fire_risk_rf: float = 0.01  # Ordinary risk of fire (Table B.6)
+    fire_risk_rf: Optional[float] = None
     fire_risk_level: Optional[str] = None
-    occupants_count: int = 120
-    time_in_structure_hours_per_year: float = 8760.0  # Clause B.11 Eq. (B.14) NOTE 1 default t_z / 8760 = 1
+    occupants_count: int = 120  # Unused in current R1 component formulas; retained for schema compatibility
+    time_in_structure_hours_per_year: float = 8760.0  # IEC 62305-2:2024 Clause B.11 Eq. (B.14) NOTE 1 (p. 70): t_z / 8760 = 1 when unknown
 
     @field_validator(
         "structure_length_m",
@@ -209,11 +245,11 @@ class ComprehensiveRisk2024Engine:
         ad = (l * w) + 6.0 * h * (l + w) + 9.0 * np.pi * (h ** 2)
         nd = inp.ng_flashes_per_km2_year * ad * inp.environmental_cd * 1e-6
 
-        # Incoming Lines Collection Area Al (kept unchanged per Step 2.5 scope)
+        # Incoming Lines Collection Area Al
         al_total = 0.0
         for line in inp.incoming_lines:
             width_factor = 40.0 if line.service_type == "aerial_power" else 8.0
-            al_total += width_factor * max(100.0, line.line_length_m)
+            al_total += width_factor * line.line_length_m
 
         nl = inp.ng_flashes_per_km2_year * al_total * inp.environmental_cd * 1e-6
 
@@ -225,10 +261,11 @@ class ComprehensiveRisk2024Engine:
         )
 
         # Shared IEC 62305-2:2024 factors from risk_factors.py
+        assert inp.fire_risk_level is not None or inp.fire_risk_rf is not None
         fire_level = (
             inp.fire_risk_level
             if inp.fire_risk_level is not None
-            else map_fire_risk_rf(inp.fire_risk_rf)
+            else map_fire_risk_rf(inp.fire_risk_rf)  # type: ignore[arg-type]
         )
         pb_val = p_b(
             lps_class=inp.lps_class,
@@ -264,7 +301,7 @@ class ComprehensiveRisk2024Engine:
 
         # C_TWS Thunderstorm Warning System factor (kept unchanged per Step 2.5 scope)
         c_tws = 0.2 if inp.has_tws_early_warning else 1.0
-        t_occupancy = min(1.0, inp.time_in_structure_hours_per_year / 8760.0)
+        t_occupancy = inp.time_in_structure_hours_per_year / 8760.0
         loss_vals = loss(inp.loss_category)
 
         # Consequence loss fractions

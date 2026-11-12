@@ -222,21 +222,44 @@ def compute_all_snapshots() -> Dict[str, Any]:
     )
 
     # 5. RiskManagementEngine
-    # Test fixture assumption: normal-loss structure. Not a default.
+    # Test fixture assumption: normal-loss structure with explicit former defaults. Not defaults.
     raw["risk_management"] = RiskManagementEngine().evaluate_r1_risk(
-        RiskAssessmentInput(loss_category="normal")
+        RiskAssessmentInput(
+            structure_length_m=30.0,
+            structure_width_m=20.0,
+            structure_height_m=15.0,
+            ng_flashes_per_km2_year=2.5,
+            environmental_cd=1.0,
+            lps_class="I",
+            loss_category="normal",
+            fire_risk_rf=0.01,
+            has_coordinated_spd=True,
+            time_in_structure_hours_per_year=2190.0,
+        )
     )
 
     # 6. ComprehensiveRisk2024Engine
-    # Test fixture assumption: normal-loss structure. Not a default.
+    # Test fixture assumption: normal-loss structure with explicit former defaults. Not defaults.
     comp_risk_engine = ComprehensiveRisk2024Engine()
+    comp_base = dict(
+        structure_length_m=40.0,
+        structure_width_m=25.0,
+        structure_height_m=15.0,
+        ng_flashes_per_km2_year=2.5,
+        environmental_cd=1.0,
+        lps_class="I",
+        loss_category="normal",
+        has_coordinated_spd=True,
+        has_tws_early_warning=True,
+        fire_risk_rf=0.01,
+    )
     raw["comprehensive_risk"] = {
         "default": comp_risk_engine.evaluate_risk(
-            ComprehensiveRiskInput(loss_category="normal")
+            ComprehensiveRiskInput(**comp_base)
         ),
         "incoming_line_transformer_unshielded": comp_risk_engine.evaluate_risk(
             ComprehensiveRiskInput(
-                loss_category="normal",
+                **comp_base,
                 incoming_lines=[
                     IncomingServiceLine(transformer_present=True, shielded=False)
                 ],
@@ -244,7 +267,7 @@ def compute_all_snapshots() -> Dict[str, Any]:
         ),
         "incoming_line_no_transformer_shielded": comp_risk_engine.evaluate_risk(
             ComprehensiveRiskInput(
-                loss_category="normal",
+                **comp_base,
                 incoming_lines=[
                     IncomingServiceLine(transformer_present=False, shielded=True)
                 ],

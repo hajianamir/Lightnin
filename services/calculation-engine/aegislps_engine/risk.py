@@ -14,34 +14,58 @@ from aegislps_engine.risk_factors import (
     r_p,
 )
 
+_VALID_INPUT_LPS_CLASSES = ("none", "I", "II", "III", "IV")
+
 
 def _validate_risk_inputs(inputs: "RiskAssessmentInput") -> None:
-    for name in ("structure_length_m", "structure_width_m", "structure_height_m"):
+    for name in (
+        "structure_length_m",
+        "structure_width_m",
+        "structure_height_m",
+        "ng_flashes_per_km2_year",
+        "environmental_cd",
+    ):
         val = getattr(inputs, name)
         if isinstance(val, bool) or not math.isfinite(val) or val <= 0.0:
             raise ValueError(f"{name} must be finite and > 0, got {val!r}.")
 
-    for name in (
-        "ng_flashes_per_km2_year",
-        "environmental_cd",
-        "time_in_structure_hours_per_year",
-    ):
-        val = getattr(inputs, name)
-        if isinstance(val, bool) or not math.isfinite(val) or val < 0.0:
-            raise ValueError(f"{name} must be finite and >= 0, got {val!r}.")
+    hrs = inputs.time_in_structure_hours_per_year
+    if isinstance(hrs, bool) or not math.isfinite(hrs) or hrs < 0.0 or hrs > 8760.0:
+        raise ValueError(
+            f"time_in_structure_hours_per_year must be finite and in [0, 8760], got {hrs!r}."
+        )
 
     if isinstance(inputs.number_of_occupants, bool) or inputs.number_of_occupants < 0:
         raise ValueError(
             f"number_of_occupants must be >= 0, got {inputs.number_of_occupants!r}."
         )
 
+    if not isinstance(inputs.lps_class, str) or inputs.lps_class not in _VALID_INPUT_LPS_CLASSES:
+        raise ValueError(
+            f"lps_class must be one of {_VALID_INPUT_LPS_CLASSES}, got {inputs.lps_class!r}."
+        )
+
     p_s(inputs.structure_type)
     p_lps(inputs.lps_class, inputs.protection_variant)
     r_p(inputs.provisions)
-    if inputs.fire_risk_level is not None:
+
+    if inputs.fire_risk_level is None and inputs.fire_risk_rf is None:
+        raise ValueError(
+            "Either fire_risk_level or fire_risk_rf must be provided (IEC 62305-2:2024 Table B.6)."
+        )
+    if inputs.fire_risk_level is not None and inputs.fire_risk_rf is not None:
+        rf_from_level = r_f(inputs.fire_risk_level)
+        mapped_level = map_fire_risk_rf(inputs.fire_risk_rf)
+        if rf_from_level != r_f(mapped_level):
+            raise ValueError(
+                f"Conflicting fire_risk_level={inputs.fire_risk_level!r} and fire_risk_rf={inputs.fire_risk_rf!r}."
+            )
+    elif inputs.fire_risk_level is not None:
         r_f(inputs.fire_risk_level)
     else:
+        assert inputs.fire_risk_rf is not None
         map_fire_risk_rf(inputs.fire_risk_rf)
+
     p_spd(
         inputs.lps_class,
         inputs.has_coordinated_spd,
@@ -57,39 +81,44 @@ class RiskAssessmentInput(BaseModel):
     Parameters
     ----------
     structure_type : {"wood_masonry", "continuous_rc_or_metal_framework"}
-        Structure construction category for ``P_S`` (Table B.4, default ``"wood_masonry"``).
+        Structure construction category for ``P_S`` (Table B.4 NOTE 1, p. 57, default ``"wood_masonry"``).
     protection_variant : {"standard", "framework_natural_downconductor", "metal_roof_full_protection"}
-        LPS variant for ``P_LPS`` (Table B.3, default ``"standard"``; special variants require ``lps_class="I"``).
+        LPS variant for ``P_LPS`` (Table B.3, p. 56, default ``"standard"``; special variants require ``lps_class="I"``).
     provisions : {"none", "passive_or_manual", "automatic"}
-        Fire-mitigation provisions for ``r_p`` in ``P_B`` (Table B.5, default ``"none"``).
+        Fire-mitigation provisions for ``r_p`` in ``P_B`` (Table B.5 NOTE, p. 58, default ``"none"``).
     loss_category : {"very_high", "high", "normal", "low"}
         Required Table C.2 structure/risk-zone loss category (upper-bound default rule, Clause C.2).
-    fire_risk_rf : float
-        Legacy numeric fire-risk factor mapped strictly to Table B.6 (``1, 1e-1, 1e-2, 1e-3, 0``; default ``0.01``).
+    fire_risk_rf : float, optional
+        Legacy numeric fire-risk factor mapped strictly to Table B.6 (``1, 1e-1, 1e-2, 1e-3, 0``).
+        Either ``fire_risk_level`` or ``fire_risk_rf`` must be explicitly provided.
     fire_risk_level : str, optional
         Explicit Table B.6 fire/explosion level (required for ``explosion_zone_1_21`` and ``explosion_zone_2_22``).
     has_automatic_fire_system : bool
-        Retained for public API compatibility; fire provisions enter solely via ``provisions`` (``r_p`` in ``P_B``).
+        Unused legacy field retained for public API compatibility; fire provisions enter solely via ``provisions`` (``r_p`` in ``P_B``).
+    number_of_occupants : int
+        Unused in current R1 component formulas; retained for schema compatibility.
+    time_in_structure_hours_per_year : float
+        Annual presence hours ``t_z`` in ``[0, 8760]`` (IEC 62305-2:2024 Clause B.11, Eq. B.14, NOTE 1, p. 70: default ``8760.0``).
     """
 
     model_config = ConfigDict(allow_inf_nan=False)
 
-    structure_length_m: float = 30.0
-    structure_width_m: float = 20.0
-    structure_height_m: float = 15.0
-    ng_flashes_per_km2_year: float = 2.5  # Ground flash density Ng
-    environmental_cd: float = 1.0  # 1.0 = isolated, 0.5 = suburban, 0.25 = urban
-    lps_class: str = "I"  # Class I, II, III, IV, or none
-    structure_type: str = "wood_masonry"
-    protection_variant: str = "standard"
-    provisions: str = "none"
+    structure_length_m: float
+    structure_width_m: float
+    structure_height_m: float
+    ng_flashes_per_km2_year: float  # Ground flash density Ng (> 0)
+    environmental_cd: float  # Location factor C_D (> 0; e.g. 1.0 isolated, 0.5 suburban, 0.25 urban)
+    lps_class: str  # Required: one of {"none", "I", "II", "III", "IV"}
+    structure_type: str = "wood_masonry"  # IEC 62305-2:2024 Table B.4 NOTE 1 (p. 57)
+    protection_variant: str = "standard"  # IEC 62305-2:2024 Table B.3 (p. 56)
+    provisions: str = "none"  # IEC 62305-2:2024 Table B.5 NOTE (p. 58)
     loss_category: str
-    fire_risk_rf: float = 0.01  # Ordinary risk of fire (Table B.6)
+    fire_risk_rf: Optional[float] = None
     fire_risk_level: Optional[str] = None
-    has_automatic_fire_system: bool = True  # Legacy field; provisions enters via r_p in P_B only
-    has_coordinated_spd: bool = True  # p_spd = 0.01 for Class I
-    number_of_occupants: int = 100
-    time_in_structure_hours_per_year: float = 2190.0  # 25% of year
+    has_automatic_fire_system: bool = True  # Unused legacy field; provisions enters via r_p in P_B only
+    has_coordinated_spd: bool  # Required: coordinated SPD system installed
+    number_of_occupants: int = 100  # Unused in current R1 component formulas; retained for schema compatibility
+    time_in_structure_hours_per_year: float = 8760.0  # IEC 62305-2:2024 Clause B.11 Eq. (B.14) NOTE 1 (p. 70): t_z / 8760 = 1 when unknown
 
     @field_validator(
         "structure_length_m",
@@ -174,10 +203,11 @@ class RiskManagementEngine:
         )
 
         # Shared IEC 62305-2:2024 factors from risk_factors.py
+        assert inputs.fire_risk_level is not None or inputs.fire_risk_rf is not None
         fire_level = (
             inputs.fire_risk_level
             if inputs.fire_risk_level is not None
-            else map_fire_risk_rf(inputs.fire_risk_rf)
+            else map_fire_risk_rf(inputs.fire_risk_rf)  # type: ignore[arg-type]
         )
         pb_val = p_b(
             lps_class=inputs.lps_class,
@@ -194,7 +224,7 @@ class RiskManagementEngine:
         )
 
         loss_vals = loss(inputs.loss_category)
-        t_occupancy = min(1.0, inputs.time_in_structure_hours_per_year / 8760.0)
+        t_occupancy = inputs.time_in_structure_hours_per_year / 8760.0
         l_t = 1e-2 * t_occupancy  # L_T kept unchanged per Step 2.5 scope
         l_f = loss_vals.l_f1 * t_occupancy
         l_o = loss_vals.l_o1 * t_occupancy

@@ -65,7 +65,9 @@ def test_comprehensive_risk_2024_8_components():
         structure_width_m=25.0,
         structure_height_m=15.0,
         ng_flashes_per_km2_year=2.5,
+        environmental_cd=1.0,
         lps_class="I",
+        fire_risk_rf=0.01,
         has_coordinated_spd=True,
         has_tws_early_warning=True,
         loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
