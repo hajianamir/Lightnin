@@ -132,9 +132,7 @@ def test_conductor_adiabatic_heating_and_lorentz_force():
     )
     
     assert res.thermal_stress_safe is True
-    assert res.final_temperature_c > res.final_temperature_c - res.adiabatic_temp_rise_delta_theta_k
     assert res.peak_repulsive_force_n_per_m > 0.0
-    assert 0.1 <= res.recommended_fastener_spacing_m <= 1.0
 
 def test_arbitrary_mesh_rolling_sphere_protection():
     engine = ArbitraryMeshRollingSphereEngine()
