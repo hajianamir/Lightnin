@@ -9,7 +9,8 @@ def test_uq_monte_carlo_convergence():
         lps_class="I",
         target_clearance_d_m=1.0,
         nominal_path_length_m=15.0,
-        nominal_soil_rho_ohm_m=100.0
+        nominal_soil_rho_ohm_m=100.0,
+        ring_radius_m=15.0,
     )
     res = engine.run_monte_carlo(cfg)
 
@@ -23,7 +24,15 @@ def test_uq_monte_carlo_convergence():
 
 def test_uq_sobol_sensitivity_ranking():
     engine = UncertaintyQuantificationEngine()
-    cfg = UQSimulationConfig(num_samples=500, random_seed=99, lps_class="I")
+    cfg = UQSimulationConfig(
+        num_samples=500,
+        random_seed=99,
+        lps_class="I",
+        target_clearance_d_m=1.0,
+        nominal_path_length_m=15.0,
+        nominal_soil_rho_ohm_m=100.0,
+        ring_radius_m=15.0,
+    )
     res = engine.run_monte_carlo(cfg)
 
     sobol = res.sobol_first_order_indices
@@ -36,13 +45,27 @@ def test_uq_sobol_sensitivity_ranking():
 def test_uq_violation_probability_boundary():
     engine = UncertaintyQuantificationEngine()
     # High clearance 5.0m -> violation probability ~ 0%
-    cfg_safe = UQSimulationConfig(num_samples=300, target_clearance_d_m=5.0)
+    cfg_safe = UQSimulationConfig(
+        num_samples=300,
+        lps_class="I",
+        target_clearance_d_m=5.0,
+        nominal_path_length_m=15.0,
+        nominal_soil_rho_ohm_m=100.0,
+        ring_radius_m=15.0,
+    )
     res_safe = engine.run_monte_carlo(cfg_safe)
     assert res_safe.probability_of_violation_pct == 0.0
     assert res_safe.status == "RELIABLE"
 
     # Very low clearance 0.1m -> violation probability ~ 100%
-    cfg_risk = UQSimulationConfig(num_samples=300, target_clearance_d_m=0.1)
+    cfg_risk = UQSimulationConfig(
+        num_samples=300,
+        lps_class="I",
+        target_clearance_d_m=0.1,
+        nominal_path_length_m=15.0,
+        nominal_soil_rho_ohm_m=100.0,
+        ring_radius_m=15.0,
+    )
     res_risk = engine.run_monte_carlo(cfg_risk)
     assert res_risk.probability_of_violation_pct >= 99.0
     assert res_risk.status == "UNRELIABLE_HIGH_RISK"

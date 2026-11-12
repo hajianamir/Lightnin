@@ -1,27 +1,167 @@
+import math
 import numpy as np
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 MITIGATION_WARNING_TEXT = (
     "Mitigation flags are recommendations only. Any reduction credit requires "
     "engineer verification and is NOT applied in this calculation."
 )
 
+_VALID_LPS_CLASSES = ("I", "II", "III", "IV")
+_VALID_SURFACE_MATERIALS = ("bare_soil", "gravel_5cm", "asphalt_5cm", "concrete")
+_BODY_WEIGHT_COEFFICIENTS = {
+    50.0: 0.116,
+    70.0: 0.157,
+}
+
+
+def _check_positive_finite(name: str, val: object) -> float:
+    if isinstance(val, bool) or not isinstance(val, (int, float, np.number)):
+        raise ValueError(f"{name} must be finite and > 0, got {val!r}.")
+    val_f = float(val)
+    if not math.isfinite(val_f) or val_f <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0, got {val!r}.")
+    return val_f
+
 
 class TouchStepAssessmentInput(BaseModel):
-    lps_class: str = "I"
-    soil_resistivity_ohm_m: float = 100.0
-    surface_layer_material: str = "bare_soil"  # bare_soil, gravel_5cm, asphalt_5cm, concrete
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    # Unused in evaluate(); required for API consistency across LPS endpoints.
+    lps_class: str
+    soil_resistivity_ohm_m: float
+    surface_layer_material: str  # bare_soil, gravel_5cm, asphalt_5cm, concrete
+    # Default 0.05 m (5 cm) applies ONLY as the surface-layer thickness when a
+    # protective surface material != "bare_soil" is selected (e.g. gravel_5cm /
+    # asphalt_5cm; see IEC 62305-3:2024 Clause 8.1 / IEEE Std 80-2013 Clause 7.4).
+    # For "bare_soil", IEEE Std 80-2013 Clause 8.4 states:
+    # "If no protective surface layer is used, then Cs =1 and rho_s = rho."
     surface_layer_thickness_m: float = 0.05
-    surface_layer_resistivity_ohm_m: float = 100.0  # Override if specified
-    fault_duration_s: float = 0.05  # Typical impulse duration / fast protection trip
-    body_weight_kg: float = 70.0  # 50kg or 70kg IEEE 80 criterion
-    peak_impulse_current_ka: float = 100.0
-    down_conductor_radius_m: float = 0.005  # 10mm round down-conductor
-    has_physical_insulation_barrier: bool = False  # e.g. 3m XLPE conduit 100kV
-    has_restricted_access_perimeter: bool = False  # Fencing >= 3m
-    earth_potential_rise_v: Optional[float] = None
-    electrode_equivalent_radius_m: Optional[float] = None
+    # Required when surface_layer_material != "bare_soil"; never overwritten by a floor.
+    # IEEE Std 80-2013 Clause 12.4 / Table 7 ("Typical surface material resistivities"):
+    # "Table 7 gives typical resistivity values for different types of surface material
+    # measured by several different parties in different regions of the United States ...
+    # These values are not valid for all types and sizes of stone in any given region.
+    # Tests should be performed to determine the resistivity of the stone typically
+    # purchased by the utility."
+    surface_layer_resistivity_ohm_m: Optional[float] = None
+    # IEEE Std 80-2013 Clause 6.1 (Eq. 7 validity domain):
+    # "Because Equation (7) is based on tests limited to a range of between 0.03 s and
+    # 3.0 s, it obviously is not valid for very short or long durations."
+    fault_duration_s: float
+    # IEEE Std 80-2013 Clauses 6.1-6.2:
+    # - 50 kg is the general public value (Clause 6.1, Eq. 8: "Dalziel found that the
+    #   shock energy that can be survived by 99.5% of persons weighing approximately
+    #   50 kg (110 lb) results in a value of SB of 0.0135. Thus, k50 = 0.116").
+    # - 70 kg applies only where population weight >= 70 kg (Clause 6.2, Eq. 9:
+    #   "Users of this guide may select k = 0.157 provided that the average population
+    #   weight can be expected to be at least 70 kg.").
+    body_weight_kg: float
+    # Unused in evaluate(); required for API schema consistency.
+    peak_impulse_current_ka: float
+    # Unused in evaluate(); required for API schema consistency.
+    down_conductor_radius_m: float
+    # Conservative defaults False (mitigation flags never apply automatic voltage credit).
+    has_physical_insulation_barrier: bool = False
+    has_restricted_access_perimeter: bool = False
+    earth_potential_rise_v: float
+    electrode_equivalent_radius_m: float
+
+    @field_validator("lps_class", mode="before")
+    @classmethod
+    def _validate_lps_class(cls, v):
+        if not isinstance(v, str) or v not in _VALID_LPS_CLASSES:
+            raise ValueError(
+                f"Unknown LPS class {v!r}; expected one of {_VALID_LPS_CLASSES}."
+            )
+        return v
+
+    @field_validator("surface_layer_material", mode="before")
+    @classmethod
+    def _validate_surface_material(cls, v):
+        if not isinstance(v, str) or v not in _VALID_SURFACE_MATERIALS:
+            raise ValueError(
+                f"Unknown surface_layer_material {v!r}; expected one of {_VALID_SURFACE_MATERIALS}."
+            )
+        return v
+
+    @field_validator(
+        "has_physical_insulation_barrier",
+        "has_restricted_access_perimeter",
+        mode="before",
+    )
+    @classmethod
+    def _require_strict_bool(cls, v):
+        if not isinstance(v, bool):
+            raise ValueError(f"Mitigation flag must be a strict boolean, got {v!r}.")
+        return v
+
+    @field_validator(
+        "soil_resistivity_ohm_m",
+        "peak_impulse_current_ka",
+        "down_conductor_radius_m",
+        "earth_potential_rise_v",
+        "electrode_equivalent_radius_m",
+        mode="before",
+    )
+    @classmethod
+    def _validate_positive_fields(cls, v, info):
+        return _check_positive_finite(info.field_name, v)
+
+    @field_validator(
+        "surface_layer_thickness_m",
+        "surface_layer_resistivity_ohm_m",
+        "fault_duration_s",
+        "body_weight_kg",
+        mode="before",
+    )
+    @classmethod
+    def _reject_bool_numeric(cls, v):
+        if isinstance(v, bool):
+            raise ValueError("Boolean is not valid for numeric touch/step parameter.")
+        return v
+
+    @field_validator("fault_duration_s")
+    @classmethod
+    def _validate_fault_duration(cls, v: float) -> float:
+        if not math.isfinite(v) or v < 0.03 or v > 3.0:
+            raise ValueError(
+                f"fault_duration_s must be in [0.03, 3.0] s per IEEE Std 80-2013 Clause 6.1, got {v!r}."
+            )
+        return float(v)
+
+    @field_validator("body_weight_kg")
+    @classmethod
+    def _validate_body_weight(cls, v: float) -> float:
+        if not math.isfinite(v) or float(v) not in _BODY_WEIGHT_COEFFICIENTS:
+            raise ValueError(
+                f"body_weight_kg must be 50.0 or 70.0 per IEEE Std 80-2013 Clauses 6.1-6.2, got {v!r}."
+            )
+        return float(v)
+
+    @model_validator(mode="after")
+    def _validate_surface_layer_combination(self) -> "TouchStepAssessmentInput":
+        if not math.isfinite(self.surface_layer_thickness_m) or self.surface_layer_thickness_m < 0.0:
+            raise ValueError(
+                f"surface_layer_thickness_m must be finite and >= 0, got {self.surface_layer_thickness_m!r}."
+            )
+        if self.surface_layer_resistivity_ohm_m is not None:
+            _check_positive_finite(
+                "surface_layer_resistivity_ohm_m",
+                self.surface_layer_resistivity_ohm_m,
+            )
+        if self.surface_layer_material != "bare_soil":
+            if self.surface_layer_thickness_m <= 0.0:
+                raise ValueError(
+                    f"surface_layer_thickness_m must be > 0 when surface_layer_material={self.surface_layer_material!r}, "
+                    f"got {self.surface_layer_thickness_m!r}."
+                )
+            if self.surface_layer_resistivity_ohm_m is None:
+                raise ValueError(
+                    f"surface_layer_resistivity_ohm_m is required when surface_layer_material={self.surface_layer_material!r}."
+                )
+        return self
 
 
 class TouchStepAssessmentResult(BaseModel):
@@ -57,12 +197,19 @@ class TouchStepEngine:
         rho_soil: float, rho_surface: float, h_surface_m: float
     ) -> float:
         """
-        IEEE 80-2013 Equation 27 closed-form expression for surface layer derating factor C_s.
+        IEEE 80-2013 Equation 27 closed-form expression for surface layer derating factor C_s
+        on protective surface layers (h_surface_m > 0, rho_soil > 0, rho_surface > 0).
         """
-        if rho_surface <= 0 or h_surface_m <= 0 or abs(rho_surface - rho_soil) < 1.0:
+        rho_soil_f = _check_positive_finite("rho_soil", rho_soil)
+        rho_surf_f = _check_positive_finite("rho_surface", rho_surface)
+        h_s_f = _check_positive_finite("h_surface_m", h_surface_m)
+
+        if abs(rho_surf_f - rho_soil_f) < 1.0:
             return 1.0
 
-        c_s = 1.0 - (0.09 * (1.0 - rho_soil / rho_surface) / (2.0 * h_surface_m + 0.09))
+        c_s = 1.0 - (
+            0.09 * (1.0 - rho_soil_f / rho_surf_f) / (2.0 * h_s_f + 0.09)
+        )
         return float(min(1.0, max(0.1, c_s)))
 
     def evaluate(self, inp: TouchStepAssessmentInput) -> TouchStepAssessmentResult:
@@ -74,35 +221,81 @@ class TouchStepEngine:
                 "GPR required: earth_potential_rise_v and electrode_equivalent_radius_m must be provided"
             )
 
-        gpr = float(inp.earth_potential_rise_v)
-        r_e = float(inp.electrode_equivalent_radius_m)
-        if not np.isfinite(gpr) or gpr <= 0.0:
+        gpr = _check_positive_finite("earth_potential_rise_v", inp.earth_potential_rise_v)
+        r_e = _check_positive_finite(
+            "electrode_equivalent_radius_m", inp.electrode_equivalent_radius_m
+        )
+        rho_soil = _check_positive_finite(
+            "soil_resistivity_ohm_m", inp.soil_resistivity_ohm_m
+        )
+        _check_positive_finite(
+            "peak_impulse_current_ka", inp.peak_impulse_current_ka
+        )
+        _check_positive_finite(
+            "down_conductor_radius_m", inp.down_conductor_radius_m
+        )
+
+        if (
+            not isinstance(inp.lps_class, str)
+            or inp.lps_class not in _VALID_LPS_CLASSES
+        ):
             raise ValueError(
-                f"earth_potential_rise_v must be > 0, got {inp.earth_potential_rise_v}"
+                f"Unknown LPS class {inp.lps_class!r}; expected one of {_VALID_LPS_CLASSES}."
             )
-        if not np.isfinite(r_e) or r_e <= 0.0:
+        if (
+            not isinstance(inp.surface_layer_material, str)
+            or inp.surface_layer_material not in _VALID_SURFACE_MATERIALS
+        ):
             raise ValueError(
-                f"electrode_equivalent_radius_m must be > 0, got {inp.electrode_equivalent_radius_m}"
+                f"Unknown surface_layer_material {inp.surface_layer_material!r}; "
+                f"expected one of {_VALID_SURFACE_MATERIALS}."
             )
 
-        # Resolve surface layer resistivity
-        rho_surface = inp.surface_layer_resistivity_ohm_m
-        if inp.surface_layer_material == "gravel_5cm":
-            rho_surface = max(rho_surface, 3000.0)  # Wet crushed rock
-        elif inp.surface_layer_material == "asphalt_5cm":
-            rho_surface = max(rho_surface, 10000.0)
-        elif inp.surface_layer_material == "concrete":
-            rho_surface = max(rho_surface, 1000.0)
-        else:
-            rho_surface = inp.soil_resistivity_ohm_m
-
-        rho_soil = float(inp.soil_resistivity_ohm_m)
         h_s = float(inp.surface_layer_thickness_m)
-        cs = self.calculate_surface_derating_cs(rho_soil, rho_surface, h_s)
+        if not math.isfinite(h_s) or h_s < 0.0:
+            raise ValueError(
+                f"surface_layer_thickness_m must be finite and >= 0, got {inp.surface_layer_thickness_m!r}."
+            )
 
-        # Tolerable body voltages (Dalziel / IEEE 80 criterion)
-        t_f = max(0.01, float(inp.fault_duration_s))
-        body_coeff = 0.157 if inp.body_weight_kg >= 70.0 else 0.116
+        # Resolve surface layer resistivity and C_s without overwriting measured values
+        if inp.surface_layer_material == "bare_soil":
+            # IEEE Std 80-2013 Clause 8.4:
+            # "If no protective surface layer is used, then Cs =1 and rho_s = rho."
+            rho_surface = rho_soil
+            cs = 1.0
+        elif inp.surface_layer_material in ("gravel_5cm", "asphalt_5cm", "concrete"):
+            if h_s <= 0.0:
+                raise ValueError(
+                    f"surface_layer_thickness_m must be > 0 when surface_layer_material={inp.surface_layer_material!r}, "
+                    f"got {inp.surface_layer_thickness_m!r}."
+                )
+            if inp.surface_layer_resistivity_ohm_m is None:
+                raise ValueError(
+                    f"surface_layer_resistivity_ohm_m is required when surface_layer_material={inp.surface_layer_material!r}."
+                )
+            rho_surface = _check_positive_finite(
+                "surface_layer_resistivity_ohm_m",
+                inp.surface_layer_resistivity_ohm_m,
+            )
+            cs = self.calculate_surface_derating_cs(rho_soil, rho_surface, h_s)
+        else:
+            raise ValueError(
+                f"Unknown surface_layer_material {inp.surface_layer_material!r}; "
+                f"expected one of {_VALID_SURFACE_MATERIALS}."
+            )
+
+        # Tolerable body voltages (Dalziel / IEEE Std 80-2013 Clauses 6.1-6.2)
+        t_f = float(inp.fault_duration_s)
+        if not math.isfinite(t_f) or t_f < 0.03 or t_f > 3.0:
+            raise ValueError(
+                f"fault_duration_s must be in [0.03, 3.0] s per IEEE Std 80-2013 Clause 6.1, got {inp.fault_duration_s!r}."
+            )
+        weight_f = float(inp.body_weight_kg)
+        if weight_f not in _BODY_WEIGHT_COEFFICIENTS:
+            raise ValueError(
+                f"body_weight_kg must be 50.0 or 70.0 per IEEE Std 80-2013 Clauses 6.1-6.2, got {inp.body_weight_kg!r}."
+            )
+        body_coeff = _BODY_WEIGHT_COEFFICIENTS[weight_f]
         k_t = float(body_coeff / np.sqrt(t_f))
 
         u_touch_tol = float((1000.0 + 1.5 * cs * rho_surface) * k_t)
@@ -122,7 +315,7 @@ class TouchStepEngine:
         margin_touch = float(u_touch_tol - prospective_touch)
         margin_step = float(u_step_tol - prospective_step)
 
-        if rho_surface <= 0 or h_s <= 0 or abs(rho_surface - rho_soil) < 1.0:
+        if inp.surface_layer_material == "bare_soil" or abs(rho_surface - rho_soil) < 1.0:
             cs_trace = (
                 f"C_s = 1.0 (guard: rho={rho_soil:.3f}, rho_s={rho_surface:.3f}, "
                 f"h_s={h_s:.3f}) -> {cs:.3f}"
@@ -178,7 +371,11 @@ class TouchStepEngine:
                 "Install equipotential earth mesh ring buried at 0.5m depth around perimeter"
             )
 
-        status = "COMPLIANT" if (touch_controlled and step_controlled) else "HAZARD_DETECTED"
+        status = (
+            "COMPLIANT"
+            if (touch_controlled and step_controlled)
+            else "HAZARD_DETECTED"
+        )
 
         return TouchStepAssessmentResult(
             tolerable_touch_voltage_v=round(u_touch_tol, 1),

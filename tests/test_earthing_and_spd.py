@@ -45,8 +45,13 @@ def test_touch_and_step_hazard_control_dalziel():
     
     # Non-compliant: Bare soil and accessible down-conductor
     inp_hazard = TouchStepAssessmentInput(
+        lps_class="I",
         soil_resistivity_ohm_m=100.0,
         surface_layer_material="bare_soil",
+        fault_duration_s=0.05,
+        body_weight_kg=70.0,
+        peak_impulse_current_ka=100.0,
+        down_conductor_radius_m=0.005,
         has_physical_insulation_barrier=False,
         earth_potential_rise_v=10000.0,
         electrode_equivalent_radius_m=2.0,
@@ -57,8 +62,14 @@ def test_touch_and_step_hazard_control_dalziel():
 
     # Compliant: High-resistivity asphalt surface layer (C_s derating raises U_touch,tol above prospective)
     inp_safe = TouchStepAssessmentInput(
+        lps_class="I",
         soil_resistivity_ohm_m=100.0,
         surface_layer_material="asphalt_5cm",
+        surface_layer_resistivity_ohm_m=10000.0,
+        fault_duration_s=0.05,
+        body_weight_kg=70.0,
+        peak_impulse_current_ka=100.0,
+        down_conductor_radius_m=0.005,
         has_physical_insulation_barrier=True,
         earth_potential_rise_v=10000.0,
         electrode_equivalent_radius_m=2.0,

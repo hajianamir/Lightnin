@@ -156,18 +156,11 @@ def test_monotone_rising_front_up_to_peak(stroke_type: str, t_end_us: float):
     assert np.all(diffs >= 0.0)
 
 
-def test_unknown_stroke_type_falls_back_to_first_positive():
-    """D.8: Unrecognized stroke_type preserves current fallback to first_positive_10_350."""
+def test_unknown_stroke_type_raises_value_error():
+    """D.8: Unrecognized stroke_type raises ValueError (no silent fallback; H9-B4 Rule B.1)."""
     t_us = np.linspace(0.0, 100.0, 500)
-    i_ref, didt_ref, max_ref = LEMPEngine.evaluate_heidler_current(
-        t_us, "first_positive_10_350", 100.0
-    )
-    i_unk, didt_unk, max_unk = LEMPEngine.evaluate_heidler_current(
-        t_us, "unrecognized_stroke_type", 100.0
-    )
-    assert np.array_equal(i_unk, i_ref)
-    assert np.array_equal(didt_unk, didt_ref)
-    assert max_unk == max_ref
+    with pytest.raises(ValueError, match="stroke_type"):
+        LEMPEngine.evaluate_heidler_current(t_us, "unrecognized_stroke_type", 100.0)
 
 
 def test_front_and_tail_time_definitions():

@@ -1,4 +1,4 @@
-"""Physics and IEC 62305-4:2024 Annex A verification tests for LEMPEngine (Step 1.5: C3-b)."""
+"""Physics and IEC 62305-4:2024 Annex A verification tests for LEMPEngine (Step 1.5: C3-b; updated for H9-B4)."""
 
 import math
 import numpy as np
@@ -11,6 +11,12 @@ from aegislps_engine.lemp_engine import (
     LEMPWaveformSpecification,
     ShieldingGrid,
     _shielding_factor_db,
+)
+
+_DEFAULT_LOOP_KWARGS = dict(
+    loop_area_m2=2.0,
+    center_distance_from_down_conductor_m=3.0,
+    equipment_withstand_uw_kv=1.5,
 )
 
 
@@ -42,14 +48,18 @@ def test_01_copper_w2m_unbonded():
     """1. Copper/aluminium, w_m = 2 m: SF = 12.56 dB, K = 0.2353, d_SF = 2.51 m."""
     engine = LEMPEngine()
     res = engine.calculate_lemp_induction(
-        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        LEMPWaveformSpecification(
+            stroke_type="first_positive_10_350",
+            peak_current_ka=100.0,
+        ),
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
             material="copper_aluminium",
             meshed_bonding_network=False,
         ),
-        InternalCableLoop(),
+        InternalCableLoop(**_DEFAULT_LOOP_KWARGS),
     )
     _assert_result_finite(res)
     assert res.k_source == "IEC 62305-4:2024 Table A.4"
@@ -62,14 +72,18 @@ def test_02_copper_w2m_meshed_bonding():
     """2. Copper/aluminium, w_m = 2 m, meshed bonding (+6 dB): SF = 18.56 dB, K = 0.1177."""
     engine = LEMPEngine()
     res = engine.calculate_lemp_induction(
-        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        LEMPWaveformSpecification(
+            stroke_type="first_positive_10_350",
+            peak_current_ka=100.0,
+        ),
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
             material="copper_aluminium",
             meshed_bonding_network=True,
         ),
-        InternalCableLoop(),
+        InternalCableLoop(**_DEFAULT_LOOP_KWARGS),
     )
     _assert_result_finite(res)
     assert res.shielding_factor_db == pytest.approx(18.56, abs=0.01)
@@ -84,14 +98,18 @@ def test_03_copper_w10m_negative_sf_clamped_to_zero():
 
     engine = LEMPEngine()
     res = engine.calculate_lemp_induction(
-        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        LEMPWaveformSpecification(
+            stroke_type="first_positive_10_350",
+            peak_current_ka=100.0,
+        ),
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=10.0,
+            rod_radius_m=0.005,
             material="copper_aluminium",
             meshed_bonding_network=False,
         ),
-        InternalCableLoop(),
+        InternalCableLoop(**_DEFAULT_LOOP_KWARGS),
     )
     _assert_result_finite(res)
     assert res.shielding_factor_db == 0.0
@@ -103,14 +121,18 @@ def test_04_copper_w10m_meshed_bonding_after_zero_clamp():
     """4. Copper/aluminium, w_m = 10 m, bonded: clamp(-1.41 -> 0) + 6 = 6.0 dB, K = 0.501, d_SF = 10 m."""
     engine = LEMPEngine()
     res = engine.calculate_lemp_induction(
-        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        LEMPWaveformSpecification(
+            stroke_type="first_positive_10_350",
+            peak_current_ka=100.0,
+        ),
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=10.0,
+            rod_radius_m=0.005,
             material="copper_aluminium",
             meshed_bonding_network=True,
         ),
-        InternalCableLoop(),
+        InternalCableLoop(**_DEFAULT_LOOP_KWARGS),
     )
     _assert_result_finite(res)
     assert res.shielding_factor_db == pytest.approx(6.0, abs=1e-6)
@@ -123,7 +145,10 @@ def test_05_steel_w2m_rc5mm_first_positive_reduces_sf():
     """5. Steel, w_m = 2 m, r_c = 5 mm, first positive (25 kHz): SF = 10.22 dB, K = 0.3087, d_SF = 2.04 m."""
     engine = LEMPEngine()
     res_steel = engine.calculate_lemp_induction(
-        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        LEMPWaveformSpecification(
+            stroke_type="first_positive_10_350",
+            peak_current_ka=100.0,
+        ),
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=2.0,
@@ -131,10 +156,13 @@ def test_05_steel_w2m_rc5mm_first_positive_reduces_sf():
             material="steel",
             meshed_bonding_network=False,
         ),
-        InternalCableLoop(),
+        InternalCableLoop(**_DEFAULT_LOOP_KWARGS),
     )
     res_copper = engine.calculate_lemp_induction(
-        LEMPWaveformSpecification(stroke_type="first_positive_10_350"),
+        LEMPWaveformSpecification(
+            stroke_type="first_positive_10_350",
+            peak_current_ka=100.0,
+        ),
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=2.0,
@@ -142,7 +170,7 @@ def test_05_steel_w2m_rc5mm_first_positive_reduces_sf():
             material="copper_aluminium",
             meshed_bonding_network=False,
         ),
-        InternalCableLoop(),
+        InternalCableLoop(**_DEFAULT_LOOP_KWARGS),
     )
     _assert_result_finite(res_steel)
     assert res_steel.shielding_factor_db == pytest.approx(10.22, abs=0.01)
@@ -158,7 +186,10 @@ def test_06_steel_w2m_subsequent_stroke():
     """6. Steel, w_m = 2 m, subsequent stroke (1 MHz): SF = 12.56 dB, K = 0.2353."""
     engine = LEMPEngine()
     res = engine.calculate_lemp_induction(
-        LEMPWaveformSpecification(stroke_type="subsequent_negative_025_100"),
+        LEMPWaveformSpecification(
+            stroke_type="subsequent_negative_025_100",
+            peak_current_ka=100.0,
+        ),
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=2.0,
@@ -166,7 +197,7 @@ def test_06_steel_w2m_subsequent_stroke():
             material="steel",
             meshed_bonding_network=False,
         ),
-        InternalCableLoop(),
+        InternalCableLoop(**_DEFAULT_LOOP_KWARGS),
     )
     _assert_result_finite(res)
     assert res.shielding_factor_db == pytest.approx(12.56, abs=0.01)
@@ -195,12 +226,14 @@ def test_07_table_a6_shielded_magnetic_field_cases(
         ShieldingGrid(
             is_shielded=True,
             mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
             material="copper_aluminium",
             meshed_bonding_network=False,
         ),
         InternalCableLoop(
             loop_area_m2=2.0,
             center_distance_from_down_conductor_m=s_a_m,
+            equipment_withstand_uw_kv=1.5,
         ),
     )
     _assert_result_finite(res)
@@ -213,14 +246,18 @@ def test_07_table_a6_shielded_magnetic_field_cases(
 def test_08_unshielded_gives_unit_k_and_override_source():
     """8. is_shielded = False gives K = 1.0; explicit override sets k_source = 'override'."""
     engine = LEMPEngine()
-    waveform = LEMPWaveformSpecification()
-    loop = InternalCableLoop()
+    waveform = LEMPWaveformSpecification(
+        stroke_type="first_positive_10_350",
+        peak_current_ka=100.0,
+    )
+    loop = InternalCableLoop(**_DEFAULT_LOOP_KWARGS)
 
     for shield in (
         ShieldingGrid(is_shielded=False),
         ShieldingGrid(
             is_shielded=False,
             mesh_width_w_m=1.0,
+            rod_radius_m=0.005,
             material="steel",
             meshed_bonding_network=True,
             shielding_factor_override_db=20.0,
@@ -234,7 +271,13 @@ def test_08_unshielded_gives_unit_k_and_override_source():
 
     res_override = engine.calculate_lemp_induction(
         waveform,
-        ShieldingGrid(is_shielded=True, mesh_width_w_m=2.0, shielding_factor_override_db=20.0),
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
+            material="copper_aluminium",
+            shielding_factor_override_db=20.0,
+        ),
         loop,
     )
     _assert_result_finite(res_override)
@@ -247,17 +290,41 @@ def test_08_unshielded_gives_unit_k_and_override_source():
 def test_09_mesh_width_warning_above_5m():
     """9. Warning emitted when mesh_width_w_m > 5 m, and absent when mesh_width_w_m <= 5 m."""
     engine = LEMPEngine()
-    waveform = LEMPWaveformSpecification()
-    loop = InternalCableLoop()
+    waveform = LEMPWaveformSpecification(
+        stroke_type="first_positive_10_350",
+        peak_current_ka=100.0,
+    )
+    loop = InternalCableLoop(**_DEFAULT_LOOP_KWARGS)
 
     res_w10 = engine.calculate_lemp_induction(
-        waveform, ShieldingGrid(is_shielded=True, mesh_width_w_m=10.0), loop
+        waveform,
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=10.0,
+            rod_radius_m=0.005,
+            material="copper_aluminium",
+        ),
+        loop,
     )
     res_w5 = engine.calculate_lemp_induction(
-        waveform, ShieldingGrid(is_shielded=True, mesh_width_w_m=5.0), loop
+        waveform,
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=5.0,
+            rod_radius_m=0.005,
+            material="copper_aluminium",
+        ),
+        loop,
     )
     res_w2 = engine.calculate_lemp_induction(
-        waveform, ShieldingGrid(is_shielded=True, mesh_width_w_m=2.0), loop
+        waveform,
+        ShieldingGrid(
+            is_shielded=True,
+            mesh_width_w_m=2.0,
+            rod_radius_m=0.005,
+            material="copper_aluminium",
+        ),
+        loop,
     )
     _assert_result_finite(res_w10)
     _assert_result_finite(res_w5)
@@ -273,8 +340,11 @@ def test_09_mesh_width_warning_above_5m():
 def test_10_relative_permeability_mur_has_no_effect_on_k(material: str):
     """10. relative_permeability_mur = 200 leaves K identical to mu_r = 1."""
     engine = LEMPEngine()
-    waveform = LEMPWaveformSpecification(stroke_type="first_positive_10_350")
-    loop = InternalCableLoop()
+    waveform = LEMPWaveformSpecification(
+        stroke_type="first_positive_10_350",
+        peak_current_ka=100.0,
+    )
+    loop = InternalCableLoop(**_DEFAULT_LOOP_KWARGS)
 
     res_mur_1 = engine.calculate_lemp_induction(
         waveform,
@@ -312,8 +382,13 @@ def test_10_relative_permeability_mur_has_no_effect_on_k(material: str):
 def test_11_peak_induced_voltage_independent_of_num_time_steps(stroke_type: str):
     """11. Peak induced voltage agrees within 0.5% across 500, 5000, and 50000 points."""
     engine = LEMPEngine()
-    shield = ShieldingGrid(is_shielded=True, mesh_width_w_m=5.0)
-    loop = InternalCableLoop()
+    shield = ShieldingGrid(
+        is_shielded=True,
+        mesh_width_w_m=5.0,
+        rod_radius_m=0.005,
+        material="copper_aluminium",
+    )
+    loop = InternalCableLoop(**_DEFAULT_LOOP_KWARGS)
 
     peaks = {}
     for n_steps in (500, 5_000, 50_000):
@@ -344,11 +419,11 @@ def test_11_peak_induced_voltage_independent_of_num_time_steps(stroke_type: str)
 @pytest.mark.parametrize(
     "stroke_type,peak_ka,t_end_us,n_steps,is_shielded,w_m,material,bonded,override_db",
     [
-        ("first_positive_10_350", 0.0, 100.0, 500, True, 5.0, "copper_aluminium", False, None),
-        ("first_positive_10_350", 200.0, 500.0, 1, True, 0.5, "steel", True, None),
+        ("first_positive_10_350", 0.1, 100.0, 500, True, 5.0, "copper_aluminium", False, None),
+        ("first_positive_10_350", 200.0, 500.0, 2, True, 0.5, "steel", True, None),
         ("subsequent_negative_025_100", 50.0, 0.1, 2, True, 12.0, "steel", False, None),
         ("subsequent_negative_025_100", 100.0, 20.0, 5000, False, 5.0, "copper_aluminium", False, None),
-        ("unknown_stroke_fallback", 100.0, 100.0, 50, True, 2.0, "copper_aluminium", True, 15.0),
+        ("first_positive_10_350", 100.0, 100.0, 50, True, 2.0, "copper_aluminium", True, 15.0),
     ],
 )
 def test_12_no_nan_or_inf_for_any_input(
@@ -362,7 +437,7 @@ def test_12_no_nan_or_inf_for_any_input(
     bonded: bool,
     override_db: float | None,
 ):
-    """12. No NaN or inf in any scalar or array field across edge and nominal inputs."""
+    """12. No NaN or inf in any scalar or array field across valid edge and nominal inputs."""
     engine = LEMPEngine()
     res = engine.calculate_lemp_induction(
         LEMPWaveformSpecification(
@@ -374,6 +449,7 @@ def test_12_no_nan_or_inf_for_any_input(
         ShieldingGrid(
             is_shielded=is_shielded,
             mesh_width_w_m=w_m,
+            rod_radius_m=0.005,
             material=material,
             meshed_bonding_network=bonded,
             shielding_factor_override_db=override_db,
@@ -388,6 +464,14 @@ def test_12_no_nan_or_inf_for_any_input(
     assert not np.any(np.isnan(res.induced_voltage_waveform_kv))
     assert not np.any(np.isinf(res.induced_voltage_waveform_kv))
     with pytest.raises(ValueError):
-        _shielding_factor_db(0.0, 0.005, "first_positive_10_350", False)
+        _shielding_factor_db(0.0, 0.005, "first_positive_10_350", False, "copper_aluminium")
     with pytest.raises(ValueError):
-        _shielding_factor_db(2.0, 0.0, "first_positive_10_350", False)
+        _shielding_factor_db(2.0, 0.0, "first_positive_10_350", False, "copper_aluminium")
+    with pytest.raises(ValueError):
+        LEMPWaveformSpecification(stroke_type="first_positive_10_350", peak_current_ka=0.0)
+    with pytest.raises(ValueError):
+        LEMPWaveformSpecification(
+            stroke_type="first_positive_10_350", peak_current_ka=100.0, num_time_steps=1
+        )
+    with pytest.raises(ValueError):
+        LEMPWaveformSpecification(stroke_type="unknown_stroke_fallback", peak_current_ka=100.0)

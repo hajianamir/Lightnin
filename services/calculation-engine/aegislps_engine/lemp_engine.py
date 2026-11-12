@@ -1,7 +1,7 @@
 import math
 import numpy as np
-from typing import Callable, Dict, List, Literal, Tuple, Any, Optional
-from pydantic import BaseModel, Field
+from typing import Callable, Dict, List, Literal, Optional, Tuple
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # IEC 62305-1 Annex A, Table A.1 Heidler current parameters (n = 10),
 # per secondary literature summaries (ETEP 2002; ELEK; Heidler & Zischank, ICLP 2008).
@@ -19,6 +19,18 @@ HEIDLER_IEC_62305_1: Dict[str, Dict[str, float]] = {
         "n": 10.0,
     },
 }
+
+_VALID_STROKE_TYPES = ("first_positive_10_350", "subsequent_negative_025_100")
+_VALID_SHIELD_MATERIALS = ("copper_aluminium", "steel")
+
+
+def _check_positive_finite(name: str, val: object) -> float:
+    if isinstance(val, bool) or not isinstance(val, (int, float, np.number)):
+        raise ValueError(f"{name} must be finite and > 0, got {val!r}.")
+    val_f = float(val)
+    if not math.isfinite(val_f) or val_f <= 0.0:
+        raise ValueError(f"{name} must be finite and > 0, got {val!r}.")
+    return val_f
 
 
 def _heidler_scalar_di_dt(
@@ -75,16 +87,44 @@ def _golden_section_max_abs(
     mid = 0.5 * (a + b)
     return float(max(abs(func(mid)), fc, fd, abs(func(a)), abs(func(b))))
 
-class LEMPWaveformSpecification(BaseModel):
-    stroke_type: str = "first_positive_10_350" # first_positive_10_350, subsequent_negative_025_100
-    peak_current_ka: float = 100.0 # I_peak in kA
-    t_end_us: float = 100.0 # Simulation horizon in microseconds
-    num_time_steps: int = 500
 
-_DEFAULT_ROD_RADIUS_M: float = 0.005
+class LEMPWaveformSpecification(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    stroke_type: str  # first_positive_10_350, subsequent_negative_025_100
+    peak_current_ka: float  # I_peak in kA (> 0)
+    t_end_us: float = 100.0  # numerical simulation window, not a standard value
+    num_time_steps: int = 500  # numerical simulation window, not a standard value
+
+    @field_validator("stroke_type", mode="before")
+    @classmethod
+    def _validate_stroke_type(cls, v):
+        if not isinstance(v, str) or v not in _VALID_STROKE_TYPES:
+            raise ValueError(
+                f"Unknown stroke_type {v!r}; expected one of {_VALID_STROKE_TYPES}."
+            )
+        return v
+
+    @field_validator("peak_current_ka", "t_end_us", mode="before")
+    @classmethod
+    def _validate_positive_floats(cls, v, info):
+        return _check_positive_finite(info.field_name, v)
+
+    @field_validator("num_time_steps", mode="before")
+    @classmethod
+    def _validate_num_time_steps(cls, v):
+        if isinstance(v, bool) or not isinstance(v, int) or v < 2:
+            raise ValueError(
+                f"num_time_steps must be an integer >= 2, got {v!r}."
+            )
+        return v
+
+
 _INTERNAL_PEAK_GRID_POINTS: int = 20_000
 _MAX_RECOMMENDED_MESH_WIDTH_M: float = 5.0
-_K_SOURCE_IEC_2024: Literal["IEC 62305-4:2024 Table A.4"] = "IEC 62305-4:2024 Table A.4"
+_K_SOURCE_IEC_2024: Literal["IEC 62305-4:2024 Table A.4"] = (
+    "IEC 62305-4:2024 Table A.4"
+)
 _K_SOURCE_OVERRIDE: Literal["override"] = "override"
 
 
@@ -93,7 +133,7 @@ def _shielding_factor_db(
     r_c: float,
     stroke_type: str,
     bonded: bool,
-    material: Literal["copper_aluminium", "steel"] = "copper_aluminium",
+    material: str,
 ) -> float:
     """
     IEC 62305-4:2024 Annex A, Table A.4 magnetic shielding factor SF [dB].
@@ -109,18 +149,30 @@ def _shielding_factor_db(
     2. Note a: if SF_formula < 0, set SF = 0.
     3. Note b: if bonded (meshed bonding network per Clause 5.3), add +6 dB.
     """
-    if w_m <= 0.0:
-        raise ValueError(f"mesh_width_w_m must be > 0, got {w_m}")
-    if r_c <= 0.0:
-        raise ValueError(f"rod_radius_m must be > 0, got {r_c}")
+    w_f = _check_positive_finite("mesh_width_w_m", w_m)
+    r_f = _check_positive_finite("rod_radius_m", r_c)
+    if not isinstance(stroke_type, str) or stroke_type not in _VALID_STROKE_TYPES:
+        raise ValueError(
+            f"Unknown stroke_type {stroke_type!r}; expected one of {_VALID_STROKE_TYPES}."
+        )
+    if not isinstance(material, str) or material not in _VALID_SHIELD_MATERIALS:
+        raise ValueError(
+            f"Unknown shield material {material!r}; expected one of {_VALID_SHIELD_MATERIALS}."
+        )
+    if not isinstance(bonded, bool):
+        raise ValueError(f"meshed_bonding_network must be a strict boolean, got {bonded!r}.")
 
     if stroke_type == "subsequent_negative_025_100":
-        sf_formula = 20.0 * math.log10(8.5 / w_m)
+        sf_formula = 20.0 * math.log10(8.5 / w_f)
     elif material == "steel":
-        steel_factor = math.sqrt(1.0 + 18.0e-6 / (r_c * r_c))
-        sf_formula = 20.0 * math.log10((8.5 / w_m) / steel_factor)
+        steel_factor = math.sqrt(1.0 + 18.0e-6 / (r_f * r_f))
+        sf_formula = 20.0 * math.log10((8.5 / w_f) / steel_factor)
+    elif material == "copper_aluminium":
+        sf_formula = 20.0 * math.log10(8.5 / w_f)
     else:
-        sf_formula = 20.0 * math.log10(8.5 / w_m)
+        raise ValueError(
+            f"Unknown shield material {material!r}; expected one of {_VALID_SHIELD_MATERIALS}."
+        )
 
     sf_db = max(0.0, sf_formula)
     if bonded:
@@ -146,21 +198,87 @@ class ShieldingGrid(BaseModel):
     no effect on K_MS; for steel (`material="steel"`), magnetic permeability
     (Table A.4 Note c: mu_r ~ 200) enters SF via `rod_radius_m` (`r_c`).
     """
-    is_shielded: bool = True
-    mesh_width_w_m: float = Field(default=5.0, gt=0.0, allow_inf_nan=False)
-    relative_permeability_mur: float = 1.0
-    rod_radius_m: float = Field(default=_DEFAULT_ROD_RADIUS_M, gt=0.0, allow_inf_nan=False)
-    material: Literal["copper_aluminium", "steel"] = "copper_aluminium"
+
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    is_shielded: bool
+    mesh_width_w_m: Optional[float] = None
+    relative_permeability_mur: float = 1.0  # relative permeability of air-like non-magnetic material
+    rod_radius_m: Optional[float] = None
+    material: Optional[str] = None
     meshed_bonding_network: bool = False
-    shielding_factor_override_db: Optional[float] = Field(
-        default=None, ge=0.0, allow_inf_nan=False
+    shielding_factor_override_db: Optional[float] = None
+
+    @field_validator("is_shielded", "meshed_bonding_network", mode="before")
+    @classmethod
+    def _require_strict_bool(cls, v, info):
+        if not isinstance(v, bool):
+            raise ValueError(f"{info.field_name} must be a strict boolean, got {v!r}.")
+        return v
+
+    @field_validator(
+        "mesh_width_w_m",
+        "relative_permeability_mur",
+        "rod_radius_m",
+        "shielding_factor_override_db",
+        mode="before",
     )
+    @classmethod
+    def _reject_bool_numeric(cls, v):
+        if isinstance(v, bool):
+            raise ValueError("Boolean is not valid for numeric shielding parameter.")
+        return v
+
+    @model_validator(mode="after")
+    def _validate_shielding_grid(self) -> "ShieldingGrid":
+        _check_positive_finite(
+            "relative_permeability_mur", self.relative_permeability_mur
+        )
+        if self.mesh_width_w_m is not None:
+            _check_positive_finite("mesh_width_w_m", self.mesh_width_w_m)
+        if self.rod_radius_m is not None:
+            _check_positive_finite("rod_radius_m", self.rod_radius_m)
+        if self.material is not None:
+            if not isinstance(self.material, str) or self.material not in _VALID_SHIELD_MATERIALS:
+                raise ValueError(
+                    f"Unknown shield material {self.material!r}; expected one of {_VALID_SHIELD_MATERIALS}."
+                )
+        if self.shielding_factor_override_db is not None:
+            if (
+                not math.isfinite(self.shielding_factor_override_db)
+                or self.shielding_factor_override_db < 0.0
+            ):
+                raise ValueError(
+                    f"shielding_factor_override_db must be finite and >= 0, got {self.shielding_factor_override_db!r}."
+                )
+        if self.is_shielded:
+            if self.mesh_width_w_m is None:
+                raise ValueError("mesh_width_w_m is required when is_shielded=True.")
+            if self.rod_radius_m is None:
+                raise ValueError("rod_radius_m is required when is_shielded=True.")
+            if self.material is None:
+                raise ValueError("material is required when is_shielded=True.")
+        return self
+
 
 class InternalCableLoop(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
     id: str = "signal-loop-1"
-    loop_area_m2: float = 2.0 # Area enclosed by signal cable and ground plane
-    center_distance_from_down_conductor_m: float = 3.0 # Radial offset
-    equipment_withstand_uw_kv: float = 1.5 # Category I / II equipment withstand
+    loop_area_m2: float  # Area enclosed by signal cable and ground plane (> 0)
+    center_distance_from_down_conductor_m: float  # Radial offset s_a (> 0)
+    equipment_withstand_uw_kv: float  # Equipment impulse withstand U_w [kV] (> 0)
+
+    @field_validator(
+        "loop_area_m2",
+        "center_distance_from_down_conductor_m",
+        "equipment_withstand_uw_kv",
+        mode="before",
+    )
+    @classmethod
+    def _validate_positive_loop_fields(cls, v, info):
+        return _check_positive_finite(info.field_name, v)
+
 
 class LEMPTransientResult(BaseModel):
     stroke_type: str
@@ -182,6 +300,7 @@ class LEMPTransientResult(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     engineering_insights: List[str] = Field(default_factory=list)
 
+
 class LEMPEngine:
     """
     IEC 62305-4:2024 Annex A Lightning Electromagnetic Pulse (LEMP) Engine.
@@ -201,14 +320,15 @@ class LEMPEngine:
              = - (mu_0 / (2 * pi * s_a)) * K_MS * A_loop * (di / dt)
     - Continuous/fine-grid peak surge stress evaluation vs. equipment withstand (U_w).
     """
-    MU_0 = 4.0 * np.pi * 1e-7 # H/m permeability of free space
+
+    MU_0 = 4.0 * np.pi * 1e-7  # H/m permeability of free space
 
     @classmethod
     def evaluate_heidler_current(
         cls,
         t_us: np.ndarray,
         stroke_type: str,
-        i_peak_ka: float
+        i_peak_ka: float,
     ) -> Tuple[np.ndarray, np.ndarray, float]:
         """
         Evaluates current i(t) in kA and analytic derivative di/dt in kA/us
@@ -216,8 +336,8 @@ class LEMPEngine:
 
         Notes & limitations:
         - Returns positive current magnitude for all strokes (including
-          "subsequent_negative_025_100"); no negative sign convention is applied.
-        - Unrecognized stroke_type values fall back to "first_positive_10_350".
+          "subsequent_negative_025_100"); `i_peak_ka` must be finite and > 0.
+        - Unrecognized `stroke_type` values raise `ValueError`.
         - Under the IEC 62305-1 10%-90% current front-time definition
           T1 = 1.25 * (t90 - t10), the Table A.1 parameters give
           T1 = 9.980 us (-0.20% vs nominal 10 us) for 10/350 and
@@ -225,10 +345,12 @@ class LEMPEngine:
           tail times to 0.5 * I_peak are T2 = 370.76 us (+5.93%) and
           T2 = 100.16 us (+0.16%).
         """
-        if stroke_type == "subsequent_negative_025_100":
-            params = HEIDLER_IEC_62305_1["subsequent_negative_025_100"]
-        else:
-            params = HEIDLER_IEC_62305_1["first_positive_10_350"]
+        if not isinstance(stroke_type, str) or stroke_type not in HEIDLER_IEC_62305_1:
+            raise ValueError(
+                f"Unknown stroke_type {stroke_type!r}; expected one of {_VALID_STROKE_TYPES}."
+            )
+        peak_f = _check_positive_finite("peak_current_ka", i_peak_ka)
+        params = HEIDLER_IEC_62305_1[stroke_type]
 
         tau1 = params["tau1"]
         tau2 = params["tau2"]
@@ -242,7 +364,7 @@ class LEMPEngine:
         x_n = x_n_minus_1 * x
         denom = 1.0 + x_n
         exp_decay = np.exp(-t_pos / tau2)
-        scale = float(i_peak_ka) / eta
+        scale = peak_f / eta
 
         current_shape = scale * (x_n / denom) * exp_decay
         di_dt_shape = scale * exp_decay * (
@@ -265,10 +387,12 @@ class LEMPEngine:
             b_br = float(max(t_arr[left_idx], t_arr[right_idx]))
 
             scalar_fn = lambda t_val: _heidler_scalar_di_dt(
-                t_val, float(i_peak_ka), tau1, tau2, eta, n
+                t_val, peak_f, tau1, tau2, eta, n
             )
             if b_br > a_br:
-                max_di_dt = max(max_di_dt, _golden_section_max_abs(scalar_fn, a_br, b_br))
+                max_di_dt = max(
+                    max_di_dt, _golden_section_max_abs(scalar_fn, a_br, b_br)
+                )
 
             t_min = float(np.min(t_arr))
             t_max = float(np.max(t_arr))
@@ -285,72 +409,82 @@ class LEMPEngine:
         self,
         waveform: LEMPWaveformSpecification,
         shield: ShieldingGrid,
-        loop: InternalCableLoop
+        loop: InternalCableLoop,
     ) -> LEMPTransientResult:
         """
         Evaluate LEMP magnetic field attenuation and induced loop voltage per
         IEC 62305-4:2024 Annex A (pp. 54-55, Table A.4, Eq. A.6-A.10, Eq. A.14-A.15).
-
-        Notes & scope boundaries:
-        - Distance s_a: `loop.center_distance_from_down_conductor_m` represents s_a in
-          Eq. (A.6)-(A.10), the distance between the strike point and the center of the
-          shielded volume. Geometric evaluation of s_a from building geometry and the
-          rolling sphere per Eq. (A.16)-(A.17) is not implemented here; s_a is supplied
-          directly by the caller.
-        - Shielding factor SF & K_MS: Computed from Table A.4 via `_shielding_factor_db`
-          (`k_source = "IEC 62305-4:2024 Table A.4"`) unless `shielding_factor_override_db`
-          is given (`k_source = "override"`), with `K_MS = 10^(-SF / 20)`. When
-          `shield.is_shielded` is False, `SF = 0 dB` and `K_MS = 1.0`.
-        - Steel permeability: `shield.relative_permeability_mur` has no effect on K_MS;
-          steel permeability (Table A.4 Note c: mu_r ~ 200) enters SF through `rod_radius_m` (`r_c`).
-        - Internal safety distance d_SF/n: Reported in `safety_distance_m` per Eq. (A.14)-(A.15)
-          (`w_m * SF / 10` for `SF >= 10 dB`, `w_m` for `SF < 10 dB`, `0.0` if unshielded).
-        - Continuous-grid peak evaluation: `peak_induced_voltage_kv`, `max_di_dt_ka_per_us`,
-          and peak H-fields are evaluated on a fixed 20,000-point internal grid independent
-          of `waveform.num_time_steps`; serialized waveform arrays stay on `num_time_steps`.
-        - Uniform-field Faraday loop approximation `u = mu_0 * K_MS * (A_loop / (2 * pi * s_a)) * di/dt`
-          is valid when the radial loop span b << s_a.
         """
-        n_steps = max(1, int(waveform.num_time_steps))
-        t_end_us = max(0.0, float(waveform.t_end_us))
+        if (
+            isinstance(waveform.num_time_steps, bool)
+            or not isinstance(waveform.num_time_steps, int)
+            or waveform.num_time_steps < 2
+        ):
+            raise ValueError(
+                f"num_time_steps must be an integer >= 2, got {waveform.num_time_steps!r}."
+            )
+        t_end_us = _check_positive_finite("t_end_us", waveform.t_end_us)
+        peak_ka = _check_positive_finite("peak_current_ka", waveform.peak_current_ka)
+        n_steps = int(waveform.num_time_steps)
+
+        shield._validate_shielding_grid()
+        s_a_m = _check_positive_finite(
+            "center_distance_from_down_conductor_m",
+            loop.center_distance_from_down_conductor_m,
+        )
+        a_loop = _check_positive_finite("loop_area_m2", loop.loop_area_m2)
+        uw_kv = _check_positive_finite(
+            "equipment_withstand_uw_kv", loop.equipment_withstand_uw_kv
+        )
 
         t_us = np.linspace(0.0, t_end_us, n_steps)
         i_ka, di_dt_ka_us, _ = self.evaluate_heidler_current(
-            t_us, waveform.stroke_type, waveform.peak_current_ka
+            t_us, waveform.stroke_type, peak_ka
         )
 
         # Fine internal grid independent of num_time_steps for continuous peak evaluation
         t_fine_us = np.linspace(0.0, t_end_us, _INTERNAL_PEAK_GRID_POINTS)
         i_fine_ka, di_dt_fine_ka_us, max_di_dt = self.evaluate_heidler_current(
-            t_fine_us, waveform.stroke_type, waveform.peak_current_ka
+            t_fine_us, waveform.stroke_type, peak_ka
         )
 
-        s_a_m = max(0.5, loop.center_distance_from_down_conductor_m)
-        a_loop = max(0.01, loop.loop_area_m2)
-
         # Eq. (A.6): Peak unattenuated magnetic field H_0 = I_0 / (2 * pi * s_a) [A/m]
-        h_unshielded_fine_a_m = (np.abs(i_fine_ka) * 1e3) / (2.0 * np.pi * s_a_m)
+        h_unshielded_fine_a_m = (i_fine_ka * 1e3) / (2.0 * np.pi * s_a_m)
         peak_h_unshielded = float(np.max(h_unshielded_fine_a_m))
 
         warnings: List[str] = []
-        if shield.is_shielded and shield.mesh_width_w_m > _MAX_RECOMMENDED_MESH_WIDTH_M:
-            warnings.append(
-                f"Spatial shield mesh width w_m = {shield.mesh_width_w_m:.2f} m exceeds "
-                f"{_MAX_RECOMMENDED_MESH_WIDTH_M:.1f} m; wide spatial grids provide reduced "
-                "or zero magnetic-field attenuation per IEC 62305-4:2024 Annex A."
+        if shield.is_shielded:
+            assert (
+                shield.mesh_width_w_m is not None
+                and shield.rod_radius_m is not None
+                and shield.material is not None
             )
+            if shield.mesh_width_w_m > _MAX_RECOMMENDED_MESH_WIDTH_M:
+                warnings.append(
+                    f"Spatial shield mesh width w_m = {shield.mesh_width_w_m:.2f} m exceeds "
+                    f"{_MAX_RECOMMENDED_MESH_WIDTH_M:.1f} m; wide spatial grids provide reduced "
+                    "or zero magnetic-field attenuation per IEC 62305-4:2024 Annex A."
+                )
 
         if not shield.is_shielded:
             sf_db = 0.0
             kms = 1.0
             safety_distance_m = 0.0
-            k_source: Literal["IEC 62305-4:2024 Table A.4", "override"] = _K_SOURCE_IEC_2024
+            k_source: Literal["IEC 62305-4:2024 Table A.4", "override"] = (
+                _K_SOURCE_IEC_2024
+            )
         elif shield.shielding_factor_override_db is not None:
+            assert shield.mesh_width_w_m is not None
             sf_db = float(shield.shielding_factor_override_db)
             kms = float(10.0 ** (-sf_db / 20.0))
             safety_distance_m = _safety_distance_dsf_m(shield.mesh_width_w_m, sf_db)
             k_source = _K_SOURCE_OVERRIDE
         else:
+            assert (
+                shield.mesh_width_w_m is not None
+                and shield.rod_radius_m is not None
+                and shield.material is not None
+            )
             sf_db = _shielding_factor_db(
                 w_m=shield.mesh_width_w_m,
                 r_c=shield.rod_radius_m,
@@ -378,25 +512,29 @@ class LEMPEngine:
         u_refined_peak_kv = float(abs(loop_coupling_v_per_ka_us * max_di_dt) * 1e-3)
         peak_induced_kv = max(u_fine_peak_kv, u_refined_peak_kv)
 
-        protected = peak_induced_kv <= loop.equipment_withstand_uw_kv
-        status = "COMPLIANT_WITHIN_WITHSTAND" if protected else "EXCEEDS_WITHSTAND_HAZARD"
+        protected = peak_induced_kv <= uw_kv
+        status = (
+            "COMPLIANT_WITHIN_WITHSTAND" if protected else "EXCEEDS_WITHSTAND_HAZARD"
+        )
 
         insights = [
-            f"Heidler surge waveform '{waveform.stroke_type}': Peak current {waveform.peak_current_ka:.1f} kA, max steepness di/dt = {max_di_dt:.2f} kA/us.",
+            f"Heidler surge waveform '{waveform.stroke_type}': Peak current {peak_ka:.1f} kA, max steepness di/dt = {max_di_dt:.2f} kA/us.",
             (
                 f"Magnetic field at s_a = {s_a_m:.1f} m: H0 = {peak_h_unshielded:.1f} A/m -> "
                 f"H1 = {peak_h_shielded:.1f} A/m (SF = {sf_db:.2f} dB, K_MS = {kms:.4f}, "
                 f"d_SF/n = {safety_distance_m:.2f} m, source = {k_source})."
             ),
-            f"Induced loop voltage: Peak {peak_induced_kv:.2f} kV vs Equipment withstand Uw = {loop.equipment_withstand_uw_kv:.2f} kV.",
-            "Mitigation recommendation: Reduce loop area or add Type 3 fine surge protection." if not protected else "Equipment protected by existing shielding and spatial separation."
+            f"Induced loop voltage: Peak {peak_induced_kv:.2f} kV vs Equipment withstand Uw = {uw_kv:.2f} kV.",
+            "Mitigation recommendation: Reduce loop area or add Type 3 fine surge protection."
+            if not protected
+            else "Equipment protected by existing shielding and spatial separation.",
         ]
 
         # Downsample time series for lightweight API/UI serialization
         sample_step = max(1, len(t_us) // 50)
         return LEMPTransientResult(
             stroke_type=waveform.stroke_type,
-            peak_current_ka=waveform.peak_current_ka,
+            peak_current_ka=peak_ka,
             max_di_dt_ka_per_us=round(max_di_dt, 3),
             unattenuated_peak_h_field_a_per_m=round(peak_h_unshielded, 1),
             shielded_peak_h_field_a_per_m=round(peak_h_shielded, 1),
@@ -405,12 +543,14 @@ class LEMPEngine:
             safety_distance_m=round(safety_distance_m, 4),
             k_source=k_source,
             peak_induced_voltage_kv=round(peak_induced_kv, 3),
-            equipment_withstand_uw_kv=loop.equipment_withstand_uw_kv,
+            equipment_withstand_uw_kv=uw_kv,
             equipment_protected=protected,
             status=status,
             time_series_us=[round(float(t), 2) for t in t_us[::sample_step]],
             current_waveform_ka=[round(float(i), 2) for i in i_ka[::sample_step]],
-            induced_voltage_waveform_kv=[round(float(u), 3) for u in u_induced_kv[::sample_step]],
+            induced_voltage_waveform_kv=[
+                round(float(u), 3) for u in u_induced_kv[::sample_step]
+            ],
             warnings=warnings,
-            engineering_insights=insights
+            engineering_insights=insights,
         )

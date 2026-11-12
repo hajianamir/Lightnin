@@ -54,7 +54,12 @@ def test_lemp_induction_and_shielding_attenuation():
 
     # 2. Shielded Mesh Case (w = 2m copper/alu mesh): IEC 62305-4:2024 Table A.4
     # SF = 20 * log10(8.5 / 2.0) = 12.5678 dB -> K_MS = 2.0 / 8.5 = 0.2353
-    shield_mesh = ShieldingGrid(is_shielded=True, mesh_width_w_m=2.0)
+    shield_mesh = ShieldingGrid(
+        is_shielded=True,
+        mesh_width_w_m=2.0,
+        rod_radius_m=0.005,
+        material="copper_aluminium",
+    )
     res_shielded = engine.calculate_lemp_induction(waveform, shield_mesh, loop)
     assert res_shielded.grid_shielding_factor_kms == pytest.approx(0.2353, abs=0.001)
     # Peak induced voltage should be reduced significantly

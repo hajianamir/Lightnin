@@ -110,22 +110,35 @@ def test_earthing_invalid_lps_class_returns_422():
 
 def test_touch_step_empty_body_returns_422():
     response = client.post("/api/v1/calculations/touch-step", json={})
-    detail = _assert_value_error_422(response)
-    assert "earth_potential_rise_v" in detail
+    assert response.status_code == 422
+    body = response.json()
+    assert isinstance(body, dict) and "detail" in body
+    assert isinstance(body["detail"], list) and len(body["detail"]) >= 1
+    missing_locs = {tuple(err["loc"]) for err in body["detail"]}
+    assert ("body", "earth_potential_rise_v") in missing_locs
+    assert ("body", "electrode_equivalent_radius_m") in missing_locs
 
 
 def test_touch_step_negative_gpr_returns_422():
     # Shape from tests/test_earthing_and_spd.py::test_touch_and_step_hazard_control_dalziel
     payload = {
+        "lps_class": "I",
         "soil_resistivity_ohm_m": 100.0,
         "surface_layer_material": "bare_soil",
+        "fault_duration_s": 0.05,
+        "body_weight_kg": 70.0,
+        "peak_impulse_current_ka": 100.0,
+        "down_conductor_radius_m": 0.005,
         "has_physical_insulation_barrier": False,
         "earth_potential_rise_v": -100,
         "electrode_equivalent_radius_m": 2.0,
     }
     response = client.post("/api/v1/calculations/touch-step", json=payload)
-    detail = _assert_value_error_422(response)
-    assert "earth_potential_rise_v" in detail
+    assert response.status_code == 422
+    body = response.json()
+    assert isinstance(body, dict) and "detail" in body
+    assert isinstance(body["detail"], list) and len(body["detail"]) == 1
+    assert body["detail"][0]["loc"] == ["body", "earth_potential_rise_v"]
 
 
 def test_mesh_rolling_sphere_negative_radius_returns_422():

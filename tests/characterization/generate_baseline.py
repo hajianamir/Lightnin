@@ -194,26 +194,31 @@ def compute_all_snapshots() -> Dict[str, Any]:
     }
 
     # 3. TouchStepEngine
+    # Test fixture: explicit former defaults for characterization invariance.
     ts_engine = TouchStepEngine()
+    ts_common = dict(
+        lps_class="I",
+        soil_resistivity_ohm_m=100.0,
+        surface_layer_material="bare_soil",
+        fault_duration_s=0.05,
+        body_weight_kg=70.0,
+        peak_impulse_current_ka=100.0,
+        down_conductor_radius_m=0.005,
+        earth_potential_rise_v=10000.0,
+        electrode_equivalent_radius_m=2.0,
+    )
     raw["touch_step"] = {
-        "default": ts_engine.evaluate(
-            TouchStepAssessmentInput(
-                earth_potential_rise_v=10000.0,
-                electrode_equivalent_radius_m=2.0,
-            )
-        ),
+        "default": ts_engine.evaluate(TouchStepAssessmentInput(**ts_common)),
         "restricted_access_perimeter": ts_engine.evaluate(
             TouchStepAssessmentInput(
+                **ts_common,
                 has_restricted_access_perimeter=True,
-                earth_potential_rise_v=10000.0,
-                electrode_equivalent_radius_m=2.0,
             )
         ),
         "physical_insulation_barrier": ts_engine.evaluate(
             TouchStepAssessmentInput(
+                **ts_common,
                 has_physical_insulation_barrier=True,
-                earth_potential_rise_v=10000.0,
-                electrode_equivalent_radius_m=2.0,
             )
         ),
     }
@@ -317,8 +322,17 @@ def compute_all_snapshots() -> Dict[str, Any]:
                 t_end_us=100.0,
                 num_time_steps=500,
             ),
-            ShieldingGrid(mesh_width_w_m=5.0),
-            InternalCableLoop(),
+            ShieldingGrid(
+                is_shielded=True,
+                mesh_width_w_m=5.0,
+                rod_radius_m=0.005,
+                material="copper_aluminium",
+            ),
+            InternalCableLoop(
+                loop_area_m2=2.0,
+                center_distance_from_down_conductor_m=3.0,
+                equipment_withstand_uw_kv=1.5,
+            ),
         )
         i_ka, di_dt_ka_per_us, max_di_dt = LEMPEngine.evaluate_heidler_current(
             t_grid, stroke, 100.0
@@ -437,7 +451,15 @@ def compute_all_snapshots() -> Dict[str, Any]:
 
     # 18. UncertaintyQuantificationEngine (scalar fields and histogram only; fixed seed=42)
     uq_res = UncertaintyQuantificationEngine().run_monte_carlo(
-        UQSimulationConfig(random_seed=42)
+        UQSimulationConfig(
+            num_samples=2000,
+            random_seed=42,
+            lps_class="I",
+            target_clearance_d_m=1.0,
+            nominal_path_length_m=15.0,
+            nominal_soil_rho_ohm_m=100.0,
+            ring_radius_m=15.0,
+        )
     )
     raw["uq_engine"] = uq_res.model_dump(exclude={"raw_samples", "samples"})
 

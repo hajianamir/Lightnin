@@ -1,4 +1,4 @@
-"""Physics and regression tests for TouchStepEngine (Step 1.3: C2)."""
+"""Physics and regression tests for TouchStepEngine (Step 1.3: C2; updated for H9-B4)."""
 
 import itertools
 import math
@@ -11,35 +11,43 @@ EXPECTED_MITIGATION_WARNING = (
     "engineer verification and is NOT applied in this calculation."
 )
 
+_BASE_TS_KWARGS = dict(
+    lps_class="I",
+    soil_resistivity_ohm_m=100.0,
+    surface_layer_material="bare_soil",
+    fault_duration_s=0.05,
+    body_weight_kg=70.0,
+    peak_impulse_current_ka=100.0,
+    down_conductor_radius_m=0.005,
+)
+
 
 def test_gpr_and_equivalent_radius_required():
-    """5.1: Missing or non-positive GPR / equivalent radius raises ValueError."""
-    engine = TouchStepEngine()
-
-    with pytest.raises(ValueError, match="GPR required"):
-        engine.evaluate(
-            TouchStepAssessmentInput(electrode_equivalent_radius_m=2.0)
+    """5.1: Missing or non-positive GPR / equivalent radius raises ValueError at model construction."""
+    with pytest.raises(ValueError, match="earth_potential_rise_v"):
+        TouchStepAssessmentInput(
+            **_BASE_TS_KWARGS,
+            electrode_equivalent_radius_m=2.0,
         )
 
-    with pytest.raises(ValueError, match="GPR required"):
-        engine.evaluate(
-            TouchStepAssessmentInput(earth_potential_rise_v=10000.0)
+    with pytest.raises(ValueError, match="electrode_equivalent_radius_m"):
+        TouchStepAssessmentInput(
+            **_BASE_TS_KWARGS,
+            earth_potential_rise_v=10000.0,
         )
 
     with pytest.raises(ValueError, match="-50"):
-        engine.evaluate(
-            TouchStepAssessmentInput(
-                earth_potential_rise_v=-50.0,
-                electrode_equivalent_radius_m=2.0,
-            )
+        TouchStepAssessmentInput(
+            **_BASE_TS_KWARGS,
+            earth_potential_rise_v=-50.0,
+            electrode_equivalent_radius_m=2.0,
         )
 
     with pytest.raises(ValueError, match="0.0"):
-        engine.evaluate(
-            TouchStepAssessmentInput(
-                earth_potential_rise_v=10000.0,
-                electrode_equivalent_radius_m=0.0,
-            )
+        TouchStepAssessmentInput(
+            **_BASE_TS_KWARGS,
+            earth_potential_rise_v=10000.0,
+            electrode_equivalent_radius_m=0.0,
         )
 
 
@@ -50,7 +58,7 @@ def test_manual_hemispherical_prospective_voltages():
     r_e = 2.0
     res = engine.evaluate(
         TouchStepAssessmentInput(
-            soil_resistivity_ohm_m=100.0,
+            **_BASE_TS_KWARGS,
             earth_potential_rise_v=gpr,
             electrode_equivalent_radius_m=r_e,
         )
@@ -66,15 +74,17 @@ def test_manual_hemispherical_prospective_voltages():
 
 
 def test_surface_derating_cs_closed_form_and_guards():
-    """5.3: IEEE 80 Eq. 27 closed-form C_s = 0.700 for rho=100, rho_s=3000, h_s=0.1, and guard at rho_s=rho."""
+    """5.3: IEEE 80 Eq. 27 closed-form C_s = 0.700 for rho=100, rho_s=3000, h_s=0.1, guard at rho_s=rho, and rejection of non-positive inputs."""
     cs = TouchStepEngine.calculate_surface_derating_cs(
         rho_soil=100.0, rho_surface=3000.0, h_surface_m=0.1
     )
     assert cs == pytest.approx(0.700, abs=1e-3)
 
     assert TouchStepEngine.calculate_surface_derating_cs(100.0, 100.0, 0.1) == 1.0
-    assert TouchStepEngine.calculate_surface_derating_cs(100.0, 0.0, 0.1) == 1.0
-    assert TouchStepEngine.calculate_surface_derating_cs(100.0, 3000.0, 0.0) == 1.0
+    with pytest.raises(ValueError, match="rho_surface"):
+        TouchStepEngine.calculate_surface_derating_cs(100.0, 0.0, 0.1)
+    with pytest.raises(ValueError, match="h_surface_m"):
+        TouchStepEngine.calculate_surface_derating_cs(100.0, 3000.0, 0.0)
 
 
 def test_tolerable_limit_formula_oracle():
@@ -90,10 +100,13 @@ def test_tolerable_limit_formula_oracle():
 
     res_70 = engine.evaluate(
         TouchStepAssessmentInput(
+            lps_class="I",
             soil_resistivity_ohm_m=100.0,
             surface_layer_material="bare_soil",
             fault_duration_s=t_f,
             body_weight_kg=70.0,
+            peak_impulse_current_ka=100.0,
+            down_conductor_radius_m=0.005,
             earth_potential_rise_v=10000.0,
             electrode_equivalent_radius_m=2.0,
         )
@@ -105,10 +118,13 @@ def test_tolerable_limit_formula_oracle():
     expected_touch_50 = (1000.0 + 1.5 * c_s * rho_s) * k_t_50
     res_50 = engine.evaluate(
         TouchStepAssessmentInput(
+            lps_class="I",
             soil_resistivity_ohm_m=100.0,
             surface_layer_material="bare_soil",
             fault_duration_s=t_f,
             body_weight_kg=50.0,
+            peak_impulse_current_ka=100.0,
+            down_conductor_radius_m=0.005,
             earth_potential_rise_v=10000.0,
             electrode_equivalent_radius_m=2.0,
         )
@@ -120,6 +136,7 @@ def test_mitigation_flags_do_not_change_voltages():
     """5.5: Barrier and fence flags never alter prospective voltages and never apply credit."""
     engine = TouchStepEngine()
     base_kwargs = dict(
+        **_BASE_TS_KWARGS,
         earth_potential_rise_v=10000.0,
         electrode_equivalent_radius_m=2.0,
     )
@@ -151,6 +168,7 @@ def test_fence_only_scenario_is_not_compliant():
     engine = TouchStepEngine()
     res_fence = engine.evaluate(
         TouchStepAssessmentInput(
+            **_BASE_TS_KWARGS,
             has_restricted_access_perimeter=True,
             earth_potential_rise_v=10000.0,
             electrode_equivalent_radius_m=2.0,
@@ -167,6 +185,7 @@ def test_no_zero_by_flag_path():
     for barrier, fence in itertools.product([False, True], repeat=2):
         res = engine.evaluate(
             TouchStepAssessmentInput(
+                **_BASE_TS_KWARGS,
                 has_physical_insulation_barrier=barrier,
                 has_restricted_access_perimeter=fence,
                 earth_potential_rise_v=10000.0,
@@ -182,6 +201,7 @@ def test_formula_trace_contains_equations_and_substituted_numbers():
     engine = TouchStepEngine()
     res = engine.evaluate(
         TouchStepAssessmentInput(
+            **_BASE_TS_KWARGS,
             earth_potential_rise_v=10000.0,
             electrode_equivalent_radius_m=2.0,
         )
@@ -208,6 +228,7 @@ def test_mitigation_warning_exact_text_in_all_results():
     for barrier, fence in itertools.product([False, True], repeat=2):
         res = engine.evaluate(
             TouchStepAssessmentInput(
+                **_BASE_TS_KWARGS,
                 has_physical_insulation_barrier=barrier,
                 has_restricted_access_perimeter=fence,
                 earth_potential_rise_v=10000.0,
