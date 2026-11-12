@@ -491,6 +491,33 @@ def test_e5_peec_neumann_rejects_bad_gauss_points_nan_and_zero_length():
     assert m_ij > 0.0 and math.isfinite(m_ij)
 
 
+def test_e6_peec_neumann_submillimeter_unclamped_and_nonconvergence_guard():
+    """Step 3.4 (M2, A-d): sub-millimeter separations are unclamped; extreme proximity raises."""
+    # Sub-millimeter parallel filaments (d = 0.2 mm < old 1e-3 m clamp, L = 0.1 m):
+    # Converged 40-point / closed-form reference = 1.181950855797e-07 H
+    # (old 1e-3 clamp under-predicted by -22.16%, returning 9.20065e-08 H).
+    seg_sub_a = SkewSegment3D(start=(0.0, 0.0, 0.0), end=(0.1, 0.0, 0.0))
+    seg_sub_b = SkewSegment3D(start=(0.0, 2.0e-4, 0.0), end=(0.1, 2.0e-4, 0.0))
+    m_sub = PEECThermalEngine.calculate_mutual_inductance_neumann(seg_sub_a, seg_sub_b)
+    assert m_sub == pytest.approx(1.181950855797e-07, rel=1e-6)
+
+    # Sub-millimeter parallel filaments (d = 0.5 mm < old 1e-3 m clamp, L = 1.0 m):
+    # Converged 40-point / closed-form reference = 1.458909915520e-06 H
+    seg_half_a = SkewSegment3D(start=(0.0, 0.0, 0.0), end=(1.0, 0.0, 0.0))
+    seg_half_b = SkewSegment3D(start=(0.0, 5.0e-4, 0.0), end=(1.0, 5.0e-4, 0.0))
+    m_half = PEECThermalEngine.calculate_mutual_inductance_neumann(
+        seg_half_a, seg_half_b
+    )
+    assert m_half == pytest.approx(1.458909915520e-06, rel=1e-6)
+
+    # Extreme aspect ratio (L = 10 m, d = 1e-7 m) exceeding panel budget raises ValueError
+    # explicitly rather than silently clamping or returning an unconverged estimate.
+    seg_ext_a = SkewSegment3D(start=(0.0, 0.0, 0.0), end=(10.0, 0.0, 0.0))
+    seg_ext_b = SkewSegment3D(start=(0.0, 1.0e-7, 0.0), end=(10.0, 1.0e-7, 0.0))
+    with pytest.raises(ValueError, match="did not converge"):
+        PEECThermalEngine.calculate_mutual_inductance_neumann(seg_ext_a, seg_ext_b)
+
+
 # ===========================================================================
 # F. nodal.py (Rules F.1 - F.6)
 # ===========================================================================

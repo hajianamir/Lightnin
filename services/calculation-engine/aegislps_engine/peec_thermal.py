@@ -167,6 +167,132 @@ class PEECThermalEngine:
         "IV": 100e3,
     }
 
+    @staticmethod
+    def _gauss_legendre_unit_square_rule(
+        order: int,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        nodes, weights = np.polynomial.legendre.leggauss(order)
+        u = 0.5 * (nodes + 1.0)
+        w = 0.5 * weights
+        uu, vv = np.meshgrid(u, u, indexing="ij")
+        return uu.ravel(), vv.ravel(), (w[:, None] * w[None, :]).ravel()
+
+    @classmethod
+    def _adaptive_neumann_unit_square_integral(
+        cls,
+        p1: np.ndarray,
+        vec_i: np.ndarray,
+        q1: np.ndarray,
+        vec_j: np.ndarray,
+        n_gauss: int,
+        rtol: float = 1e-8,
+        max_depth: int = 30,
+        max_active_boxes: int = 16384,
+    ) -> float:
+        """
+        Convergence-checked adaptive 2-D Gauss-Legendre quadrature of
+        int_0^1 int_0^1 ds dt / ||(p1 + s * vec_i) - (q1 + t * vec_j)||
+        without any distance clamp. Raises ValueError if a quadrature node
+        hits zero distance or if subdivision fails to converge within budget.
+        """
+        n_root = max(n_gauss, 8)
+        if n_root % 2 == 1:
+            n_root += 1
+        n_sub = min(n_root, 12)
+
+        u_root, v_root, w_root = cls._gauss_legendre_unit_square_rule(n_root)
+        u_sub, v_sub, w_sub = (
+            (u_root, v_root, w_root)
+            if n_sub == n_root
+            else cls._gauss_legendre_unit_square_rule(n_sub)
+        )
+
+        def _eval_boxes(
+            s0: np.ndarray,
+            ds: np.ndarray,
+            t0: np.ndarray,
+            dt: np.ndarray,
+            uu: np.ndarray,
+            vv: np.ndarray,
+            ww: np.ndarray,
+        ) -> np.ndarray:
+            s = s0[:, None] + ds[:, None] * uu[None, :]
+            t = t0[:, None] + dt[:, None] * vv[None, :]
+            diff = (
+                p1[None, None, :]
+                + s[:, :, None] * vec_i[None, None, :]
+                - q1[None, None, :]
+                - t[:, :, None] * vec_j[None, None, :]
+            )
+            dist = np.linalg.norm(diff, axis=-1)
+            if np.any(dist <= 0.0):
+                raise ValueError(
+                    "Neumann quadrature encountered zero inter-segment distance "
+                    "(singular filament configuration)."
+                )
+            return (ds * dt) * np.sum(ww[None, :] / dist, axis=1)
+
+        s0 = np.array([0.0], dtype=np.float64)
+        ds = np.array([1.0], dtype=np.float64)
+        t0 = np.array([0.0], dtype=np.float64)
+        dt = np.array([1.0], dtype=np.float64)
+        est = _eval_boxes(s0, ds, t0, dt, u_root, v_root, w_root)
+        accepted_sum = 0.0
+        accepted_err = 0.0
+
+        for _ in range(max_depth):
+            m = len(s0)
+            if m == 0:
+                return float(accepted_sum)
+
+            hs = 0.5 * ds
+            ht = 0.5 * dt
+            cs0 = np.concatenate([s0, s0 + hs, s0, s0 + hs])
+            cds = np.concatenate([hs, hs, hs, hs])
+            ct0 = np.concatenate([t0, t0, t0 + ht, t0 + ht])
+            cdt = np.concatenate([ht, ht, ht, ht])
+
+            c_est = _eval_boxes(cs0, cds, ct0, cdt, u_sub, v_sub, w_sub).reshape(4, m)
+            refined = np.sum(c_est, axis=0)
+            err = np.abs(refined - est)
+
+            total_est = abs(accepted_sum + float(np.sum(refined)))
+            target_tol = rtol * max(total_est, 1e-30)
+            if accepted_err + float(np.sum(err)) <= target_tol:
+                return float(accepted_sum + float(np.sum(refined)))
+
+            order = np.argsort(err)
+            cum_err = accepted_err + np.cumsum(err[order])
+            accept_sorted = cum_err <= 0.25 * target_tol
+            keep = np.ones(m, dtype=bool)
+            keep[order[accept_sorted]] = False
+
+            accepted_sum += float(np.sum(refined[~keep]))
+            accepted_err += float(np.sum(err[~keep]))
+            if not np.any(keep):
+                return float(accepted_sum)
+
+            n_keep = int(np.sum(keep))
+            if 4 * n_keep > max_active_boxes:
+                raise ValueError(
+                    "Neumann adaptive quadrature did not converge within panel budget; "
+                    "filament segments are too close relative to their length."
+                )
+
+            idx = np.nonzero(keep)[0]
+            s0 = np.concatenate([s0[idx], s0[idx] + hs[idx], s0[idx], s0[idx] + hs[idx]])
+            ds = np.concatenate([hs[idx], hs[idx], hs[idx], hs[idx]])
+            t0 = np.concatenate([t0[idx], t0[idx], t0[idx] + ht[idx], t0[idx] + ht[idx]])
+            dt = np.concatenate([ht[idx], ht[idx], ht[idx], ht[idx]])
+            est = np.concatenate(
+                [c_est[0, idx], c_est[1, idx], c_est[2, idx], c_est[3, idx]]
+            )
+
+        raise ValueError(
+            f"Neumann adaptive quadrature did not converge to relative tolerance {rtol} "
+            f"within max_depth={max_depth}."
+        )
+
     @classmethod
     def calculate_mutual_inductance_neumann(
         cls,
@@ -175,8 +301,29 @@ class PEECThermalEngine:
         num_gauss_points: int = 10,
     ) -> float:
         """
-        Calculates mutual inductance M_ij (Henry) between two arbitrary 3D linear conductor segments
-        using Gaussian quadrature discretization of Neumann's double integral.
+        Calculates mutual inductance M_ij (Henry) between two 3D thin-filament
+        linear conductor segments via convergence-checked adaptive 2-D
+        Gauss-Legendre quadrature of Neumann's magnetostatic double integral.
+
+        Formula basis:
+            M_ij = (mu_0 / (4 * pi)) * int_{C_i} int_{C_j} (dl_i . dl_j) / ||r_i - r_j||
+                 = (mu_0 / (4 * pi)) * (u_i . u_j) * L_i * L_j
+                   * int_0^1 int_0^1 ds dt / ||(p1 + s*(p2 - p1)) - (q1 + t*(q2 - q1))||
+
+        Source note:
+            `docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md` (Section 3.2)
+            records this Neumann integral in the repository audit notes, and `docs/`
+            (`docs/62305-1..-4-2024.md`, `docs/80-2013.md`, `docs/81-2025.md`,
+            `docs/142-2007.md`) does not contain the primary source for Neumann's
+            mutual-inductance formula.
+
+        Singularity handling:
+            - Touching or overlapping collinear filament segments have a non-integrable
+              1/|s - s_0| kernel on the shared endpoint / overlap, causing logarithmic
+              divergence; this method raises ValueError explicitly.
+            - All other configurations are integrated without any silent distance clamp
+              using convergence-checked dyadic 2-D Gauss-Legendre subdivision, raising
+              ValueError if quadrature cannot converge within tolerance.
         """
         if isinstance(num_gauss_points, bool) or not isinstance(
             num_gauss_points, (int, np.integer)
@@ -207,19 +354,29 @@ class PEECThermalEngine:
         u_j = vec_j / len_j
         dot_product = float(np.dot(u_i, u_j))
 
-        # Gauss-Legendre quadrature points in [0, 1]
-        nodes, weights = np.polynomial.legendre.leggauss(n_gauss)
-        s_vals = 0.5 * (nodes + 1.0)
-        w_vals = 0.5 * weights
+        # Touching or overlapping collinear filaments diverge logarithmically.
+        char_len = max(len_i, len_j)
+        sin_theta = float(np.linalg.norm(np.cross(u_i, u_j)))
+        delta = q1 - p1
+        perp_offset = float(np.linalg.norm(delta - float(np.dot(delta, u_i)) * u_i))
+        if sin_theta <= 1e-9 and perp_offset <= 1e-12 * char_len:
+            b_start = float(np.dot(q1 - p1, u_i))
+            b_end = float(np.dot(q2 - p1, u_i))
+            b0 = min(b_start, b_end)
+            b1 = max(b_start, b_end)
+            axial_gap = max(0.0 - b1, b0 - len_i)
+            if axial_gap <= 1e-12 * char_len:
+                raise ValueError(
+                    "Neumann filament integral has a logarithmic divergence for "
+                    "touching or overlapping collinear segments."
+                )
 
-        integral = 0.0
-        for s, ws in zip(s_vals, w_vals):
-            pos_i = p1 + s * vec_i
-            for t, wt in zip(s_vals, w_vals):
-                pos_j = q1 + t * vec_j
-                dist = max(1e-3, float(np.linalg.norm(pos_i - pos_j)))
-                integral += (ws * wt) / dist
+        if abs(dot_product) == 0.0:
+            return 0.0
 
+        integral = cls._adaptive_neumann_unit_square_integral(
+            p1, vec_i, q1, vec_j, n_gauss
+        )
         m_ij = (cls.MU_0 / (4.0 * np.pi)) * dot_product * len_i * len_j * integral
         return float(m_ij)
 
