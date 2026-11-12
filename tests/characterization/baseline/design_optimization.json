@@ -2,10 +2,12 @@
   "coverage_percentage": 0.0,
   "diagnostics": [
     "Evaluated 5 critical rooftop target coordinates.",
-    "Optimal configuration achieved 0.0% coverage with 2 rods."
+    "Optimal configuration achieved 0.0% coverage with 2 rods.",
+    "Roof coverage not verified (H7): the optimizer evaluates ground-referenced (z = 0) rolling-sphere coverage only."
   ],
   "iterations_run": 150,
   "pareto_score": -17.65,
+  "roof_coverage_verification_note": "Roof coverage not verified (H7): the optimizer evaluates ground-referenced (z = 0) rolling-sphere coverage only.",
   "selected_rods": [
     {
       "cost_units": 100.0,
