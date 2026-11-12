@@ -1,5 +1,6 @@
-from fastapi import FastAPI, HTTPException, Response, UploadFile, File
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from aegislps_domain.models import Project, SeparationCalculationResult
@@ -44,6 +45,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(ValueError)
+async def value_error_exception_handler(request: Request, exc: ValueError):
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 standards_repo = StandardsRepository()
 calc_engine = SeparationDistanceEngine(standards_repo)

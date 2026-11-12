@@ -133,7 +133,16 @@ class DOCXReportRenderer:
             ("Separation Distance (s)", "IEC 62305-3 Section 6.3", f"Min Safety Margin: +{separation_results[0].safety_margin_m:.3f} m" if separation_results else "N/A", "COMPLIANT" if separation_results and separation_results[0].pass_compliance else "VIOLATION"),
             ("Nodal Current Sharing (kc)", "IEC 62305-3 Annex C", "Current Conservation Residual < 2%", "CONVERGED"),
             ("Air-Termination Method", "IEC 62305-3 Section 5.2", "Rolling Sphere (R=20m) & Mesh (5x5m)", "PROTECTED"),
-            ("Earthing Resistance (R_dc)", "IEC 62305-3 Section 5.4", f"Stationary R = {earthing_result.get('stationary_resistance_r_ohm', 1.8):.2f} ohm", "COMPLIANT (< 10 ohm)"),
+            (
+                "Earthing Resistance (R_dc)",
+                "IEC 62305-3 Section 5.4",
+                (
+                    f"Stationary R = {earthing_result.get('stationary_resistance_r_ohm', 1.8):.2f} ohm"
+                    if earthing_result is not None
+                    else "N/A"
+                ),
+                "COMPLIANT (< 10 ohm)" if earthing_result is not None else "N/A",
+            ),
             ("Touch & Step Potentials", "IEC 62305-3 Section 8", "Dalziel 70kg Withstand Limits", "CONTROLLED")
         ]
         for r_idx, r_data in enumerate(summary_rows):
