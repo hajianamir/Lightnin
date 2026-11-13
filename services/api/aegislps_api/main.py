@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from aegislps_domain.models import Project, SeparationCalculationResult
-from aegislps_domain.integrity import ProjectIntegrityEngine
+from aegislps_domain.integrity import IntegrityKeyNotConfigured, ProjectIntegrityEngine
 from aegislps_engine.separation import SeparationDistanceEngine
 from aegislps_engine.nodal import NodalCurrentSolver, NodeIn, SegmentIn
 from aegislps_engine.risk import RiskManagementEngine, RiskAssessmentInput
@@ -62,6 +62,16 @@ app.add_middleware(
 @app.exception_handler(ValueError)
 async def value_error_exception_handler(request: Request, exc: ValueError):
     return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+
+@app.exception_handler(IntegrityKeyNotConfigured)
+async def integrity_key_not_configured_handler(
+    request: Request, exc: IntegrityKeyNotConfigured
+):
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Integrity key is not configured on the server."},
+    )
 
 
 class RollingSphereRequest(BaseModel):
