@@ -39,7 +39,7 @@ python3 scripts/step63_exact_reversions_more.py
 | H3 | `44ec813^` legacy `l_f` expression | risk factors 331 | 58 failed, 273 passed; `test_rp_applied_once_in_pb_and_legacy_half_factor_removed` (many others fail because the old expression cannot accept new optional inputs) | pending: probability and factor sub-items open |
 | H4 | `16fa0ed^` complete former coupling block | mutual 17 | 1 failed, 16 passed; `test_earthing_engine_vertical_multi_rod_uses_pairwise_mutual` | pending: primary source open |
 | H5 | `dcc070d^` original two-log ring block | ring/strip 19 | 4 failed, 15 passed; `test_ring_sunde_matches_independent_values_within_1e6_rel` | pending: primary source and flat-strip model open |
-| H8 | `3343007^` Class I 20 m anchor `(20.0, 25.0)` | Figure 1 137 | 2 failed, 135 passed; `test_figure1_anchor_values[I-20.0-22.4-False]` | verified (step 6.3, exact reversion + pinning tests); digitization uncertainty remains |
+| H8 | `3343007^` Class I 20 m anchor `(20.0, 25.0)` | Figure 1 137 | 2 failed, 135 passed; `test_figure1_anchor_values[I-20.0-22.4-False]` | partial reversion only (anchor value); NOT verified until height-domain rules are also reverted; digitization uncertainty remains |
 | H9 | `73c7cdc^` former `lps_class` default line; all B1–B6 test files | see `step63_h9_pinning_counts.txt` | 1 failed, 856 passed, 1 xfailed; `test_a3_risk_lps_class_required_and_validated` | pending: clamp, ambient source, defaults and H13 open |
 | H15 | `b1114b2^` old `l_max` and clamp lines, with new-interface `u_req_kv` alias | Annex C 23 | 5 failed, 18 passed; `test_limiting_vs_switching_give_distinct_l_max_for_identical_inputs` | pending: interface-adapted, Annex C sub-items open |
 
