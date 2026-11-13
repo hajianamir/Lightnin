@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from collections import deque
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -17,7 +18,7 @@ import subprocess
 import sys
 import threading
 import time
-from typing import Callable, Deque, List, Optional, Sequence
+from typing import Callable, Deque, List, Optional, Sequence, Tuple
 import urllib.error
 import urllib.request
 
@@ -31,6 +32,21 @@ PACKAGE_REL_PATHS: tuple[str, ...] = (
     "services/api",
 )
 
+REQUIRED_CORE_DEPENDENCIES: tuple[Tuple[str, str], ...] = (
+    ("pydantic", "pydantic"),
+    ("numpy", "numpy"),
+    ("scipy", "scipy"),
+    ("networkx", "networkx"),
+)
+
+REQUIRED_SERVER_DEPENDENCIES: tuple[Tuple[str, str], ...] = (
+    ("fastapi", "fastapi"),
+    ("uvicorn", "uvicorn"),
+    ("ezdxf", "ezdxf"),
+    ("reportlab", "reportlab"),
+    ("docx", "python-docx"),
+)
+
 
 def _repo_python_paths() -> List[str]:
     return [str(REPO_ROOT / rel) for rel in PACKAGE_REL_PATHS]
@@ -40,6 +56,147 @@ def ensure_repo_sys_path() -> None:
     for path_str in reversed(_repo_python_paths()):
         if path_str not in sys.path:
             sys.path.insert(0, path_str)
+
+
+def _venv_python_candidates(venv_dir: Path) -> Tuple[Path, ...]:
+    if os.name == "nt":
+        return (
+            venv_dir / "Scripts" / "python.exe",
+            venv_dir / "bin" / "python",
+        )
+    return (
+        venv_dir / "bin" / "python",
+        venv_dir / "Scripts" / "python.exe",
+    )
+
+
+def find_repo_venv_python(repo_root: Path = REPO_ROOT) -> Optional[Path]:
+    """Locate an existing repo-local virtual environment Python executable if present."""
+    for venv_name in (".venv", "venv"):
+        venv_dir = repo_root / venv_name
+        for candidate in _venv_python_candidates(venv_dir):
+            if candidate.is_file():
+                return candidate
+    return None
+
+
+def _platform_venv_python_hint() -> str:
+    return r".venv\Scripts\python" if os.name == "nt" else ".venv/bin/python"
+
+
+def check_missing_dependencies(
+    *,
+    include_server: bool,
+    spec_finder: Callable[[str], object] = importlib.util.find_spec,
+) -> List[str]:
+    """Return pip package names for any required third-party modules missing from this Python."""
+    checks = list(REQUIRED_CORE_DEPENDENCIES)
+    if include_server:
+        checks.extend(REQUIRED_SERVER_DEPENDENCIES)
+
+    missing: List[str] = []
+    for module_name, pip_name in checks:
+        try:
+            found = spec_finder(module_name)
+        except (ImportError, ValueError):
+            found = None
+        if found is None and pip_name not in missing:
+            missing.append(pip_name)
+    return missing
+
+
+def _print_missing_dependencies_help(missing_packages: Sequence[str]) -> None:
+    venv_py = _platform_venv_python_hint()
+    missing_csv = ", ".join(missing_packages)
+    print(
+        "\n[1/3] System Pre-Flight Diagnostics: MISSING DEPENDENCIES",
+        flush=True,
+    )
+    print(
+        f"ERROR: Required Python packages are not installed: {missing_csv}",
+        flush=True,
+    )
+    print(f"  Active interpreter: {sys.executable}", flush=True)
+    print(
+        "\nCreate a virtual environment and install requirements:",
+        flush=True,
+    )
+    print("  python -m venv .venv", flush=True)
+    print(f"  {venv_py} -m pip install -r requirements.txt", flush=True)
+    print(f"  {venv_py} run_aegislps.py", flush=True)
+    print(
+        "\nOr bootstrap .venv and launch in one command:",
+        flush=True,
+    )
+    print("  python run_aegislps.py --bootstrap", flush=True)
+    print("=" * 60, flush=True)
+
+
+def bootstrap_repo_venv(
+    forwarded_argv: Sequence[str],
+    *,
+    repo_root: Path = REPO_ROOT,
+    run_cmd: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+) -> int:
+    """Create `.venv` if needed, install `requirements.txt`, and invoke `run_aegislps.py` inside it."""
+    venv_dir = repo_root / ".venv"
+    requirements_file = repo_root / "requirements.txt"
+    if not requirements_file.is_file():
+        print(
+            f"ERROR: Cannot bootstrap dependencies; missing {requirements_file}.",
+            flush=True,
+        )
+        return 1
+
+    venv_python: Optional[Path] = None
+    for candidate in _venv_python_candidates(venv_dir):
+        if candidate.is_file():
+            venv_python = candidate
+            break
+
+    if venv_python is None:
+        print(f"[Bootstrap] Creating virtual environment at {venv_dir}...", flush=True)
+        create_res = run_cmd([sys.executable, "-m", "venv", str(venv_dir)], check=False)
+        if create_res.returncode != 0:
+            print(
+                f"ERROR: Failed to create virtual environment (exit code {create_res.returncode}).",
+                flush=True,
+            )
+            return int(create_res.returncode) or 1
+        for candidate in _venv_python_candidates(venv_dir):
+            if candidate.is_file():
+                venv_python = candidate
+                break
+        if venv_python is None:
+            print(
+                f"ERROR: Virtual environment created at {venv_dir}, but Python executable was not found.",
+                flush=True,
+            )
+            return 1
+
+    print(
+        f"[Bootstrap] Installing dependencies from {requirements_file.name}...",
+        flush=True,
+    )
+    install_res = run_cmd(
+        [str(venv_python), "-m", "pip", "install", "-r", str(requirements_file)],
+        check=False,
+    )
+    if install_res.returncode != 0:
+        print(
+            f"ERROR: pip install failed (exit code {install_res.returncode}).",
+            flush=True,
+        )
+        return int(install_res.returncode) or 1
+
+    child_env = os.environ.copy()
+    child_env["_AEGISLPS_VENV_REEXEC"] = "1"
+    exec_res = run_cmd(
+        [str(venv_python), str(repo_root / "run_aegislps.py"), *forwarded_argv],
+        env=child_env,
+        check=False,
+    )
+    return int(exec_res.returncode)
 
 
 def _build_child_env() -> dict[str, str]:
@@ -113,6 +270,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Run self-test diagnostics only; do not start the local API server.",
     )
+    parser.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help="Create .venv if needed, install requirements.txt, and run inside .venv.",
+    )
     return parser.parse_args(argv)
 
 
@@ -121,11 +283,18 @@ def run_launcher(
     *,
     readiness_fn: Optional[Callable[[str], bool]] = None,
     popen_fn: Optional[Callable[..., subprocess.Popen]] = None,
+    spec_finder: Callable[[str], object] = importlib.util.find_spec,
     startup_timeout_s: float = 20.0,
     poll_interval_s: float = 0.2,
     hold_until_interrupt: bool = True,
 ) -> int:
-    args = parse_args(argv)
+    effective_argv = list(sys.argv[1:] if argv is None else argv)
+    args = parse_args(effective_argv)
+
+    if args.bootstrap:
+        forwarded = [tok for tok in effective_argv if tok != "--bootstrap"]
+        return bootstrap_repo_venv(forwarded)
+
     ensure_repo_sys_path()
 
     print("=" * 60, flush=True)
@@ -133,8 +302,23 @@ def run_launcher(
     print(" Version: 1.0.0-alpha.1 | Standards: IEC 62305:2024 Suite", flush=True)
     print("=" * 60, flush=True)
 
+    # Pre-flight third-party dependency check before importing engine modules
+    include_server_deps = (not args.no_server) and (popen_fn is None)
+    missing_pkgs = check_missing_dependencies(
+        include_server=include_server_deps,
+        spec_finder=spec_finder,
+    )
+    if missing_pkgs:
+        _print_missing_dependencies_help(missing_pkgs)
+        return 1
+
     # 1. Run Internal Self-Test
-    from aegislps_engine.diagnostics import SystemDiagnostics
+    try:
+        from aegislps_engine.diagnostics import SystemDiagnostics
+    except ModuleNotFoundError as exc:
+        missing_name = exc.name or str(exc)
+        _print_missing_dependencies_help([missing_name])
+        return 1
 
     diag = SystemDiagnostics.run_self_test()
     print(f"\n[1/3] System Pre-Flight Diagnostics: {diag['system_status']}", flush=True)
@@ -287,8 +471,31 @@ def run_launcher(
                 pass
 
 
-def main(argv: Optional[Sequence[str]] = None) -> None:
-    sys.exit(run_launcher(argv))
+def main(
+    argv: Optional[Sequence[str]] = None,
+    *,
+    repo_root: Path = REPO_ROOT,
+    run_cmd: Callable[..., subprocess.CompletedProcess] = subprocess.run,
+) -> None:
+    effective_argv = list(sys.argv[1:] if argv is None else argv)
+    if (
+        "--bootstrap" not in effective_argv
+        and os.environ.get("_AEGISLPS_VENV_REEXEC") != "1"
+        and os.environ.get("_AEGISLPS_NO_VENV_REEXEC") != "1"
+        and sys.prefix == sys.base_prefix
+    ):
+        venv_python = find_repo_venv_python(repo_root)
+        if venv_python is not None:
+            child_env = os.environ.copy()
+            child_env["_AEGISLPS_VENV_REEXEC"] = "1"
+            res = run_cmd(
+                [str(venv_python), str(repo_root / "run_aegislps.py"), *effective_argv],
+                env=child_env,
+                check=False,
+            )
+            sys.exit(int(res.returncode))
+
+    sys.exit(run_launcher(effective_argv))
 
 
 if __name__ == "__main__":

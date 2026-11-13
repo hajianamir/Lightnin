@@ -214,3 +214,114 @@ def test_real_server_launch_and_clean_child_termination(
     assert f"Local Calculation Engine Ready on http://127.0.0.1:{port}" in out
     # After run_launcher returns, child uvicorn must be terminated (port no longer responding)
     assert run_aegislps.check_server_readiness(f"http://127.0.0.1:{port}/health") is False
+
+
+def test_missing_dependencies_exits_cleanly_without_traceback_or_ready_claim(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _ensure_fallback_repo_root()
+    import run_aegislps
+
+    rc = run_aegislps.run_launcher(
+        [],
+        spec_finder=lambda mod_name: None if mod_name in ("pydantic", "fastapi") else object(),
+    )
+    out = capsys.readouterr().out
+
+    assert rc == 1
+    assert "MISSING DEPENDENCIES" in out
+    assert "pydantic" in out
+    assert "fastapi" in out
+    assert "--bootstrap" in out
+    assert "Traceback" not in out
+    assert "Ready on" not in out
+    assert "Ready for" not in out
+    assert "running" not in out.lower()
+
+
+def test_find_repo_venv_python_detects_windows_and_posix_layouts(
+    tmp_path: Path,
+) -> None:
+    _ensure_fallback_repo_root()
+    import run_aegislps
+
+    win_py = tmp_path / "win_repo" / ".venv" / "Scripts" / "python.exe"
+    win_py.parent.mkdir(parents=True)
+    win_py.write_text("", encoding="utf-8")
+    assert run_aegislps.find_repo_venv_python(tmp_path / "win_repo") == win_py
+
+    posix_py = tmp_path / "posix_repo" / "venv" / "bin" / "python"
+    posix_py.parent.mkdir(parents=True)
+    posix_py.write_text("", encoding="utf-8")
+    assert run_aegislps.find_repo_venv_python(tmp_path / "posix_repo") == posix_py
+
+
+def test_main_reexecs_into_repo_venv_when_invoked_from_base_python(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _ensure_fallback_repo_root()
+    import run_aegislps
+
+    venv_py = tmp_path / ".venv" / "Scripts" / "python.exe"
+    venv_py.parent.mkdir(parents=True)
+    venv_py.write_text("", encoding="utf-8")
+    (tmp_path / "run_aegislps.py").write_text("", encoding="utf-8")
+
+    monkeypatch.delenv("_AEGISLPS_VENV_REEXEC", raising=False)
+    monkeypatch.delenv("_AEGISLPS_NO_VENV_REEXEC", raising=False)
+    monkeypatch.setattr(sys, "prefix", "/global/python")
+    monkeypatch.setattr(sys, "base_prefix", "/global/python")
+
+    calls: List[tuple] = []
+
+    def _fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        return subprocess.CompletedProcess(cmd, 0)
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_aegislps.main(["--no-server"], repo_root=tmp_path, run_cmd=_fake_run)
+
+    assert exc_info.value.code == 0
+    assert len(calls) == 1
+    cmd_args, cmd_kwargs = calls[0]
+    assert cmd_args == [str(venv_py), str(tmp_path / "run_aegislps.py"), "--no-server"]
+    assert cmd_kwargs["env"]["_AEGISLPS_VENV_REEXEC"] == "1"
+
+
+def test_bootstrap_repo_venv_installs_requirements_and_propagates_pip_failure(
+    tmp_path: Path,
+) -> None:
+    _ensure_fallback_repo_root()
+    import run_aegislps
+
+    req = tmp_path / "requirements.txt"
+    req.write_text("pydantic>=2.0.0\n", encoding="utf-8")
+    (tmp_path / "run_aegislps.py").write_text("", encoding="utf-8")
+
+    recorded_cmds: List[List[str]] = []
+
+    def _fake_run_ok(cmd, **kwargs):
+        recorded_cmds.append(list(cmd))
+        if cmd[1:3] == ["-m", "venv"]:
+            created_py = tmp_path / ".venv" / "Scripts" / "python.exe"
+            created_py.parent.mkdir(parents=True, exist_ok=True)
+            created_py.write_text("", encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 0)
+
+    rc = run_aegislps.bootstrap_repo_venv(
+        ["--no-server"], repo_root=tmp_path, run_cmd=_fake_run_ok
+    )
+    assert rc == 0
+    assert len(recorded_cmds) == 3
+    assert recorded_cmds[0][1:3] == ["-m", "venv"]
+    assert recorded_cmds[1][1:4] == ["-m", "pip", "install"]
+    assert recorded_cmds[2][-1] == "--no-server"
+
+    def _fake_run_pip_fail(cmd, **kwargs):
+        return subprocess.CompletedProcess(cmd, 2)
+
+    rc_fail = run_aegislps.bootstrap_repo_venv(
+        [], repo_root=tmp_path, run_cmd=_fake_run_pip_fail
+    )
+    assert rc_fail == 2
+
