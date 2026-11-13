@@ -1,0 +1,52 @@
+=== tests/test_advanced_modules.py ===
+5 passed in 0.60s
+=== tests/test_api_error_mapping.py ===
+11 passed, 1 warning in 14.83s
+=== tests/test_bom_pv_hvi_opt_peec_nodal_b6.py ===
+22 passed, 1 warning in 6.70s
+=== tests/test_earth_pit_and_rod_sizing.py ===
+2 passed in 0.17s
+=== tests/test_earthing_and_spd.py ===
+6 passed in 0.18s
+=== tests/test_earthing_ring_strip.py ===
+19 passed in 0.18s
+=== tests/test_earthing_spd_earth_b3.py ===
+13 passed, 1 warning in 1.01s
+=== tests/test_geometry_domain_b5.py ===
+185 passed, 1 warning in 1.25s
+=== tests/test_lemp_engine.py ===
+3 passed in 0.22s
+=== tests/test_lemp_heidler_physics.py ===
+13 passed in 0.26s
+=== tests/test_lemp_induction_physics.py ===
+20 passed in 0.26s
+=== tests/test_mesh_method_and_hvi.py ===
+3 passed in 0.09s
+=== tests/test_minimum_length_l1_figure5.py ===
+40 passed in 0.46s
+=== tests/test_multi_rod_mutual.py ===
+17 passed in 0.16s
+=== tests/test_nodal_solver.py ===
+7 passed in 0.40s
+=== tests/test_optimization_and_pv.py ===
+3 passed, 1 xfailed in 0.18s
+=== tests/test_optimization_conservative.py ===
+6 passed in 0.22s
+=== tests/test_peec_and_mesh_rolling_sphere.py ===
+9 passed in 0.98s
+=== tests/test_project_io.py ===
+1 passed in 0.07s
+=== tests/test_risk_factors_2024.py ===
+331 passed in 0.38s
+=== tests/test_risk_inputs_b2.py ===
+21 passed, 1 warning in 0.94s
+=== tests/test_separation_distance.py ===
+31 passed in 0.11s
+=== tests/test_spd_coordination_annex_c.py ===
+23 passed, 1 warning in 0.95s
+=== tests/test_touch_lemp_uq_b4.py ===
+45 passed, 1 warning in 1.03s
+=== tests/test_touch_step_physics.py ===
+9 passed in 0.14s
+=== tests/test_uq_engine.py ===
+12 passed in 0.24s
