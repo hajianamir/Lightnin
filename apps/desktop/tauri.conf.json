@@ -13,9 +13,14 @@
     "allowlist": {
       "all": false,
       "http": {
-        "all": true,
+        "all": false,
         "request": true,
-        "scope": ["http://127.0.0.1:*/*", "http://localhost:*/*"]
+        "scope": [
+          "http://127.0.0.1:8000/api/*",
+          "http://127.0.0.1:8000/health",
+          "http://localhost:8000/api/*",
+          "http://localhost:8000/health"
+        ]
       }
     },
     "bundle": {
@@ -45,7 +50,7 @@
       }
     },
     "security": {
-      "csp": "default-src 'self' http://127.0.0.1:* http://localhost:* 'unsafe-inline' 'unsafe-eval'"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:8000 http://localhost:8000"
     },
     "windows": [
       {
