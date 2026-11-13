@@ -91,6 +91,11 @@ class DOCXReportRenderer:
 
         doc.add_paragraph().paragraph_format.space_after = Pt(12)
 
+        doc.add_paragraph(
+            "Roof coverage not verified (H7): the optimizer evaluates ground-referenced "
+            "coverage only. This report does not contain an optimization result."
+        )
+
         # Project Metadata Table
         meta_table = doc.add_table(rows=4, cols=4)
         meta_table.alignment = WD_TABLE_ALIGNMENT.CENTER

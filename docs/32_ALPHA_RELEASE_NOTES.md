@@ -27,3 +27,8 @@ This release is an engineering prototype intended for internal review and archit
 - `aegislps-reporting` == 1.0.0a1
 - `aegislps-calculation-engine` == 1.0.0a1
 - `aegislps-api` == 1.0.0a1
+
+## Step 6.1–6.2 compatibility and disclosure notes
+- HVI selection no longer accepts `lps_class` or `ambient_installation_type`; PV clearance no longer accepts `id`, `tilt_angle_deg`, `panel_count`, `array_length_m`, `array_width_m`, or `metallic_frame_bonded`. Unknown fields are rejected with HTTP 422.
+- PV clearance now defaults to `kc = 1.0` when `down_conductor_count` is omitted; results may be more conservative than the former fixed `0.5`.
+- H7 remains open: roof coverage is not verified. The optimizer API, optimization view, and DOCX/PDF reports disclose this limitation; the reports do not include an optimization result.

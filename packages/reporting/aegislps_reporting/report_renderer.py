@@ -39,6 +39,7 @@ class ReportRenderer:
         # Warning
         warning_style = ParagraphStyle('WarnStyle', parent=styles['Normal'], textColor=colors.HexColor('#B91C1C'), fontSize=9)
         story.append(Paragraph("<b>WARNING:</b> Standards parameters represent unverified prototype baseline values and require independent engineering verification against licensed standards.", warning_style))
+        story.append(Paragraph("<b>Roof coverage not verified (H7):</b> the optimizer evaluates ground-referenced coverage only. This report does not contain an optimization result.", warning_style))
         story.append(Spacer(1, 12))
 
         # Results Table

@@ -7,13 +7,13 @@ import {
   loadProjectFromFile,
   saveProjectToLocalStorage,
 } from './utils/projectStorage'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, Line } from '@react-three/drei'
 
 export default function App() {
   // Navigation & Workspace Tabs
-  const [activeTab, setActiveTab] = useState<'3d' | '2d' | 'separation' | 'nodal' | 'earthing' | 'uq' | 'risk' | 'reports'>('3d')
+  const [activeTab, setActiveTab] = useState<'3d' | '2d' | 'separation' | 'nodal' | 'earthing' | 'uq' | 'risk' | 'optimization' | 'reports'>('3d')
 
   // Engineering Parameters
   const [lpsClass, setLpsClass] = useState<'I' | 'II' | 'III'>('I')
@@ -46,6 +46,17 @@ export default function App() {
   const [uqResult, setUqResult] = useState<any>(null)
   const [projectChecksum, setProjectChecksum] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [optimizationResult, setOptimizationResult] = useState<{coverage_percentage: number; uncovered_targets_count: number; roof_coverage_verification_note: string} | null>(null)
+  const [optimizationError, setOptimizationError] = useState<string | null>(null)
+  const [optimizationBusy, setOptimizationBusy] = useState(false)
+
+  const optimizationVersion = useRef(0)
+  useEffect(() => {
+    optimizationVersion.current += 1
+    setOptimizationResult(null)
+    setOptimizationError(null)
+    setOptimizationBusy(false)
+  }, [lpsClass, buildingLength, buildingWidth, buildingHeight])
 
   useEffect(() => {
     setProjectChecksum(null)
@@ -173,6 +184,32 @@ export default function App() {
       await refreshProjectChecksum(buildReportProjectPayload())
     } catch (err) {
       console.error("Calculation execution failed:", err)
+    }
+  }
+
+  // Example target is the centre of the current roof; the result is not a roof-coverage verification.
+  const runOptimization = async () => {
+    const version = ++optimizationVersion.current
+    setOptimizationResult(null)
+    setOptimizationError(null)
+    setOptimizationBusy(true)
+    try {
+      const res = await apiFetch('/api/v1/optimization/optimize-rods', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lps_class: lpsClass,
+          building_bounds: [-buildingLength / 2, -buildingWidth / 2, buildingLength / 2, buildingWidth / 2],
+          roof_height_m: buildingHeight,
+          targets_to_protect: [{ id: 'roof-centre', x: 0, y: 0, z: buildingHeight }]
+        })
+      })
+      if (!res.ok) throw new Error(`Optimization request failed (HTTP ${res.status})`)
+      const data = await res.json()
+      if (version === optimizationVersion.current) setOptimizationResult(data)
+    } catch (err) {
+      if (version === optimizationVersion.current) setOptimizationError(err instanceof Error ? err.message : 'Optimization request failed')
+    } finally {
+      if (version === optimizationVersion.current) setOptimizationBusy(false)
     }
   }
 
@@ -398,6 +435,7 @@ export default function App() {
             { id: 'nodal', label: 'Nodal (kc)' },
             { id: 'earthing', label: 'Earthing & Potentials' },
             { id: 'uq', label: 'UQ & Sensitivity' },
+            { id: 'optimization', label: 'Optimization' },
             { id: 'reports', label: 'Reports & Export' }
           ].map(tab => (
             <button
@@ -705,6 +743,27 @@ export default function App() {
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === 'optimization' && (
+            <section style={{ padding: '30px', overflowY: 'auto' }}>
+              <h2>Air-termination optimization</h2>
+              <p role="status" style={{ color: '#fbbf24', fontWeight: 700 }}>
+                Roof coverage not verified (H7): the optimizer evaluates ground-referenced coverage only.
+              </p>
+              <p>This example evaluates one target at the centre of the current roof, not the whole roof. Reports do not include optimization results.</p>
+              <button onClick={runOptimization} disabled={optimizationBusy}>
+                {optimizationBusy ? 'Optimizing…' : 'Optimize roof-centre target'}
+              </button>
+              {optimizationError && <p role="alert">{optimizationError}</p>}
+              {optimizationResult && (
+                <div>
+                  <p>{optimizationResult.roof_coverage_verification_note}</p>
+                  <p>Target coverage: {optimizationResult.coverage_percentage}%</p>
+                  <p>Uncovered targets: {optimizationResult.uncovered_targets_count}</p>
+                </div>
+              )}
+            </section>
           )}
 
                     {/* Reports & Audit Export Workspace Tab */}
