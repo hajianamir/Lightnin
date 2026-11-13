@@ -1,0 +1,99 @@
+docs/28_STANDARDS_PARAMETER_INVENTORY.md:10:| Parameter ID | Symbol | Description | Value | Unit | Source Clause | Verification Status |
+docs/28_STANDARDS_PARAMETER_INVENTORY.md:12:| `ki_class_I` | $k_i$ | LPS Class I coefficient | 0.08 | dimensionless | IEC 62305-3:2024 Clause 6.3 Table 11 | Unverified prototype baseline |
+docs/28_STANDARDS_PARAMETER_INVENTORY.md:13:| `ki_class_II` | $k_i$ | LPS Class II coefficient | 0.06 | dimensionless | IEC 62305-3:2024 Clause 6.3 Table 11 | Unverified prototype baseline |
+docs/28_STANDARDS_PARAMETER_INVENTORY.md:14:| `ki_class_III_IV` | $k_i$ | LPS Class III/IV coefficient | 0.04 | dimensionless | IEC 62305-3:2024 Clause 6.3 Table 11 | Unverified prototype baseline |
+docs/28_STANDARDS_PARAMETER_INVENTORY.md:15:| `km_air` | $k_m$ | Air insulating medium factor | 1.0 | dimensionless | IEC 62305-3:2024 Clause 6.3 Table 12 | Unverified prototype baseline |
+docs/28_STANDARDS_PARAMETER_INVENTORY.md:16:| `km_solid` | $k_m$ | Concrete/brick insulating medium factor | 0.5 | dimensionless | IEC 62305-3:2024 Clause 6.3 Table 12 | Unverified prototype baseline |
+docs/29_FORMULA_INVENTORY.md:10:$$s = k_i \cdot \frac{k_c}{k_m} \cdot l$$
+docs/29_FORMULA_INVENTORY.md:14:- $k_i$: LPS Class coefficient ($0.08, 0.06, 0.04$)
+docs/29_FORMULA_INVENTORY.md:15:- $k_c$: Current sharing factor derived from conductor topology or graph admittance matrix
+docs/29_FORMULA_INVENTORY.md:16:- $k_m$: Insulating material factor ($1.0$ for air, $0.5$ for solid concrete)
+docs/29_FORMULA_INVENTORY.md:19:> **UNVERIFIED — known defect (H1):** `separation.py` sets `kc` from `len(project.segments)` (`1.0` for `<= 1` segment, `0.5` otherwise) rather than conductor topology or the nodal admittance matrix and uses `assoc_node.z` instead of route length `l`.
+docs/29_FORMULA_INVENTORY.md:22:$$\mathbf{Y} \cdot \mathbf{V} = \mathbf{I}$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:10:## 1. Executive Summary & Verification Methodology
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:31:  $$s = k_i \cdot \frac{k_c}{k_m} \cdot l$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:33:  $$s(P) = \frac{k_i}{k_m} \sum_{j=1}^{N} \left( k_{c,j} \cdot l_j \right)$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:40:> **UNVERIFIED — known defect (H1):** `separation.py` sets `kc` from `len(project.segments)` (`1.0` for `<= 1` segment, `0.5` otherwise) rather than down-conductor count and uses node elevation `z` instead of summing segment path lengths.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:47:  - Sparse nodal admittance matrix: $\mathbf{Y} \cdot \mathbf{V} = \mathbf{I}$.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:48:  - Branch impedance model: $Z = \sqrt{R_{\text{dc}}^2 + (\omega \cdot L_{\text{eff}})^2}$.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:50:    $$L = \frac{\mu_0}{2\pi} \cdot l \cdot \left[ \ln\left( \frac{2l}{r} \right) - 0.75 \right]$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:52:    $$k_{c,j} = \frac{I_{\text{branch}, j}}{I_{\text{total}}}$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:55:  - Enforces local node Kirchhoff's Current Law (KCL) residual balance checks ($\sum I_k = 0$) and a global current conservation gate ($< 2\%$ relative residual).
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:56:  - Condition number estimation ($cond \approx \frac{\max|Y_{ii}|}{\min|Y_{ii}|}$) alerts users to ill-conditioned networks.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:62:- **Governing Standard**: IEC 62305-3 Section 5.2.2 & Table 2.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:64:  - Class I: $R = 20\text{ m}$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:65:  - Class II: $R = 30\text{ m}$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:66:  - Class III: $R = 45\text{ m}$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:67:  - Class IV: $R = 60\text{ m}$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:70:    $$z_{\text{protect}} = h_{\text{rod}} - \left( R - \sqrt{\max(0, R^2 - d_{\text{horiz}}^2)} \right)$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:81:- **Governing Standard**: IEC 62305-3 Section 5.2.2, Table 2 & Figure 1.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:84:  - Implements piece-wise linear interpolation strictly between unverified Table 2 anchor points.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:87:  > **UNVERIFIED — known defect (H8):** The hardcoded `TABULATED_ANGLES` anchor points and sparse piece-wise linear interpolation in `protective_angle.py` are not verified against IEC 62305-3 Table 2 / Figure 1.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:89:- **Classification**: Standards-controlled look-up; NOT verified within Table 2 limits.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:91:> **UNVERIFIED — known defect (H8):** `protective_angle.py` uses unverified Table 2 anchor values and coarse linear interpolation across `[2, 10, 20, 30, 45, 60]` m.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:99:    $$R = \frac{\rho}{2\pi^2 D} \cdot \left[ \ln\left( \frac{8D}{r} \right) + \ln\left( \frac{4D}{h} \right) \right]$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:101:    $$R_{\text{single}} = \frac{\rho}{2\pi L} \cdot \left[ \ln\left( \frac{4L}{r} \right) - 1 \right]$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:102:    $$R_{\text{array}} = \frac{R_{\text{single}}}{N} \cdot \left( 1 + (N-1) \cdot \frac{L}{2\pi s} \ln\left( 1 + \frac{s}{L} \right) \right)$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:104:    $$R = \frac{\rho}{4 r_{\text{equiv}}} + \frac{\rho}{P}$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:106:    $$\rho_a = \rho_1 \cdot \left[ 1 + k \cdot \left( 1 - e^{-1.8 (h_e / h_1)} \right) \right], \quad k = \frac{\rho_2 - \rho_1}{\rho_2 + \rho_1}$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:108:    $$Z_p = \frac{R_{\text{dc}}}{\sqrt{1 + \frac{I_{\text{peak}}}{I_{\text{critical}}}}}, \quad I_{\text{critical}} = \frac{E_c \cdot \rho}{2\pi R_{\text{dc}}^2}$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:111:> **UNVERIFIED — known defect (C4):** `earthing.py` checks ring circumference `2 * pi * r_ring >= l1` instead of equivalent radius `r_e >= l1` and uses an unverified `l1(rho)` slope.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:113:> **UNVERIFIED — known defect (H4):** `earthing.py` uses an ad-hoc `(L / (2 * pi * s)) * ln(1 + s / L)` mutual-coupling term (for example at `N = 4, s = 5 m, L = 3 m`) that disagrees with IEEE 80 / Dwight multi-rod efficiency datasets.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:122:  - Surface layer derating factor $C_s(h_s, \rho, \rho_s)$ via IEEE 80 Equation 27.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:124:    $$U_{\text{touch,tol}} = (1000 + 1.5 \cdot C_s \cdot \rho_s) \cdot \frac{0.157}{\sqrt{t_f}}$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:125:    $$U_{\text{step,tol}} = (1000 + 6.0 \cdot C_s \cdot \rho_s) \cdot \frac{0.157}{\sqrt{t_f}}$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:128:  > **UNVERIFIED — known defect (C2):** `touch_step.py` discards its `C_s` series summation, divides prospective hemispherical ground potential by an arbitrary factor of `10`, and zeroes or halves prospective voltages when perimeter-fence or barrier flags are enabled.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:142:    $$l_{\text{prot}} = (U_w - U_p) \cdot 10\text{ m}$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:145:> **Fixed in code, pending verification (H15, step 2.6 at `b1114b2`):** `spd_coordination.py` replaces the empirical `l_prot = (U_w - U_p) * 10` `[5, 30]` m heuristic with IEC 62305-4:2024 Annex C.2.3 & C.2.5 SPD connecting-lead relations (`max_connecting_lead_length_m`, conservative screening bound (C.2.3.1.4) `U_p <= 0.5 · U_w`, Equations C.1–C.5, and required `induced_voltage_kv`). Open items: Annex C.2.3.5 `U_i` calculation is not automated; Clause C.2.3.4: propagation-length criterion is qualitative; only C.5 (`U_p/f <= U_w`) is implemented. No line-length gate formula is in the standard text; Clause C.2.3.1.2 (≤ 10 m, 80 % of `U_w`) and C.2.3.1.4 (> 10 m, one-port 50 % of `U_w`): code uses `0.5·U_w` for all cases (conservative); distance-dependent rule not modeled; Annex C.2.4 two-port SPD rules are not modeled.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:152:  - Equivalent collection area $A_d = L\cdot W + 6H(L+W) + 9\pi H^2$.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:153:  - Dangerous event frequency $N_D = N_g \cdot A_d \cdot C_d \cdot 10^{-6}$.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:155:    $$R_1 = R_A (\text{touch/step}) + R_B (\text{physical fire}) + R_C (\text{internal surges})$$
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:156:  - Evaluated against tolerable threshold $R_T = 1.0 \times 10^{-5}$.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:165:- **Classification**: Experimental recommendation engine; all proposed outputs must be verified by the deterministic calculation engine.
+docs/33_ENGINEERING_VERIFICATION_AND_STANDARDS_REVIEW.md:189:## 3. Summary of Verification & Test Status
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:26:  $$s = k_i \cdot \frac{k_c}{k_m} \cdot l \quad [\text{meters}]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:28:  - $k_i$: Dependent on LPS Class: Class I = $0.08$, Class II = $0.06$, Class III/IV = $0.04$ [dimensionless]. (IEC 62305-3:2024 §6.3.1 Table 11).
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:29:  - $k_m$: Electrical insulation factor: Air = $1.0$, Solid concrete/masonry = $0.5$ [dimensionless]. (IEC 62305-3:2024 §6.3.1 Table 12).
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:30:  - $k_c$: Current sharing factor among down conductors: Derived from network topology or nodal admittance solving [dimensionless].
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:33:  > **UNVERIFIED — known defect (H1):** `separation.py` sets `kc` from `len(project.segments)` (`1.0` for `<= 1` segment, `0.5` otherwise) rather than down-conductor topology or nodal admittance solving and does not evaluate the segment-by-segment sum.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:36:  $$s(P) = k_i \sum_{j=1}^{N} \left( \frac{k_{c,j}}{k_{m,j}} \cdot l_j \right)$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:40:  - Pass/fail condition is determined strictly by safety margin $M_s = D_{\text{actual}} - s \ge 0$.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:45:  $$\mathbf{Y} \cdot \mathbf{V} = \mathbf{I}$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:46:  - Branch impedance: $Z = \sqrt{R_{\text{dc}}^2 + (\omega L)^2}$, with $\omega = 2\pi f$ ($f = 250\text{ kHz}$).
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:48:    $$L = \frac{\mu_0}{2\pi} \cdot l \cdot \left[ \ln\left( \frac{2l}{r} \right) - 0.75 \right] \quad [\text{Henry}]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:50:  - Node-by-node KCL residual verification: $\sum_{k} I_k = 0$ for all internal nodes.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:51:  - Global current conservation check: $|I_{\text{injected}} - \sum I_{\text{earth}}| < 0.02 \cdot I_{\text{injected}}$ ($< 2\%$ relative residual).
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:61:  $$R = \frac{\rho}{2\pi^2 D} \left[ \ln\left( \frac{8D}{r} \right) + \ln\left( \frac{4D}{h} \right) \right] \quad [\Omega]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:62:  Where $D = 2R_{\text{ring}}$ is the ring diameter, $r$ is conductor radius, and $h$ is burial depth.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:64:  > **UNVERIFIED — known defect (C4):** `earthing.py` evaluates Type B ring compliance via circumference `2 * pi * r_ring >= l1` instead of equivalent ring radius `r_e >= l1` and uses an unverified `l1(rho)` formula.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:69:  $$R_1 = \frac{\rho}{2\pi L} \left[ \ln\left( \frac{4L}{r} \right) - 1 \right]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:70:  $$R_{\text{array}} = \frac{R_1}{N} \left[ 1 + (N-1) \frac{L}{2\pi s} \ln\left( 1 + \frac{s}{L} \right) \right]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:73:  > **UNVERIFIED — known defect (H4):** `earthing.py` uses an ad-hoc `(L / (2 * pi * s)) * ln(1 + s / L)` coupling term (for example at `N = 4, s = 5 m, L = 3 m`) that does not match published multi-rod efficiency formulations.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:76:  $$R = \frac{\rho}{4 r_{\text{equiv}}} + \frac{\rho}{P}, \quad r_{\text{equiv}} = \sqrt{\frac{A}{\pi}}$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:78:  $$Z_p = \frac{R_{\text{dc}}}{\sqrt{1 + \frac{I_{\text{peak}}}{I_{\text{critical}}}}}, \quad I_{\text{critical}} = \frac{E_c \cdot \rho}{2\pi R_{\text{dc}}^2}$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:85:  - Class A15 ($15\text{ kN}$): Pedestrian areas and green zones ($250\text{ mm}$ dia, $260\text{ mm}$ depth).
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:86:  - Class B125 ($125\text{ kN}$): Car parks and commercial driveways ($300\text{ mm}$ dia, $280\text{ mm}$ depth).
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:87:  - Class D400 ($400\text{ kN}$): Heavy transport roadways and industrial yards ($320\text{ mm}$ dia, $300\text{ mm}$ depth).
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:89:  $$R_{\text{conditioned}} = \frac{\rho_c}{2\pi L} \ln\left(\frac{r_{\text{hole}}}{r_{\text{rod}}}\right) + \frac{\rho_{\text{native}}}{2\pi L} \left[\ln\left(\frac{4L}{r_{\text{hole}}}\right) - 1\right]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:90:  Calculates required backfill volume $V = \pi(r_{\text{hole}}^2 - r_{\text{rod}}^2)L$ and bag counts ($25\text{ kg}$ sacks of GEM/Bentonite).
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:93:- **Standards**: IEC 62561-2 Table 1.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:95:  - Copper-bonded steel: Minimum $14.0\text{ mm}$ diameter per IEC 62305-3:2024 Clause 5.6.2 Table 8; the implemented $250\ \mu\text{m}$ radial copper coating is unsourced in the available standard text and requires confirmation.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:96:  - Solid copper: Minimum $15.0\text{ mm}$ diameter.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:97:  - Hot-dip galvanized steel: Minimum $20.0\text{ mm}$ diameter with $\ge 50\ \mu\text{m}$ zinc coating.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:98:  - Stainless steel (V4A 1.4571): Minimum $16.0\text{ mm}$ diameter.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:103:> **UNVERIFIED — known defect (H4):** `earth_rod_sizing.py` computes multi-rod array resistance with the unverified `(L / (2 * pi * s)) * ln(1 + s / L)` coupling factor, so the claimed `eta > 80%` efficiency at `s >= 2 * L` is not substantiated.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:111:  $$i(t) = \frac{I}{\eta} \cdot \frac{(t/\tau_1)^n}{1 + (t/\tau_1)^n} \cdot \exp(-t/\tau_2)$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:114:  > **UNVERIFIED — known defect (C3):** `lemp_engine.py` sets `tau1 = 10 us, tau2 = 350 us` instead of the IEC 62305-1 Heidler parameters (`tau1 = 19 us, tau2 = 485 us`) for the `10/350 us` stroke and computes `di/dt` numerically via `np.gradient`, making peak steepness grid-dependent.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:117:  $$H(r, t) = \frac{i(t)}{2\pi r} \quad [\text{A/m}]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:119:  $$K_{MS} \approx 0.01 \cdot w_{\text{mesh}} \quad [\text{dimensionless}]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:121:  > **UNVERIFIED — known defect (LEMP-K_MS):** `lemp_engine.py` uses `K_MS = 0.01 * w` instead of the IEC 62305-4 Annex A spatial-grid factor (`K_MS = 0.12 * w`), overstating magnetic-field attenuation by roughly an order of magnitude.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:124:  $$u_i(t) = \mu_0 \cdot K_{MS} \cdot \frac{A_{\text{loop}}}{2\pi r} \cdot \frac{di}{dt} \quad [\text{Volts}]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:128:  $$M_{ij} = \frac{\mu_0}{4\pi} \oint \oint \frac{d\vec{l}_i \cdot d\vec{l}_j}{|\vec{r}_i - \vec{r}_j|}$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:131:  $$\Delta\theta = \frac{1}{\alpha} \left[ \exp\left( \frac{(W/R) \cdot \alpha \cdot \rho_0}{q^2 \cdot \gamma \cdot c_w} \right) - 1 \right]$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:132:  Evaluated under specific energy action integral $W/R = 10.0\text{ MJ}/\Omega$ for Class I.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:134:  $$F/L = \frac{\mu_0}{2\pi} \cdot \frac{i_1 \cdot i_2}{d}, \quad s_{\text{clip}} \le \frac{F_{\text{max,holder}}}{F/L}$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:138:  $$R_1 = (R_A + R_B + R_C + R_M) + (R_U + R_V + R_W + R_Z)$$
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:139:- Structure collection area $A_d = L\cdot W + 6H(L+W) + 9\pi H^2$.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:140:- Service lines collection area $A_l = 40 \cdot L_{\text{line}}$ (aerial) or $8 \cdot L_{\text{line}}$ (buried).
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:141:- Evaluated against tolerable threshold $R_T = 1.0 \times 10^{-5}$.
+docs/35_THREE_PASS_MATHEMATICAL_VERIFICATION_AUDIT.md:145:  $$z_{\text{protect}} = h_{\text{rod}} - \left( R - \sqrt{\max(0, R^2 - d_{\text{horiz}}^2)} \right)$$

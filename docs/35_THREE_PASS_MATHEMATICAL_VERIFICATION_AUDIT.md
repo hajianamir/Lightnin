@@ -25,8 +25,8 @@ Each pass evaluated:
 - **Governing Equation**:
   $$s = k_i \cdot \frac{k_c}{k_m} \cdot l \quad [\text{meters}]$$
 - **Variable Verification**:
-  - $k_i$: Dependent on LPS Class: Class I = $0.08$, Class II = $0.06$, Class III/IV = $0.04$ [dimensionless]. (Verified per Table 10).
-  - $k_m$: Electrical insulation factor: Air = $1.0$, Solid concrete/masonry = $0.5$ [dimensionless]. (Verified per Table 11).
+  - $k_i$: Dependent on LPS Class: Class I = $0.08$, Class II = $0.06$, Class III/IV = $0.04$ [dimensionless]. (IEC 62305-3:2024 §6.3.1 Table 11).
+  - $k_m$: Electrical insulation factor: Air = $1.0$, Solid concrete/masonry = $0.5$ [dimensionless]. (IEC 62305-3:2024 §6.3.1 Table 12).
   - $k_c$: Current sharing factor among down conductors: Derived from network topology or nodal admittance solving [dimensionless].
   - $l$: Effective length along conductor from assessment point to nearest equipotential bonding/grounding termination $[\text{m}]$.
 

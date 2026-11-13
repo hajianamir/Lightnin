@@ -44,3 +44,23 @@ python3 scripts/step63_exact_reversions_more.py
 | H15 | `b1114b2^` old `l_max` and clamp lines, with new-interface `u_req_kv` alias | Annex C 23 | 5 failed, 18 passed; `test_limiting_vs_switching_give_distinct_l_max_for_identical_inputs` | pending: interface-adapted, Annex C sub-items open |
 
 No calculation source in the working branch was modified. C3-b and H15 require interface adapters, so their tests cannot be described as a complete exact reversal of the original commit. C1 remains open because its register note points to the roof-coverage defect.
+
+## Step 6.4 — complete inverse-diff attempts
+
+Baseline `ec54036`. `python scripts/step64_full_inverse.py --pytest /tmp/step64-venv/bin/pytest` enumerated every changed code file under `packages/` and `services/` for each fix, checked the full reverse patch in an isolated `git archive` copy, and applied it only when **all** hunks were clean. See `docs/audits/step64_full_inverse_results.md` for the complete table, file lists, check errors, test commands, and failing names. All scratch trees were removed and the checkout status remained unchanged by the checks.
+
+| Item | Fix(es) | Hunks applied / total | Test failures | Classification |
+|---|---|---:|---|---|
+| C1 | 2e3188a | 0/6 | Not run | partial; full inverse conflicts |
+| C2 | 19a607a | 0/4 | Not run | partial; prior 6.3 mitigation-only test is not a full inverse |
+| C3 / C3-b | 1347b14, 434a727, 215c248, 6719bb9 | 0/17 | Not run | partial; each full inverse conflicts |
+| C4 | ec571e8 | 0/10 | Not run | partial |
+| C4-b | 3343007 | 0/5 | Not run | partial |
+| H3 | 44ec813 | 0/9 | Not run | partial |
+| H4 | 16fa0ed | 0/4 | Not run | partial |
+| H5 | dcc070d, 4235bd6 | 0/8 | Not run | partial |
+| H8 | 3343007 | 0/5 | Not run | partial |
+| H9 | d7a2556, 73c7cdc, 70627fc, dbb14da, bb20a92, a5b5bee, 78d94c3 | 11/148 code hunks (B2 only; baseline-only commit has 0) | B2: 22 failed, 835 passed, 1 xfailed; all other tests not run | partial overall; the full B1–B6 set did not apply |
+| H15 | b1114b2 | 0/5 | Not run | partial |
+
+H9 B2 first failures: `test_t_occupancy_consistency_at_8760_hours`, `test_a1_a2_risk_hours_default_8760_and_range_validation`, and `test_a3_risk_lps_class_required_and_validated`. No status was promoted to step 6.4 verified. C2's existing step 6.3 status is retained under the instruction to keep status unchanged on an incompatible reverse diff, but its historical verification used only a partial block and is **not** a full inverse-diff verification.
