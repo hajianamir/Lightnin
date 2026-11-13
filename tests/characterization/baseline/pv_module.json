@@ -1,13 +1,15 @@
 {
   "actual_clearance_m": 0.85,
   "engineering_recommendations": [
-    "Isolated LPS achieved: No direct lightning current will enter PV framework.",
-    "Bond module frames to local equipotential earthing bar with 6 mm2 Cu.",
+    "Separation distance violated (Actual: 0.85m < Req: 1.20m). Must directly bond PV metallic frame to external LPS conductor using 16 mm2 Cu conductor.",
+    "Install Type 1 (Class I) DC SPDs at inverter DC inputs due to direct flashover risk.",
     "Route DC+ and DC- string cables in direct physical contact to minimize inductive loop area."
   ],
-  "is_isolated_lps_sufficient": true,
-  "loop_area_risk": "LOW",
-  "required_separation_s_m": 0.6,
-  "requires_equipotential_bonding": false,
-  "status": "ISOLATED_PASS"
+  "is_isolated_lps_sufficient": false,
+  "kc_basis": "IEC 62305-3:2024 Table 13 fallback (kc=1.0)",
+  "kc_used": 1.0,
+  "loop_area_risk": "HIGH",
+  "required_separation_s_m": 1.2,
+  "requires_equipotential_bonding": true,
+  "status": "BONDING_MANDATORY"
 }

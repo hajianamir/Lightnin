@@ -18,6 +18,8 @@
   "pit_inner_diameter_mm": 250.0,
   "pit_type": "High-Density Polypropylene Inspection Pit with Anti-UV Lid",
   "resistance_reduction_percentage": 29.0,
+  "rho_c_assumption_note": "Unsourced assumption (M6): backfill resistivity rho_c = 0.05 ohm.m for 'carbon_gem' has no source in standards-data or docs/.",
+  "rho_c_unsourced_assumption": true,
   "status": "SIZED_AND_VERIFIED",
   "unconditioned_resistance_single_rod_ohm": 50.24
 }
