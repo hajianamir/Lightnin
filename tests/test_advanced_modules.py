@@ -64,9 +64,17 @@ def test_risk_management_engine():
         loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
     )
     res = risk_eng.evaluate_r1_risk(inp)
-    assert res.collection_area_ad_m2 > 0
-    assert res.annual_strikes_nd > 0
-    assert isinstance(res.risk_acceptable, bool)
+    # IEC 62305-2:2024 Annex A isolated rectangular structure on flat ground:
+    # A_D = L*W + 2*(3H)*(L+W) + pi*(3H)^2 = 30*20 + 6*15*50 + 9*pi*225 = 11461.7251 m^2
+    # N_D = N_G * A_D * C_D * 10^-6 = 2.5 * 11461.725124 * 1.0 * 1e-6 = 0.028654312809 /yr
+    # Tables B.3-B.6 & C.2 (t_z/8760 = 2190/8760 = 0.25):
+    # P_B = 1.0 * 0.02 * 1.0 * 0.01 = 2e-4, L_F1("normal") = 5e-2 -> R_B = N_D * 2e-4 * 0.0125
+    # Table B.7 & C.2: P_SPD("I", S1) = 0.01, L_O1("normal") = 5e-4 -> R_C = N_D * 0.01 * 1.25e-4
+    assert res.collection_area_ad_m2 == pytest.approx(11461.7, abs=0.1)
+    assert res.annual_strikes_nd == pytest.approx(0.028654312809, rel=1e-6)
+    assert res.risk_rb_physical_damage == pytest.approx(7.1635782022e-8, rel=1e-6)
+    assert res.risk_rc_internal_systems == pytest.approx(3.5817891011e-8, rel=1e-6)
+    assert res.risk_acceptable is True
 
 def test_dxf_exporter():
     dxf_bytes = DXFExporter.export_2d_plan(20.0, 10.0, [{"x": 0, "y": 0}])

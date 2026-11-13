@@ -78,6 +78,7 @@ def test_bom_takeoff_and_lifecycle_schedule():
         rod_count=4,
         down_conductor_count=4,
     )
+    # Sanity check only (no standard defines BOM catalog line-item count; see M3):
     assert bom.total_components_count > 0
     assert any(i.category == "air_termination" for i in bom.items)
     assert any(i.category == "down_conductor" for i in bom.items)

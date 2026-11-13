@@ -102,6 +102,7 @@ def test_table_report_only(capsys):
         r_new = array_resistance_identical_rods(rho, L, a, n, s)
         f_new = r_new / (r1 / n)
         f_old = 1.0 + (n - 1) * c_old
+        # Sanity check only (report-only diagnostic table at s = 2L; primary-source confirmation pending per H4):
         assert math.isfinite(f_new) and f_new >= 1.0
         lines.append(f"{n:2d} | {f_new:11.4f} | {f_old:11.4f} | {IEEE_142_TABLE_4_6[n]:14.2f}")
 

@@ -81,7 +81,9 @@ def test_protected_radius_accepts_h_equal_1_5_r():
     h_m = 1.5 * r_m  # 30.0 m
     rho_ground = _protected_radius(r_m, h_m, 0.0)
     rho_mid = _protected_radius(r_m, h_m, 5.0)
+    # Sanity check only (no independent IEC 62305-3 reference for point-tip vs mast-shaft contact when R < h <= 2R):
     assert math.isfinite(rho_ground) and rho_ground > 0.0
+    # Sanity check only (no independent IEC 62305-3 reference for point-tip vs mast-shaft contact when R < h <= 2R):
     assert math.isfinite(rho_mid) and rho_mid >= 0.0
 
 

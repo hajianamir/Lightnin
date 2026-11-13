@@ -33,20 +33,21 @@ def test_nodal_symmetric_paths():
     )
 
     assert res["converged"]
-    assert pytest.approx(res["kc_factors"]["s1"], 0.05) == 0.5
-    assert pytest.approx(res["kc_factors"]["s2"], 0.05) == 0.5
-    assert res["relative_residual"] < 0.01
+    assert res["kc_factors"]["s1"] == pytest.approx(0.5, rel=1e-12)
+    assert res["kc_factors"]["s2"] == pytest.approx(0.5, rel=1e-12)
+    assert res["relative_residual"] <= 1e-12
 
 
 def test_nodal_asymmetric_parallel_paths():
+    import math
+
     solver = NodalCurrentSolver()
-    # Path 1 is 10m long, Path 2 is 20m long
+    # Path 1 is sqrt(10^2 + 20^2) m long (100 mm2); Path 2 is sqrt(20^2 + 20^2) m long (25 mm2)
     nodes = [
         {"id": "n_top", "x": 0, "y": 0, "z": 20, "node_type": "conductor"},
         {"id": "n_earth1", "x": 0, "y": 10, "z": 0, "node_type": "conductor"},
         {"id": "n_earth2", "x": 0, "y": 20, "z": 0, "node_type": "conductor"},
     ]
-    # Path 2 has double the resistance because of smaller cross-section
     segments = [
         {
             "id": "s_low_res",
@@ -70,9 +71,21 @@ def test_nodal_asymmetric_parallel_paths():
         total_injection_current_a=100000.0,
     )
 
+    # Hand-calculated closed-form parallel AC current divider at f = 250 kHz:
+    # Z_k = R_dc,k + j * 2*pi*f * 2e-7 * l_k * (ln(2*l_k / r_k) - 0.75), kc_k = |Y_k| / |Y_1 + Y_2|
+    omega = 2.0 * math.pi * 250e3
+    l1, a1 = math.hypot(10.0, 20.0), 100.0e-6
+    l2, a2 = math.hypot(20.0, 20.0), 25.0e-6
+    r1 = math.sqrt(a1 / math.pi)
+    r2 = math.sqrt(a2 / math.pi)
+    y1 = 1.0 / complex(1.72e-8 * l1 / a1, omega * 2e-7 * l1 * (math.log(2.0 * l1 / r1) - 0.75))
+    y2 = 1.0 / complex(1.72e-8 * l2 / a2, omega * 2e-7 * l2 * (math.log(2.0 * l2 / r2) - 0.75))
+    kc_low_ref = abs(y1) / abs(y1 + y2)
+    kc_high_ref = abs(y2) / abs(y1 + y2)
+
     assert res["converged"]
-    # Lower resistance branch carries more current
-    assert res["kc_factors"]["s_low_res"] > res["kc_factors"]["s_high_res"]
+    assert res["kc_factors"]["s_low_res"] == pytest.approx(kc_low_ref, rel=1e-9)
+    assert res["kc_factors"]["s_high_res"] == pytest.approx(kc_high_ref, rel=1e-9)
 
 
 def test_nodal_disconnected_component():
@@ -90,7 +103,7 @@ def test_nodal_disconnected_component():
     )
 
     assert res["converged"] is False
-    assert len(res["warnings"]) > 0
+    assert any("galvanically isolated" in w for w in res["warnings"])
 
 
 def test_nodal_ring_and_mesh_conservation():
@@ -155,12 +168,34 @@ def test_nodal_ring_and_mesh_conservation():
         total_injection_current_a=100000.0,
     )
 
+    # Closed-form series-parallel reduction of symmetric 20 m x 10 m roof ring between c1 and c3:
+    # Two identical half-rings (Z_20 + Z_10) in parallel give Z_ring_eq = 0.5 * (Z_20 + Z_10)
+    # in series with Z_down(15 m) vs direct Z_down(15 m) at c1 -> e1.
+    import math
+
+    omega = 2.0 * math.pi * 250e3
+    area_m2 = 50.0e-6
+    rad_m = math.sqrt(area_m2 / math.pi)
+
+    def _z_seg(length_m: float) -> complex:
+        r_dc = 1.72e-8 * length_m / area_m2
+        l_ind = 2e-7 * length_m * (math.log(2.0 * length_m / rad_m) - 0.75)
+        return complex(r_dc, omega * l_ind)
+
+    z_down = _z_seg(15.0)
+    z_ring_eq = 0.5 * (_z_seg(20.0) + _z_seg(10.0))
+    y_branch1 = 1.0 / z_down
+    y_branch2 = 1.0 / (z_ring_eq + z_down)
+    kc_down1_ref = abs(y_branch1) / abs(y_branch1 + y_branch2)
+    kc_down2_ref = abs(y_branch2) / abs(y_branch1 + y_branch2)
+
     assert res["converged"]
-    assert "down1" in res["kc_factors"]
-    assert "down2" in res["kc_factors"]
-    assert res["conservation_residual_a"] >= 0.0
+    assert res["kc_factors"]["down1"] == pytest.approx(kc_down1_ref, rel=1e-9)
+    assert res["kc_factors"]["down2"] == pytest.approx(kc_down2_ref, rel=1e-9)
+    assert res["conservation_residual_a"] <= 1e-9 * 100000.0
     assert len(res["node_potentials"]) == 6
-    assert res["condition_number_estimate"] > 0
+    # Sanity check only (solver-internal diagonal-ratio diagnostic; no independent physical reference):
+    assert res["condition_number_estimate"] >= 1.0
 
 
 def _solve_pre_change_real_conductance(nodes, segments, injection_node, earth_nodes, i_total):

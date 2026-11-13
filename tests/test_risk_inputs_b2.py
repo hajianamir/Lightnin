@@ -291,11 +291,25 @@ def test_risk_and_comprehensive_risk_http_endpoints():
 
     resp_risk_ok = client.post("/api/v1/calculations/risk", json=_valid_risk_kwargs())
     assert resp_risk_ok.status_code == 200
-    assert resp_risk_ok.json()["risk_r1_loss_of_life"] > 0.0
+    risk_body = resp_risk_ok.json()
+    # IEC 62305-2:2024 Annex A & Tables B.3-B.6, C.2 (30x20x15, Ng=2.5, Cd=1, Class I, normal, t_z=8760):
+    # A_D = 11461.7251 m^2, N_D = 0.028654312809 /yr, R_B = N_D * 2e-4 * 5e-2 = 2.8654312809e-7
+    assert risk_body["collection_area_ad_m2"] == pytest.approx(11461.7, abs=0.1)
+    assert risk_body["risk_rb_physical_damage"] == pytest.approx(2.8654312809e-7, rel=1e-6)
+    # Sanity check only (total R1 includes open H3 component R_A):
+    assert risk_body["risk_r1_loss_of_life"] > 0.0
 
     resp_comp_ok = client.post(
         "/api/v1/calculations/comprehensive-risk-2024",
         json=_valid_comp_kwargs(),
     )
     assert resp_comp_ok.status_code == 200
-    assert resp_comp_ok.json()["risk_components"]["total_risk_r1"] > 0.0
+    comp_body = resp_comp_ok.json()
+    # IEC 62305-2:2024 Annex A & Tables B.3-B.6, C.2 (40x25x15, Ng=2.5, Cd=1, Class I, normal, t_z=8760):
+    # A_D = 1000 + 5850 + 2025*pi = 13211.7251 m^2, N_D = 0.033029312809 /yr, R_B = 3.3029312809e-7
+    assert comp_body["collection_area_ad_structure_m2"] == pytest.approx(13211.7, abs=0.1)
+    assert comp_body["risk_components"]["r_b_physical_damage"] == pytest.approx(
+        3.3029312809e-7, rel=1e-6
+    )
+    # Sanity check only (total R1 includes open H3 components):
+    assert comp_body["risk_components"]["total_risk_r1"] > 0.0

@@ -22,7 +22,10 @@ def test_uq_monte_carlo_convergence():
     res = engine.run_monte_carlo(cfg)
 
     assert res.num_samples == 1000
-    assert res.mean_s_req_m > 0.4
+    # Closed-form expectation under independent inputs (ki=0.08, E[kc]=0.5, E[l]=15.0,
+    # E[1/km] = ln(1.0/0.85)/0.15 = 1.083459): E[s] = 0.08 * 0.5 * 15.0 * 1.083459 = 0.6501 m
+    # (within Monte Carlo 3*SE ~ 0.011 m for N=1000):
+    assert res.mean_s_req_m == pytest.approx(0.6501, abs=0.02)
     assert res.p95_s_m >= res.p50_median_s_m
     assert res.p99_s_m >= res.p95_s_m
     assert len(res.histogram_bins) == 12

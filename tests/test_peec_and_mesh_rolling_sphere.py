@@ -17,14 +17,16 @@ from aegislps_engine.comprehensive_risk import (
 )
 
 def test_neumann_mutual_inductance_parallel_segments():
-    # Two parallel conductors of length 5m spaced 0.5m apart
+    # Two parallel conductors of length L = 5 m spaced d = 0.5 m apart.
+    # Elementary closed-form evaluation of the filament double integral in docs/35 §3.2
+    # (formula and source to be confirmed by owner):
+    # M = (mu_0 / (2*pi)) * [L * asinh(L / d) - sqrt(L^2 + d^2) + d]
+    #   = 2e-7 * [5 * asinh(10) - sqrt(25.25) + 0.5] = 2.093235388186e-06 H.
     seg_1 = SkewSegment3D(start=(0, 0, 0), end=(5, 0, 0))
     seg_2 = SkewSegment3D(start=(0, 0.5, 0), end=(5, 0.5, 0))
-    
+
     m_val = PEECThermalEngine.calculate_mutual_inductance_neumann(seg_1, seg_2)
-    assert m_val > 0.0
-    # Expected mutual inductance for 5m parallel wires spaced 0.5m ~ 1-5 uH
-    assert 1e-7 <= m_val <= 1e-5
+    assert m_val == pytest.approx(2.093235388186e-06, rel=1e-6)
 
 
 def test_neumann_touching_and_overlapping_collinear_segments_raise_value_error():
@@ -130,9 +132,12 @@ def test_conductor_adiabatic_heating_and_lorentz_force():
     res = PEECThermalEngine.evaluate_thermal_and_electrodynamic_stress(
         props, lps_class="I", parallel_conductor_spacing_m=0.1
     )
-    
+
+    # Ampère parallel-filament force per unit length (docs/35 §3.2) for IEC 62305-1:2024
+    # Table 3 Class I peak current I = 200 kA split equally across two paths (i_1 = i_2 = 100 kA)
+    # at d = 0.1 m: F/L = (mu_0 / (2*pi)) * i_1 * i_2 / d = 2e-7 * (1e5)^2 / 0.1 = 20000.0 N/m.
     assert res.thermal_stress_safe is True
-    assert res.peak_repulsive_force_n_per_m > 0.0
+    assert res.peak_repulsive_force_n_per_m == pytest.approx(20000.0, rel=1e-6)
 
 def test_arbitrary_mesh_rolling_sphere_protection():
     engine = ArbitraryMeshRollingSphereEngine()
@@ -176,9 +181,20 @@ def test_comprehensive_risk_2024_8_components():
     res = engine.evaluate_risk(inp)
     
     comp = res.risk_components
+    # IEC 62305-2:2024 Annex A & Tables B.3-B.7, C.2 (t_z/8760 = 1.0):
+    # A_D = 40*25 + 6*15*65 + 9*pi*225 = 1000 + 5850 + 2025*pi = 13211.7251 m^2
+    # N_D = 2.5 * A_D * 1e-6 = 0.033029312809 /yr
+    # P_B = 1.0 * 0.02 * 1.0 * 0.01 = 2e-4, L_F1("normal") = 5e-2 -> R_B = 3.3029312809e-7
+    # P_SPD("I", S1) = 0.01, L_O1("normal") = 5e-4 -> R_C = 1.6514656404e-7
+    assert res.collection_area_ad_structure_m2 == pytest.approx(13211.7, abs=0.1)
+    assert comp.r_b_physical_damage == pytest.approx(3.3029312809e-7, rel=1e-6)
+    assert comp.r_c_internal_surges == pytest.approx(1.6514656404e-7, rel=1e-6)
+    # Sanity check only (no confirmed primary-source reference for P_A / C_TWS / service-line constants; see H3):
     assert comp.r_a_touch_step > 0
-    assert comp.r_b_physical_damage > 0
+    # Sanity check only (no confirmed primary-source reference for R_U service-line factor; see H3):
     assert comp.r_u_touch_voltage_service > 0
+    # Sanity check only (total R1 sums open H3 components alongside verified R_B/R_C):
     assert comp.total_risk_r1 > 0
+    # Sanity check only (service-line collection width constant pending H3 verification):
     assert res.collection_area_al_services_m2 > 0
     assert comp.is_r1_acceptable is True

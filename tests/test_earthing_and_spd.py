@@ -17,9 +17,13 @@ def test_earthing_type_b_ring_dwight():
         peak_impulse_current_ka=100.0,
     )
     res = engine.evaluate_earthing_system(inp)
-    assert res.minimum_length_l1_m > 0
+    # IEC 62305-3:2024 Clause 5.4.2.2 Figure 5: Class I at rho = 100 <= 500 ohm.m -> l1 = 5.0 m.
+    assert res.minimum_length_l1_m == 5.0
+    # Sanity check only (Type B r_e vs circumference rule is open under C4):
     assert res.actual_effective_length_m > res.minimum_length_l1_m
+    # Sanity check only (Sunde ring primary source pending per H5):
     assert res.stationary_resistance_r_ohm > 0
+    # Sanity check only (soil-ionization impulse reduction has no primary source in docs/):
     assert res.impulse_impedance_z_ohm <= res.stationary_resistance_r_ohm
     assert res.status == "PASS"
 
@@ -37,7 +41,9 @@ def test_earthing_type_a_vertical_dwight_mutual_coupling():
     )
     res = engine.evaluate_earthing_system(inp)
     assert res.actual_effective_length_m == 12.0
+    # Sanity check only (no independent multi-rod reference at s/L = 5/3; see H4):
     assert res.stationary_resistance_r_ohm > 0
+    # Sanity check only (soil-ionization impulse efficiency has no primary source in docs/):
     assert res.impulse_efficiency_factor < 1.0
 
 def test_touch_and_step_hazard_control_dalziel():
@@ -111,14 +117,13 @@ def test_spd_lpz_coordination_advanced():
 
 def test_protective_angle_non_linear_decay():
     engine = ProtectiveAngleEngine()
-    # Height H=2m -> large angle ~70 deg
+    # IEC 62305-3:2024 Clause 5.2.2.1 Figure 1 (p. 22) graphical reading (+/-1.5 deg):
+    # Class I: alpha(2 m) = 70.0 deg, alpha(18 m) = 27.4 deg.
     angle_2m = engine.get_protective_angle_deg("I", 2.0)
-    # Height H=18m -> steep angle ~25 deg
     angle_18m = engine.get_protective_angle_deg("I", 18.0)
-    
-    assert angle_2m > angle_18m
-    assert 60.0 <= angle_2m <= 75.0
-    assert 20.0 <= angle_18m <= 35.0
+
+    assert angle_2m == pytest.approx(70.0, abs=1.5)
+    assert angle_18m == pytest.approx(27.4, abs=1.5)
 
     # Exceeding 20m for Class I -> not applicable
     res_exceed = engine.check_object_in_cone(
@@ -144,7 +149,16 @@ def test_iec62305_2_risk_components():
         loss_category="normal",  # Test fixture assumption: normal-loss structure. Not a default.
     )
     res = engine.evaluate_r1_risk(inp)
-    assert res.collection_area_ad_m2 > 0
+    # IEC 62305-2:2024 Annex A: A_D = 40*25 + 6*20*65 + 9*pi*400 = 20109.7336 m^2,
+    # N_D = 2.5 * A_D * 1.0 * 1e-6 = 0.050274333882 /yr.
+    # Tables B.3-B.7 & C.2 (t_z/8760 = 2190/8760 = 0.25):
+    # R_B = N_D * 2e-4 * (5e-2 * 0.25) = 1.2568583471e-7
+    # R_C = N_D * 0.01 * (5e-4 * 0.25) = 6.2842917353e-8
+    assert res.collection_area_ad_m2 == pytest.approx(20109.7, abs=0.1)
+    assert res.annual_strikes_nd == pytest.approx(0.050274333882, rel=1e-6)
+    assert res.risk_rb_physical_damage == pytest.approx(1.2568583471e-7, rel=1e-6)
+    assert res.risk_rc_internal_systems == pytest.approx(6.2842917353e-8, rel=1e-6)
+    # Sanity check only (total R1 includes R_A whose P_A factor is open under H3):
     assert res.risk_r1_loss_of_life > 0
     assert res.risk_r1_loss_of_life == pytest.approx(res.risk_ra_touch_step + res.risk_rb_physical_damage + res.risk_rc_internal_systems)
     assert res.risk_acceptable is True

@@ -150,6 +150,8 @@ def test_a3_surface_layer_material_accept():
     )
     assert res_bare.surface_derating_factor_cs == 1.0
 
+    # IEEE Std 80-2013 Eq. (27) with rho=100 ohm.m, rho_s=2500 ohm.m, h_s=0.05 m:
+    # C_s = 1 - 0.09 * (1 - 100/2500) / (2*0.05 + 0.09) = 1 - 0.0864 / 0.19 = 0.545263 -> 0.545
     for mat in ("gravel_5cm", "asphalt_5cm", "concrete"):
         res = engine.evaluate(
             TouchStepAssessmentInput(
@@ -159,7 +161,7 @@ def test_a3_surface_layer_material_accept():
                 )
             )
         )
-        assert 0.1 <= res.surface_derating_factor_cs < 1.0
+        assert res.surface_derating_factor_cs == pytest.approx(0.545, abs=1e-3)
 
 
 def test_a4_surface_layer_thickness_reject():
@@ -481,8 +483,10 @@ def test_b4_shielding_grid_is_shielded_accept():
         rod_radius_m=0.005,
         material="copper_aluminium",
     )
+    # IEC 62305-4:2024 Table A.4 copper/aluminium w = 2.0 m unbonded:
+    # SF = 20 * log10(8.5 / 2.0) = 12.5678 dB -> K_MS = 10^(-SF/20) = 2.0 / 8.5 = 0.2353
     res_shielded = LEMPEngine().calculate_lemp_induction(wf, shielded, loop)
-    assert res_shielded.grid_shielding_factor_kms < 1.0
+    assert res_shielded.grid_shielding_factor_kms == pytest.approx(2.0 / 8.5, abs=1e-3)
 
 
 def test_b5_shielded_parameters_reject():

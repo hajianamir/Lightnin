@@ -192,8 +192,10 @@ def test_no_zero_by_flag_path():
                 electrode_equivalent_radius_m=2.0,
             )
         )
-        assert res.prospective_touch_voltage_v > 0.0
-        assert res.prospective_step_voltage_v > 0.0
+        # Hemispherical potential V(x) = GPR * r_e / (r_e + x) for GPR = 10000 V, r_e = 2.0 m:
+        # U_touch,prosp = 10000 - 10000*(2/3) = 3333.3 V; U_step,prosp = 10000*(2/3 - 2/4) = 1666.7 V.
+        assert res.prospective_touch_voltage_v == pytest.approx(3333.3, abs=0.1)
+        assert res.prospective_step_voltage_v == pytest.approx(1666.7, abs=0.1)
 
 
 def test_formula_trace_contains_equations_and_substituted_numbers():

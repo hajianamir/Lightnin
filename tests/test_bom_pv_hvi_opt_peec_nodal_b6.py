@@ -487,10 +487,13 @@ def test_e5_peec_neumann_rejects_bad_gauss_points_nan_and_zero_length():
     with pytest.raises(ValueError, match="Zero-length"):
         PEECThermalEngine.calculate_mutual_inductance_neumann(zero_seg, seg_b)
 
+    # Elementary closed-form double integral for L = 5 m parallel filaments at d = 0.5 m
+    # (formula and source to be confirmed by owner):
+    # M = 2e-7 * [5 * asinh(10) - sqrt(25.25) + 0.5] = 2.093235388186e-06 H.
     m_ij = PEECThermalEngine.calculate_mutual_inductance_neumann(
         seg_a, seg_b, num_gauss_points=10
     )
-    assert m_ij > 0.0 and math.isfinite(m_ij)
+    assert m_ij == pytest.approx(2.093235388186e-06, rel=1e-6)
 
 
 def test_e6_peec_neumann_submillimeter_unclamped_and_nonconvergence_guard():
