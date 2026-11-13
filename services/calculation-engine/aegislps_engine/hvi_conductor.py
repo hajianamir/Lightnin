@@ -2,9 +2,6 @@ import math
 from typing import Any, List
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-_VALID_LPS_CLASSES = ("I", "II", "III", "IV")
-# Validated against the installation type already used in this module (plus ASCII facade spelling).
-_VALID_AMBIENT_INSTALLATION_TYPES = ("outdoor_façade", "outdoor_facade")
 _HVI_SPECS = {
     "HVI_light_75": {
         "s_equiv_air": 0.75,  # meters equivalent separation in air
@@ -31,22 +28,11 @@ def _check_positive_finite_float(name: str, v: Any) -> float:
 
 
 class HVIConductorSelectionInput(BaseModel):
-    model_config = ConfigDict(allow_inf_nan=False)
+    model_config = ConfigDict(allow_inf_nan=False, extra="forbid")
 
-    lps_class: str
     required_equivalent_separation_s_air_m: float
     down_conductor_route_length_m: float
     hvi_conductor_model: str  # HVI_light_75 (s_equiv=0.75m), HVI_standard_90 (s_equiv=0.90m)
-    ambient_installation_type: str
-
-    @field_validator("lps_class", mode="before")
-    @classmethod
-    def _validate_lps_class(cls, v: Any) -> str:
-        if not isinstance(v, str) or v not in _VALID_LPS_CLASSES:
-            raise ValueError(
-                f"Unknown LPS class {v!r}; expected one of {_VALID_LPS_CLASSES}."
-            )
-        return v
 
     @field_validator(
         "required_equivalent_separation_s_air_m",
@@ -63,15 +49,6 @@ class HVIConductorSelectionInput(BaseModel):
         if not isinstance(v, str) or v not in _HVI_SPECS:
             raise ValueError(
                 f"Unknown hvi_conductor_model {v!r}; expected one of {tuple(_HVI_SPECS)}."
-            )
-        return v
-
-    @field_validator("ambient_installation_type", mode="before")
-    @classmethod
-    def _validate_ambient_type(cls, v: Any) -> str:
-        if not isinstance(v, str) or v not in _VALID_AMBIENT_INSTALLATION_TYPES:
-            raise ValueError(
-                f"Unknown ambient_installation_type {v!r}; expected one of {_VALID_AMBIENT_INSTALLATION_TYPES}."
             )
         return v
 
@@ -103,19 +80,10 @@ class HVIConductorAssistant:
     def evaluate_hvi_selection(
         self, inp: HVIConductorSelectionInput
     ) -> HVIConductorSelectionResult:
-        if not isinstance(inp.lps_class, str) or inp.lps_class not in _VALID_LPS_CLASSES:
-            raise ValueError(
-                f"Unknown LPS class {inp.lps_class!r}; expected one of {_VALID_LPS_CLASSES}."
-            )
         if (
-            not isinstance(inp.ambient_installation_type, str)
-            or inp.ambient_installation_type not in _VALID_AMBIENT_INSTALLATION_TYPES
+            not isinstance(inp.hvi_conductor_model, str)
+            or inp.hvi_conductor_model not in self.HVI_SPECS
         ):
-            raise ValueError(
-                f"Unknown ambient_installation_type {inp.ambient_installation_type!r}; "
-                f"expected one of {_VALID_AMBIENT_INSTALLATION_TYPES}."
-            )
-        if not isinstance(inp.hvi_conductor_model, str) or inp.hvi_conductor_model not in self.HVI_SPECS:
             raise ValueError(
                 f"Unknown hvi_conductor_model {inp.hvi_conductor_model!r}; expected one of {tuple(self.HVI_SPECS)}."
             )

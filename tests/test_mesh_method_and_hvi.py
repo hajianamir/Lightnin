@@ -43,11 +43,9 @@ def test_hvi_conductor_selection_and_clearance():
     
     # Adequate model: HVI_standard_90 (s_equiv=0.9m) for required s=0.75m
     inp_good = HVIConductorSelectionInput(
-        lps_class="I",
         required_equivalent_separation_s_air_m=0.75,
         down_conductor_route_length_m=20.0,
         hvi_conductor_model="HVI_standard_90",
-        ambient_installation_type="outdoor_façade",
     )
     res_good = hvi_assistant.evaluate_hvi_selection(inp_good)
     assert res_good.is_adequate_insulation is True
@@ -57,11 +55,9 @@ def test_hvi_conductor_selection_and_clearance():
 
     # Inadequate model: HVI_light_75 (s_equiv=0.75m) for required s=0.90m
     inp_inadequate = HVIConductorSelectionInput(
-        lps_class="I",
         required_equivalent_separation_s_air_m=0.90,
         down_conductor_route_length_m=20.0,
         hvi_conductor_model="HVI_light_75",
-        ambient_installation_type="outdoor_façade",
     )
     res_inad = hvi_assistant.evaluate_hvi_selection(inp_inadequate)
     assert res_inad.is_adequate_insulation is False

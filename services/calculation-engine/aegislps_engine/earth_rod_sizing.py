@@ -1,5 +1,5 @@
 import math
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from aegislps_engine.earthing import (
@@ -27,6 +27,9 @@ class EarthRodSizingInput(BaseModel):
     target_resistance_ohm: float = 10.0
     electrode_material: str  # copper_bonded_steel, solid_copper, galvanized_steel, stainless_steel
     rod_length_per_unit_m: float  # 1.5m, 2.4m, 3.0m standard commercial lengths
+    # Optional explicit rod diameter [mm]; defaults to material minimum when omitted
+    # and is validated >= IEC_62561_2_SPECS[electrode_material]["min_dia_mm"].
+    rod_diameter_mm: Optional[float] = None
     # IEC 62305-3:2024 Clause 5.4.3 (p. 35): external earth electrodes installed
     # "at a distance of about 1 m away from the external walls".
     min_distance_to_building_foundation_m: float = 1.0
@@ -48,6 +51,13 @@ class EarthRodSizingInput(BaseModel):
             raise ValueError("Boolean is not valid for numeric earth-rod parameter.")
         if v is None:
             raise ValueError("Required numeric earth-rod parameter cannot be None.")
+        return v
+
+    @field_validator("rod_diameter_mm", mode="before")
+    @classmethod
+    def _reject_bool_optional_diameter(cls, v):
+        if isinstance(v, bool):
+            raise ValueError("Boolean is not valid for rod_diameter_mm.")
         return v
 
     @model_validator(mode="after")
@@ -83,6 +93,24 @@ class EarthRodSizingInput(BaseModel):
                 f"Unknown electrode_material {self.electrode_material!r}; "
                 f"expected one of {tuple(EarthRodSizingEngine.IEC_62561_2_SPECS.keys())}."
             )
+        if self.rod_diameter_mm is not None:
+            if (
+                isinstance(self.rod_diameter_mm, bool)
+                or not math.isfinite(self.rod_diameter_mm)
+                or self.rod_diameter_mm <= 0.0
+            ):
+                raise ValueError(
+                    f"rod_diameter_mm must be finite and > 0, got {self.rod_diameter_mm!r}."
+                )
+            min_dia = EarthRodSizingEngine.IEC_62561_2_SPECS[self.electrode_material][
+                "min_dia_mm"
+            ]
+            if self.rod_diameter_mm < min_dia:
+                raise ValueError(
+                    f"rod_diameter_mm ({self.rod_diameter_mm} mm) is below the minimum "
+                    f"earth-rod diameter ({min_dia} mm) for {self.electrode_material!r} "
+                    "(IEC 62305-3:2024 Clause 5.6.2, Table 8)."
+                )
         return self
 
 
@@ -106,20 +134,23 @@ class EarthRodSizingEngine:
     Advanced Multi-Material Earth Rod Sizing & Array Placement Engine.
 
     Standards:
-    - IEC 62561-2 Table 1 (Earth electrodes material, configuration and minimum dimensions):
-      * Copper-bonded steel: minimum 14.2 mm diameter with >= 250 um copper coating
+    - IEC 62305-3:2024 Clause 5.6.2, Table 8 (p. 40, Material, configuration and minimum
+      dimensions of earth electrodes; footnote a references IEC 62561-2):
+      * Copper-coated (copper-bonded) steel, solid round: minimum 14.0 mm diameter
+        (250 um copper coating thickness retained per IEC 62561-2 reference; primary
+        IEC 62561-2 text not in repo)
       * Solid copper: minimum 15.0 mm diameter
-      * Hot-dip galvanized steel: minimum 20.0 mm diameter (or 16mm round with >= 50 um zinc)
-      * Stainless steel (V4A 1.4571): minimum 16.0 mm diameter
+      * Hot-dip galvanized steel: 20.0 mm diameter configured here (Table 8 lists 14 mm solid round / 25 mm tubular)
+      * Stainless steel: 16.0 mm diameter configured here (Table 8 lists 15 mm solid round)
     - Dwight mutual coupling formula for multi-rod array interaction
     - Inter-rod spacing rule (s >= 2 * L) to prevent severe resistance overlap shielding
     - Permitted setback distances from building foundation (d >= 1.0 m).
     """
 
-    # Material specifications per IEC 62561-2 Table 1
+    # Material specifications aligned for M7 with IEC 62305-3:2024 Clause 5.6.2, Table 8 (p. 40)
     IEC_62561_2_SPECS: Dict[str, Dict] = {
         "copper_bonded_steel": {
-            "min_dia_mm": 16.0,  # Commonly specified 5/8" (16mm)
+            "min_dia_mm": 14.0,  # IEC 62305-3:2024 Clause 5.6.2, Table 8 (Copper-coated steel, solid round: 14 mm)
             "coating_type": "Electroplated copper coating",
             "min_coating_um": 250.0,
             "corrosion_resistance": "High (suitable for most soils pH 3-10)",
@@ -151,7 +182,11 @@ class EarthRodSizingEngine:
     def size_earth_rod_system(self, inp: EarthRodSizingInput) -> EarthRodSizingResult:
         inp._validate_earth_rod_input()
         mat_spec = self.IEC_62561_2_SPECS[inp.electrode_material]
-        dia_mm = mat_spec["min_dia_mm"]
+        dia_mm = (
+            float(inp.rod_diameter_mm)
+            if inp.rod_diameter_mm is not None
+            else float(mat_spec["min_dia_mm"])
+        )
         radius_m = (dia_mm / 2.0) * 1e-3
         l_rod = float(inp.rod_length_per_unit_m)
         rho = float(inp.soil_resistivity_ohm_m)
@@ -196,7 +231,7 @@ class EarthRodSizingEngine:
 
         notes = [
             f"Electrode material: {inp.electrode_material.replace('_', ' ').title()}.",
-            f"Conforms to IEC 62561-2 Table 1 minimum diameter: {dia_mm:.1f} mm.",
+            f"Conforms to IEC 62305-3:2024 Table 8 minimum diameter ({mat_spec['min_dia_mm']:.1f} mm): selected {dia_mm:.1f} mm.",
             f"Coating: {mat_spec['coating_type']} ({mat_spec['min_coating_um']} um).",
             f"Single rod resistance: {r1:.2f} ohm.",
             f"Total array: {n_rods} rods x {l_rod:.1f} m spaced at {s_spacing:.1f} m achieves R_tot = {r_array:.2f} ohm (Target <= {r_target:.1f} ohm).",

@@ -129,7 +129,9 @@ class BOMAndLifecycleEngine:
         )
 
         # 3. Earthing System
-        earth_ring_len = 2.0 * (b_len + b_wid + 8.0)  # 1m offset around building
+        # IEC 62305-3:2024 Clause 5.4.3 (p. 35): Type B ring earth electrode installed
+        # "at a distance of about 1 m away from the external walls" -> (b_len + 2*1.0) by (b_wid + 2*1.0).
+        earth_ring_len = 2.0 * (b_len + b_wid + 4.0)  # 1m offset around all 4 external walls
         items.append(
             BOMItem(
                 category="earthing",

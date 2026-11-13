@@ -96,6 +96,8 @@ class EarthPitSizingResult(BaseModel):
     unconditioned_resistance_single_rod_ohm: float
     conditioned_resistance_single_rod_ohm: float
     resistance_reduction_percentage: float
+    rho_c_unsourced_assumption: bool
+    rho_c_assumption_note: str
     status: str
     engineering_specifications: List[str] = Field(default_factory=list)
 
@@ -107,29 +109,35 @@ class EarthPitEngine:
     Standards:
     - IEC 62305-3:2024 Clause 5.3.6 & Annex D.5.3.6 / D.7 (Test joints & periodic inspection accessibility)
     - IEC 62561-5 (Earth pits and housing requirements)
-    - IEC 62561-7 (Earth enhancement compounds)
+    - IEC 62561-7 (Earth enhancement compounds — test/qualification standard; does not supply the fixed rho_c values below)
     - EN 124 (Gully tops and manhole tops for vehicular and pedestrian areas)
     """
 
-    # IEC 62561-7 typical resistivity of backfill materials in ohm.m
+    # Step 6.1 (M6): None of the four rho_c values below has a primary or secondary
+    # source in `packages/standards-data` or `docs/` (IEC 62561-7 text is not in the
+    # repository). Each entry is explicitly flagged as an unsourced assumption.
     BACKFILL_PROPERTIES: Dict[str, Dict] = {
         "carbon_gem": {
-            "rho_c": 0.05,
+            "rho_c": 0.05,  # Unsourced assumption (ohm.m); no source in standards-data or docs/ (M6)
+            "rho_c_unsourced_assumption": True,
             "density_kg_m3": 1200.0,
             "curing": "permanent_non_leaching",
         },
         "sodium_bentonite": {
-            "rho_c": 3.0,
+            "rho_c": 3.0,  # Unsourced assumption (ohm.m); no source in standards-data or docs/ (M6)
+            "rho_c_unsourced_assumption": True,
             "density_kg_m3": 1000.0,
             "curing": "hygroscopic_moisture_dependent",
         },
         "chemical_salts": {
-            "rho_c": 1.5,
+            "rho_c": 1.5,  # Unsourced assumption (ohm.m); no source in standards-data or docs/ (M6)
+            "rho_c_unsourced_assumption": True,
             "density_kg_m3": 1100.0,
             "curing": "leaches_requires_maintenance",
         },
         "native_backfill": {
-            "rho_c": 150.0,
+            "rho_c": 150.0,  # Unsourced assumption placeholder (ohm.m); evaluate_earth_pit_and_backfill uses native_soil_resistivity_ohm_m (M6)
+            "rho_c_unsourced_assumption": True,
             "density_kg_m3": 1600.0,
             "curing": "none",
         },
@@ -208,6 +216,18 @@ class EarthPitEngine:
             f"Electrode resistance improvement: {r_uncond:.2f} ohm -> {r_cond:.2f} ohm ({reduction_pct:.1f}% reduction).",
         ]
 
+        if inp.enhancement_material == "native_backfill":
+            rho_c_note = (
+                "Unsourced assumption (M6): BACKFILL_PROPERTIES['native_backfill']['rho_c'] = "
+                "150.0 ohm.m has no source in standards-data or docs/; calculation uses "
+                f"caller native_soil_resistivity_ohm_m = {rho_native} ohm.m."
+            )
+        else:
+            rho_c_note = (
+                f"Unsourced assumption (M6): backfill resistivity rho_c = {mat['rho_c']} ohm.m "
+                f"for '{inp.enhancement_material}' has no source in standards-data or docs/."
+            )
+
         return EarthPitSizingResult(
             is_pit_required=pit_required,
             pit_type=pit_type,
@@ -221,6 +241,8 @@ class EarthPitEngine:
             unconditioned_resistance_single_rod_ohm=round(float(r_uncond), 2),
             conditioned_resistance_single_rod_ohm=round(float(r_cond), 2),
             resistance_reduction_percentage=round(reduction_pct, 1),
+            rho_c_unsourced_assumption=bool(mat["rho_c_unsourced_assumption"]),
+            rho_c_assumption_note=rho_c_note,
             status="SIZED_AND_VERIFIED",
             engineering_specifications=specs,
         )

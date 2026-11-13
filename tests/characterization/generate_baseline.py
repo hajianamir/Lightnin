@@ -437,11 +437,6 @@ def compute_all_snapshots() -> Dict[str, Any]:
     # 13. PVEngineeringModule
     raw["pv_module"] = PVEngineeringModule().evaluate_pv_installation(
         PVArraySpecification(
-            tilt_angle_deg=15.0,
-            panel_count=24,
-            array_length_m=12.0,
-            array_width_m=6.0,
-            metallic_frame_bonded=True,
             separation_to_lps_m=0.85,
             lps_class="I",
             down_conductor_length_l_m=15.0,
@@ -452,11 +447,9 @@ def compute_all_snapshots() -> Dict[str, Any]:
     # 14. HVIConductorAssistant
     raw["hvi_conductor"] = HVIConductorAssistant().evaluate_hvi_selection(
         HVIConductorSelectionInput(
-            lps_class="I",
             required_equivalent_separation_s_air_m=0.75,
             down_conductor_route_length_m=18.0,
             hvi_conductor_model="HVI_light_75",
-            ambient_installation_type="outdoor_façade",
         )
     )
 

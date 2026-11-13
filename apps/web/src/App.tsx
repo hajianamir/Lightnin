@@ -7,7 +7,7 @@ import {
   loadProjectFromFile,
   saveProjectToLocalStorage,
 } from './utils/projectStorage'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, Line } from '@react-three/drei'
 
@@ -24,6 +24,7 @@ export default function App() {
   // Dialog Modals State
   const [isWizardOpen, setIsWizardOpen] = useState(false)
   const [isHelpOpen, setIsHelpOpen] = useState(false)
+  const [projectId, setProjectId] = useState('aegis-proj-uuid-1')
   const [projectName, setProjectName] = useState('Substation Facility Alpha')
 
   const [soilResistivity, setSoilResistivity] = useState(100.0)
@@ -43,7 +44,12 @@ export default function App() {
   const [nodalResult, setNodalResult] = useState<any>(null)
   const [earthingResult, setEarthingResult] = useState<any>(null)
   const [uqResult, setUqResult] = useState<any>(null)
+  const [projectChecksum, setProjectChecksum] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setProjectChecksum(null)
+  }, [projectId, projectName, lpsClass, buildingLength, buildingWidth, buildingHeight, physicalClearance])
 
   // Rolling sphere radius per IEC 62305-3:2024 Table 2
   const sphereRadius = useMemo(() => {
@@ -163,29 +169,53 @@ export default function App() {
       })
       const uData = await uqRes.json()
       setUqResult(uData)
+
+      await refreshProjectChecksum(buildReportProjectPayload())
     } catch (err) {
       console.error("Calculation execution failed:", err)
     }
   }
 
-  const downloadDocxReport = async () => {
-    const payload = {
-      name: `AegisLPS Engineering Project - Class ${lpsClass}`,
-      lps_class: lpsClass,
-      building: { length_m: buildingLength, width_m: buildingWidth, height_m: buildingHeight, roof_type: "flat" },
-      nodes: [{ id: "n1", x: 0, y: 0, z: buildingHeight, node_type: "air_termination" }],
-      segments: [],
-      separation_points: [{
-        id: "sp-hvac",
-        name: "Rooftop HVAC Unit",
-        x: targetEquipment.x,
-        y: targetEquipment.z,
-        z: buildingHeight,
-        associated_node_id: "n1",
-        insulation_medium: "air",
-        physical_distance_m: physicalClearance
-      }]
+  const buildReportProjectPayload = () => ({
+    project_id: projectId,
+    name: projectName || `AegisLPS Engineering Project - Class ${lpsClass}`,
+    lps_class: lpsClass,
+    building: { length_m: buildingLength, width_m: buildingWidth, height_m: buildingHeight, roof_type: "flat" },
+    nodes: [{ id: "n1", x: 0, y: 0, z: buildingHeight, node_type: "air_termination" }],
+    segments: [],
+    separation_points: [{
+      id: "sp-hvac",
+      name: "Rooftop HVAC Unit",
+      x: targetEquipment.x,
+      y: targetEquipment.z,
+      z: buildingHeight,
+      associated_node_id: "n1",
+      insulation_medium: "air",
+      physical_distance_m: physicalClearance
+    }]
+  })
+
+  const refreshProjectChecksum = async (payload: Record<string, unknown>) => {
+    try {
+      const res = await apiFetch('/api/v1/projects/compute-checksum', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        setProjectChecksum(null)
+        return
+      }
+      const data = await res.json()
+      setProjectChecksum(typeof data?.checksum === 'string' && data.checksum ? data.checksum : null)
+    } catch {
+      setProjectChecksum(null)
     }
+  }
+
+  const downloadDocxReport = async () => {
+    const payload = buildReportProjectPayload()
+    await refreshProjectChecksum(payload)
 
     try {
       const res = await apiFetch('/api/v1/reports/docx', {
@@ -408,6 +438,9 @@ export default function App() {
                 if (file) {
                   try {
                     const loaded = await loadProjectFromFile(file)
+                    if (loaded.project_id) {
+                      setProjectId(loaded.project_id)
+                    }
                     setProjectName(loaded.name)
                     setLpsClass(loaded.lps_class as any)
                     setBuildingLength(loaded.building.length_m)
@@ -429,7 +462,7 @@ export default function App() {
                 schema_version: "1.0.0",
                 application_version: "1.0.0-alpha.1",
                 standards_baseline: "IEC 62305:2024 Suite",
-                project_id: "aegis-proj-uuid-1",
+                project_id: projectId,
                 name: projectName,
                 lps_class: lpsClass,
                 building: { length_m: buildingLength, width_m: buildingWidth, height_m: buildingHeight, roof_type: "flat" },
@@ -758,7 +791,7 @@ export default function App() {
                   <div>
                     <p><b>Separation Clearance:</b> {calcResult ? (calcResult.pass_compliance ? 'PASSED (+0.35m margin)' : 'VIOLATION DETECTED') : 'Ready to compute'}</p>
                     <p><b>Earthing Resistance:</b> {earthingResult ? `${earthingResult.stationary_resistance_r_ohm} ohm (Compliant < 10 ohm)` : '1.83 ohm (Type B Ring)'}</p>
-                    <p><b>SHA-256 HMAC Checksum:</b> 3a0e5fd34a07fd3d21fbce074f84f612060e7174</p>
+                    <p><b>SHA-256 HMAC Checksum:</b> {projectChecksum ?? 'not computed'}</p>
                   </div>
                 </div>
               </div>

@@ -40,7 +40,7 @@ class DOCXReportRenderer:
         nodal_result: Optional[Dict[str, Any]] = None,
         bom_items: Optional[List[Dict[str, Any]]] = None,
         inspection_schedule: Optional[List[Dict[str, Any]]] = None,
-        checksum: str = "3a0e5fd34a07fd3d21fbce074f84f612060e7174"
+        checksum: Optional[str] = None,
     ) -> bytes:
         doc = docx.Document()
 
@@ -348,11 +348,19 @@ class DOCXReportRenderer:
         # ---------------------------------------------------------
         doc.add_paragraph().paragraph_format.space_after = Pt(16)
         p_seal = doc.add_paragraph()
-        r_seal = p_seal.add_run(
-            f"CRYPTOGRAPHIC INTEGRITY SEAL:\n"
-            f"SHA-256 HMAC Checksum: {checksum}\n"
-            f"Approved Revision Hash: {checksum[:32]}... | Verified Tamper-Evident"
-        )
+        clean_checksum = checksum.strip() if isinstance(checksum, str) else ""
+        if clean_checksum:
+            seal_text = (
+                f"CRYPTOGRAPHIC INTEGRITY SEAL:\n"
+                f"SHA-256 HMAC Checksum: {clean_checksum}\n"
+                f"Approved Revision Hash: {clean_checksum[:32]}... | Verified Tamper-Evident"
+            )
+        else:
+            seal_text = (
+                "CRYPTOGRAPHIC INTEGRITY SEAL:\n"
+                "SHA-256 HMAC Checksum: not computed"
+            )
+        r_seal = p_seal.add_run(seal_text)
         r_seal.font.size = Pt(8)
         r_seal.font.color.rgb = RGBColor(100, 116, 139)
         p_seal.alignment = WD_ALIGN_PARAGRAPH.CENTER

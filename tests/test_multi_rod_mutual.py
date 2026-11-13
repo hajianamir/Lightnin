@@ -156,7 +156,7 @@ def test_earth_rod_sizing_engine_uses_pairwise_mutual():
         )
     )
     assert res.required_number_of_rods == 5
-    assert abs(res.total_array_resistance_ohm - 9.65) < 0.01
+    assert abs(res.total_array_resistance_ohm - 9.82) < 0.01
     assert len(res.recommended_rod_coordinates) == 5
 
 

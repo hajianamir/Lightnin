@@ -515,7 +515,13 @@ def compute_checksum(project: Project):
 @api_v1_router.post("/api/v1/reports/docx")
 def generate_docx_report(project: Project):
     results = calc_engine.calculate_project(project)
-    docx_bytes = DOCXReportRenderer.render_docx_report(project, results)
+    try:
+        computed_checksum: Optional[str] = compute_checksum(project)["checksum"]
+    except IntegrityKeyNotConfigured:
+        computed_checksum = None
+    docx_bytes = DOCXReportRenderer.render_docx_report(
+        project, results, checksum=computed_checksum
+    )
     return Response(
         content=docx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

@@ -32,7 +32,7 @@ def test_earth_pit_sizing_and_gem_backfill():
 def test_earth_rod_sizing_multi_material():
     engine = EarthRodSizingEngine()
     
-    # 1. Copper bonded steel (5/8" / 16mm)
+    # 1. Copper bonded steel (min 14.0 mm per IEC 62305-3:2024 Clause 5.6.2, Table 8)
     inp_cu_bond = EarthRodSizingInput(
         soil_resistivity_ohm_m=120.0,
         target_resistance_ohm=10.0,
@@ -42,13 +42,13 @@ def test_earth_rod_sizing_multi_material():
         site_boundary_width_m=25.0,
     )
     res_cu = engine.size_earth_rod_system(inp_cu_bond)
-    assert res_cu.nominal_diameter_mm == 16.0
+    assert res_cu.nominal_diameter_mm == 14.0
     # IEC 62561-2 Table 1 minimum copper coating thickness for copper-bonded steel is 250 um:
     assert res_cu.coating_thickness_um == 250.0
     assert res_cu.inter_rod_spacing_rule_m == 6.0 # 2 * 3m = 6m rule
-    # Dwight single rod: R_1 = (120 / (6*pi)) * (ln(12/0.008) - 1) = 40.1912 ohm;
-    # even with zero mutual resistance, R_1 / 4 = 10.0478 > 10.0 ohm requires N >= 5 rods:
-    assert res_cu.single_rod_resistance_ohm == pytest.approx(40.19, abs=0.01)
+    # Dwight single rod at r = 0.007 m: R_1 = (120 / (6*pi)) * (ln(12/0.007) - 1) = 41.0413 ohm;
+    # even with zero mutual resistance, R_1 / 4 = 10.2603 > 10.0 ohm requires N >= 5 rods:
+    assert res_cu.single_rod_resistance_ohm == pytest.approx(41.04, abs=0.01)
     assert res_cu.required_number_of_rods == 5
     # Sanity check only (multi-rod array mutual-coupling primary source pending per H4; checks target <= 10 ohm):
     assert res_cu.total_array_resistance_ohm <= 10.0

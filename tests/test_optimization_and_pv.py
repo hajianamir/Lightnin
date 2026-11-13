@@ -30,32 +30,29 @@ def test_design_optimization_coverage_improvement():
 def test_pv_rooftop_isolated_clearance():
     pv_engine = PVEngineeringModule()
     
-    # Case 1: Adequate physical clearance (1.5m > 0.6m req) -> Isolated PASS
+    # Case 1: Adequate physical clearance (1.5m > 0.792m req for Table 13 n=2, kc=0.66) -> Isolated PASS
     pv_isolated = PVArraySpecification(
-        tilt_angle_deg=15.0,
-        panel_count=24,
-        array_length_m=12.0,
-        array_width_m=6.0,
         lps_class="I",
         down_conductor_length_l_m=15.0,
         separation_to_lps_m=1.5,
         insulation_medium="air",
+        down_conductor_count=2,
+        earth_resistances_within_factor_2=True,
     )
     res_iso = pv_engine.evaluate_pv_installation(pv_isolated)
+    assert res_iso.kc_used == 0.66
     assert res_iso.is_isolated_lps_sufficient is True
     assert res_iso.requires_equipotential_bonding is False
     assert res_iso.status == "ISOLATED_PASS"
 
-    # Case 2: Inadequate physical clearance (0.3m < 0.6m req) -> Bonding Mandatory
+    # Case 2: Inadequate physical clearance (0.3m < 0.792m req) -> Bonding Mandatory
     pv_close = PVArraySpecification(
-        tilt_angle_deg=15.0,
-        panel_count=24,
-        array_length_m=12.0,
-        array_width_m=6.0,
         lps_class="I",
         down_conductor_length_l_m=15.0,
         separation_to_lps_m=0.3,
         insulation_medium="air",
+        down_conductor_count=2,
+        earth_resistances_within_factor_2=True,
     )
     res_close = pv_engine.evaluate_pv_installation(pv_close)
     assert res_close.is_isolated_lps_sufficient is False

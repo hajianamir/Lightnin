@@ -143,10 +143,6 @@ def test_a4_generate_bom_route_requires_all_fields():
 
 def _valid_pv_kwargs(**overrides):
     base = {
-        "tilt_angle_deg": 15.0,
-        "panel_count": 24,
-        "array_length_m": 12.0,
-        "array_width_m": 6.0,
         "separation_to_lps_m": 0.85,
         "lps_class": "I",
         "down_conductor_length_l_m": 15.0,
@@ -156,15 +152,11 @@ def _valid_pv_kwargs(**overrides):
     return base
 
 
-def test_b1_pv_requires_all_physical_fields_and_checks_bonded_bool():
+def test_b1_pv_requires_all_physical_fields_and_rejects_removed_unused_inputs():
     with pytest.raises(ValidationError):
         PVArraySpecification()  # type: ignore[call-arg]
 
     for required_key in (
-        "tilt_angle_deg",
-        "panel_count",
-        "array_length_m",
-        "array_width_m",
         "separation_to_lps_m",
         "lps_class",
         "down_conductor_length_l_m",
@@ -175,29 +167,27 @@ def test_b1_pv_requires_all_physical_fields_and_checks_bonded_bool():
         with pytest.raises(ValidationError):
             PVArraySpecification(**kw)
 
-    with pytest.raises(ValidationError):
-        PVArraySpecification(**_valid_pv_kwargs(metallic_frame_bonded="yes"))
+    # Step 6.1 (M5): removed unused inputs must be rejected (extra="forbid"), not silently ignored
+    for removed_key, val in (
+        ("id", "pv-array-1"),
+        ("tilt_angle_deg", 15.0),
+        ("panel_count", 24),
+        ("array_length_m", 12.0),
+        ("array_width_m", 6.0),
+        ("metallic_frame_bonded", True),
+    ):
+        with pytest.raises(ValidationError):
+            PVArraySpecification(**_valid_pv_kwargs(**{removed_key: val}))
 
     spec = PVArraySpecification(**_valid_pv_kwargs())
-    assert spec.metallic_frame_bonded is True
+    assert spec.down_conductor_count is None
+    assert spec.earth_resistances_within_factor_2 is None
 
 
 def test_b2_pv_numeric_domain_validation():
-    for bad_tilt in (-0.1, 90.1, float("nan"), float("inf"), True, False):
+    for bad_val in (0.0, -1.0, float("nan"), float("inf"), True, False):
         with pytest.raises(ValidationError):
-            PVArraySpecification(**_valid_pv_kwargs(tilt_angle_deg=bad_tilt))
-    assert PVArraySpecification(**_valid_pv_kwargs(tilt_angle_deg=0.0)).tilt_angle_deg == 0.0
-    assert PVArraySpecification(**_valid_pv_kwargs(tilt_angle_deg=90.0)).tilt_angle_deg == 90.0
-
-    for bad_panels in (0, -3, 24.0, True, False):
-        with pytest.raises(ValidationError):
-            PVArraySpecification(**_valid_pv_kwargs(panel_count=bad_panels))
-    assert PVArraySpecification(**_valid_pv_kwargs(panel_count=1)).panel_count == 1
-
-    for field in ("array_length_m", "array_width_m", "down_conductor_length_l_m"):
-        for bad_val in (0.0, -1.0, float("nan"), float("inf"), True, False):
-            with pytest.raises(ValidationError):
-                PVArraySpecification(**_valid_pv_kwargs(**{field: bad_val}))
+            PVArraySpecification(**_valid_pv_kwargs(down_conductor_length_l_m=bad_val))
 
     for bad_sep in (-0.01, float("nan"), float("inf"), True, False):
         with pytest.raises(ValidationError):
@@ -206,6 +196,13 @@ def test_b2_pv_numeric_domain_validation():
         PVArraySpecification(**_valid_pv_kwargs(separation_to_lps_m=0.0)).separation_to_lps_m
         == 0.0
     )
+
+    for bad_n in (0, -2, 2.0, True, False, "2"):
+        with pytest.raises(ValidationError):
+            PVArraySpecification(**_valid_pv_kwargs(down_conductor_count=bad_n))
+    for bad_flag in (1, 0, "true", "yes"):
+        with pytest.raises(ValidationError):
+            PVArraySpecification(**_valid_pv_kwargs(earth_resistances_within_factor_2=bad_flag))
 
 
 def test_b3_b4_pv_lps_class_and_insulation_medium_from_standards_repo():
@@ -218,20 +215,34 @@ def test_b3_b4_pv_lps_class_and_insulation_medium_from_standards_repo():
             PVArraySpecification(**_valid_pv_kwargs(insulation_medium=bad_med))
 
     eng = PVEngineeringModule()
+    # Table 13 fallback (down_conductor_count omitted -> kc = 1.0): s = 0.08 * (1.0 / 1.0) * 15.0 = 1.2 m
     res_air = eng.evaluate_pv_installation(PVArraySpecification(**_valid_pv_kwargs()))
-    assert res_air.required_separation_s_m == 0.6
+    assert res_air.kc_used == 1.0
+    assert res_air.required_separation_s_m == 1.2
     assert res_air.actual_clearance_m == 0.85
-    assert res_air.status == "ISOLATED_PASS"
+    assert res_air.status == "BONDING_MANDATORY"
+
+    # Table 13 n=2 with earth resistances within factor 2 -> kc = 0.66:
+    res_n2 = eng.evaluate_pv_installation(
+        PVArraySpecification(
+            **_valid_pv_kwargs(
+                down_conductor_count=2, earth_resistances_within_factor_2=True
+            )
+        )
+    )
+    assert res_n2.kc_used == 0.66
+    assert res_n2.required_separation_s_m == round(0.08 * (0.66 / 1.0) * 15.0, 3)
+    assert res_n2.status == "ISOLATED_PASS"
 
     res_solid = eng.evaluate_pv_installation(
         PVArraySpecification(**_valid_pv_kwargs(insulation_medium="solid"))
     )
-    assert res_solid.required_separation_s_m == 1.2
+    assert res_solid.required_separation_s_m == 2.4
 
     res_standoff = eng.evaluate_pv_installation(
         PVArraySpecification(**_valid_pv_kwargs(insulation_medium="insulating_standoff"))
     )
-    assert res_standoff.required_separation_s_m == round(0.08 * (0.5 / 0.7) * 15.0, 3)
+    assert res_standoff.required_separation_s_m == round(0.08 * (1.0 / 0.7) * 15.0, 3)
 
 
 # ===========================================================================
@@ -241,11 +252,9 @@ def test_b3_b4_pv_lps_class_and_insulation_medium_from_standards_repo():
 
 def _valid_hvi_kwargs(**overrides):
     base = {
-        "lps_class": "I",
         "required_equivalent_separation_s_air_m": 0.75,
         "down_conductor_route_length_m": 18.0,
         "hvi_conductor_model": "HVI_light_75",
-        "ambient_installation_type": "outdoor_façade",
     }
     base.update(overrides)
     return base
@@ -256,35 +265,32 @@ def test_c1_c4_hvi_requires_all_fields_and_rejects_unknown_enums():
         HVIConductorSelectionInput()  # type: ignore[call-arg]
 
     for key in (
-        "lps_class",
         "required_equivalent_separation_s_air_m",
         "down_conductor_route_length_m",
         "hvi_conductor_model",
-        "ambient_installation_type",
     ):
         kw = _valid_hvi_kwargs()
         kw.pop(key)
         with pytest.raises(ValidationError):
             HVIConductorSelectionInput(**kw)
 
-    for bad_cls in ("V", "i", ""):
+    # Step 6.1 (M4): removed unused inputs must raise ValidationError rather than be silently ignored
+    for removed_key, val in (
+        ("lps_class", "I"),
+        ("ambient_installation_type", "outdoor_façade"),
+    ):
         with pytest.raises(ValidationError):
-            HVIConductorSelectionInput(**_valid_hvi_kwargs(lps_class=bad_cls))
-
-    for bad_amb in ("indoor_riser", "buried", ""):
-        with pytest.raises(ValidationError):
-            HVIConductorSelectionInput(**_valid_hvi_kwargs(ambient_installation_type=bad_amb))
+            HVIConductorSelectionInput(**_valid_hvi_kwargs(**{removed_key: val}))
 
     for bad_model in ("HVI_unknown", "HVI_heavy_120", ""):
         with pytest.raises(ValidationError):
             HVIConductorSelectionInput(**_valid_hvi_kwargs(hvi_conductor_model=bad_model))
 
     assistant = HVIConductorAssistant()
-    for amb in ("outdoor_façade", "outdoor_facade"):
-        res = assistant.evaluate_hvi_selection(
-            HVIConductorSelectionInput(**_valid_hvi_kwargs(ambient_installation_type=amb))
-        )
-        assert res.status == "COMPLIANT_APPROVED"
+    res = assistant.evaluate_hvi_selection(
+        HVIConductorSelectionInput(**_valid_hvi_kwargs())
+    )
+    assert res.status == "COMPLIANT_APPROVED"
 
 
 def test_c2_c3_hvi_positive_finite_lengths():
