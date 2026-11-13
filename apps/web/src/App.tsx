@@ -1,5 +1,6 @@
 import ProjectWizard from './components/ProjectWizard'
 import HelpManual from './components/HelpManual'
+import { apiFetch } from './backendConfig'
 import {
   AegisProjectFile,
   exportProjectToFile,
@@ -104,7 +105,7 @@ export default function App() {
           physical_distance_m: physicalClearance
         }]
       }
-      const sepRes = await fetch('/api/v1/calculations/separation-distance', {
+      const sepRes = await apiFetch('/api/v1/calculations/separation-distance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sepPayload)
@@ -113,7 +114,7 @@ export default function App() {
       setCalcResult(sepData[0])
 
       // 2. Nodal Current Sharing
-      const nodalRes = await fetch('/api/v1/calculations/nodal-kc', {
+      const nodalRes = await apiFetch('/api/v1/calculations/nodal-kc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,7 +136,7 @@ export default function App() {
       setNodalResult(nData)
 
       // 3. Earthing Analysis (Dwight Ring)
-      const earthRes = await fetch('/api/v1/calculations/earthing', {
+      const earthRes = await apiFetch('/api/v1/calculations/earthing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -149,7 +150,7 @@ export default function App() {
       setEarthingResult(eData)
 
       // 4. Uncertainty Quantification (UQ Monte Carlo)
-      const uqRes = await fetch('/api/v1/calculations/uq-monte-carlo', {
+      const uqRes = await apiFetch('/api/v1/calculations/uq-monte-carlo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +188,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch('/api/v1/reports/docx', {
+      const res = await apiFetch('/api/v1/reports/docx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -223,7 +224,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch('/api/v1/reports/pdf', {
+      const res = await apiFetch('/api/v1/reports/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -297,7 +298,7 @@ export default function App() {
     setExportError(null)
     const payload = buildCadExportPayload(originMode)
     try {
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

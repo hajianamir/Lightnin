@@ -1,12 +1,16 @@
-"""Step 4.2 — H12(b): Explicit CORS origins, methods, and headers; no wildcard or credentials."""
+"""Step 4.2 & Step 5.3-D — H12(b): Explicit CORS origins matching Tauri 2 (`useHttpsScheme: false`)."""
 
 from __future__ import annotations
+
+import json
+from pathlib import Path
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 
 from aegislps_api.main import app
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
 client = TestClient(app)
 
 EXPECTED_ORIGINS = [
@@ -14,7 +18,6 @@ EXPECTED_ORIGINS = [
     "http://127.0.0.1:5173",
     "tauri://localhost",
     "http://tauri.localhost",
-    "https://tauri.localhost",
 ]
 
 
@@ -25,7 +28,7 @@ def test_cors_preflight_allows_configured_origins_exact_echo() -> None:
             headers={
                 "Origin": origin,
                 "Access-Control-Request-Method": "POST",
-                "Access-Control-Request-Headers": "Content-Type",
+                "Access-Control-Request-Headers": "Content-Type, Authorization",
             },
         )
         assert resp.status_code == 200
@@ -33,24 +36,32 @@ def test_cors_preflight_allows_configured_origins_exact_echo() -> None:
         assert resp.headers.get("access-control-allow-credentials") is None
 
 
-def test_cors_disallowed_origin_receives_no_allow_origin_header() -> None:
-    preflight = client.options(
-        "/api/v1/calculations/separation-distance",
-        headers={
-            "Origin": "https://evil.example",
-            "Access-Control-Request-Method": "POST",
-            "Access-Control-Request-Headers": "Content-Type",
-        },
+def test_cors_disallowed_origins_including_unused_https_tauri_receive_no_header() -> None:
+    tauri_cfg = json.loads(
+        (REPO_ROOT / "apps" / "desktop" / "src-tauri" / "tauri.conf.json").read_text(
+            encoding="utf-8"
+        )
     )
-    assert "access-control-allow-origin" not in preflight.headers
+    assert tauri_cfg["app"]["windows"][0]["useHttpsScheme"] is False
 
-    simple_get = client.get("/health", headers={"Origin": "https://evil.example"})
-    assert simple_get.status_code == 200
-    assert "access-control-allow-origin" not in simple_get.headers
+    for disallowed in ("https://evil.example", "https://tauri.localhost"):
+        preflight = client.options(
+            "/api/v1/calculations/separation-distance",
+            headers={
+                "Origin": disallowed,
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "Content-Type",
+            },
+        )
+        assert "access-control-allow-origin" not in preflight.headers
+
+        simple_get = client.get("/health", headers={"Origin": disallowed})
+        assert simple_get.status_code == 200
+        assert "access-control-allow-origin" not in simple_get.headers
 
 
 def test_cors_responses_never_contain_wildcard_allow_origin() -> None:
-    for origin in (*EXPECTED_ORIGINS, "https://evil.example", "null"):
+    for origin in (*EXPECTED_ORIGINS, "https://evil.example", "https://tauri.localhost", "null"):
         r_opt = client.options(
             "/api/v1/calculations/separation-distance",
             headers={

@@ -13,7 +13,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WEB_SRC = REPO_ROOT / "apps" / "web" / "src"
 
 _LOOPBACK_RE = re.compile(r"(localhost|127\.0\.0\.1)", re.IGNORECASE)
-_FETCH_ARG_RE = re.compile(r"\bfetch\s*\(\s*([`'\"])(.*?)\1", re.DOTALL)
+# Step 5.3-C: App.tsx routes requests through `apiFetch('/api/v1/...')`, which
+# delegates to `fetch(...)` using relative paths outside Tauri and `get_backend_config` inside Tauri.
+_FETCH_ARG_RE = re.compile(r"\b(?:apiFetch|fetch)\s*\(\s*([`'\"])(.*?)\1", re.DOTALL)
 
 
 def _resolve_web_src() -> Path:

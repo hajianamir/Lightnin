@@ -1,7 +1,9 @@
+import hmac
 import math
+import os
 from typing import Optional
 
-from fastapi import Body, FastAPI, HTTPException, Request, Response, UploadFile, File
+from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -51,12 +53,39 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "tauri://localhost",
         "http://tauri.localhost",
-        "https://tauri.localhost",
     ],
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
+
+SIDECAR_TOKEN_ENV_VAR = "AEGISLPS_SIDECAR_TOKEN"
+
+
+def verify_sidecar_bearer_token(request: Request) -> None:
+    """Enforce `Authorization: Bearer <token>` on `/api/v1/*` when `AEGISLPS_SIDECAR_TOKEN` is set."""
+    expected_token = os.environ.get(SIDECAR_TOKEN_ENV_VAR)
+    if expected_token is None or expected_token == "":
+        return
+
+    auth_header = request.headers.get("Authorization", "")
+    scheme, sep, provided_token = auth_header.partition(" ")
+    if (
+        not sep
+        or scheme.lower() != "bearer"
+        or not provided_token
+        or not hmac.compare_digest(
+            provided_token.encode("utf-8"), expected_token.encode("utf-8")
+        )
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+api_v1_router = APIRouter(dependencies=[Depends(verify_sidecar_bearer_token)])
 
 
 @app.exception_handler(ValueError)
@@ -296,11 +325,11 @@ comp_risk_engine = ComprehensiveRisk2024Engine()
 def health_check():
     return {"status": "ok", "service": "AegisLPS API", "version": "1.0.0-alpha.1"}
 
-@app.post("/api/v1/calculations/separation-distance", response_model=list[SeparationCalculationResult])
+@api_v1_router.post("/api/v1/calculations/separation-distance", response_model=list[SeparationCalculationResult])
 def calculate_separation_distance(project: Project):
     return calc_engine.calculate_project(project)
 
-@app.post("/api/v1/calculations/nodal-kc")
+@api_v1_router.post("/api/v1/calculations/nodal-kc")
 def calculate_nodal_kc(inputs: NodalKCRequest):
     solver = NodalCurrentSolver(
         equivalent_frequency_khz=inputs.equivalent_frequency_khz
@@ -312,7 +341,7 @@ def calculate_nodal_kc(inputs: NodalKCRequest):
         inputs.total_injection_current_a,
     )
 
-@app.post("/api/v1/calculations/rolling-sphere")
+@api_v1_router.post("/api/v1/calculations/rolling-sphere")
 def calculate_rolling_sphere(
     request: Request,
     inputs: Optional[RollingSphereRequest] = Body(default=None),
@@ -368,47 +397,47 @@ def calculate_rolling_sphere(
         inputs.rod_height_m,
     )
 
-@app.post("/api/v1/calculations/protective-angle")
+@api_v1_router.post("/api/v1/calculations/protective-angle")
 def calculate_protective_angle(lps_class: str, rod_tip_x: float, rod_tip_y: float, rod_tip_z: float, ref_plane_z: float, object_x: float, object_y: float, object_z: float):
     return protective_angle_engine.check_object_in_cone(lps_class, rod_tip_x, rod_tip_y, rod_tip_z, ref_plane_z, object_x, object_y, object_z)
 
-@app.post("/api/v1/calculations/earthing")
+@api_v1_router.post("/api/v1/calculations/earthing")
 def calculate_earthing(inputs: EarthingAssessmentInput):
     return earthing_engine.evaluate_earthing_system(inputs)
 
-@app.post("/api/v1/calculations/touch-step")
+@api_v1_router.post("/api/v1/calculations/touch-step")
 def calculate_touch_step(inputs: TouchStepAssessmentInput):
     return touch_step_engine.evaluate(inputs)
 
-@app.post("/api/v1/calculations/spd-coordination")
+@api_v1_router.post("/api/v1/calculations/spd-coordination")
 def calculate_spd_coordination(spds: list[SPDEntry], equipment: EquipmentWithstand):
     return spd_engine.evaluate_coordination(spds, equipment)
 
-@app.post("/api/v1/calculations/risk")
+@api_v1_router.post("/api/v1/calculations/risk")
 def calculate_risk(inputs: RiskAssessmentInput):
     return risk_engine.evaluate_r1_risk(inputs)
 
-@app.post("/api/v1/calculations/pv-clearance")
+@api_v1_router.post("/api/v1/calculations/pv-clearance")
 def calculate_pv_clearance(pv_spec: PVArraySpecification):
     return pv_engine.evaluate_pv_installation(pv_spec)
 
-@app.post("/api/v1/calculations/earth-pit-sizing")
+@api_v1_router.post("/api/v1/calculations/earth-pit-sizing")
 def calculate_earth_pit_sizing(inputs: EarthPitSizingInput):
     return earth_pit_engine.evaluate_earth_pit_and_backfill(inputs)
 
-@app.post("/api/v1/calculations/earth-rod-sizing")
+@api_v1_router.post("/api/v1/calculations/earth-rod-sizing")
 def calculate_earth_rod_sizing(inputs: EarthRodSizingInput):
     return earth_rod_sizing_engine.size_earth_rod_system(inputs)
 
-@app.post("/api/v1/calculations/mesh-method")
+@api_v1_router.post("/api/v1/calculations/mesh-method")
 def calculate_mesh_method(inputs: MeshMethodInput):
     return mesh_method_engine.validate_mesh_design(inputs)
 
-@app.post("/api/v1/calculations/hvi-selection")
+@api_v1_router.post("/api/v1/calculations/hvi-selection")
 def calculate_hvi_selection(inputs: HVIConductorSelectionInput):
     return hvi_assistant.evaluate_hvi_selection(inputs)
 
-@app.post("/api/v1/projects/generate-bom")
+@api_v1_router.post("/api/v1/projects/generate-bom")
 def generate_project_bom(inputs: GenerateBOMRequest):
     return bom_engine.generate_project_bom(
         inputs.project_name,
@@ -420,7 +449,7 @@ def generate_project_bom(inputs: GenerateBOMRequest):
         inputs.down_conductor_count,
     )
 
-@app.post("/api/v1/calculations/peec-thermal")
+@api_v1_router.post("/api/v1/calculations/peec-thermal")
 def calculate_peec_thermal(inputs: PEECThermalRequest):
     return peec_engine.evaluate_thermal_and_electrodynamic_stress(
         inputs.props,
@@ -428,27 +457,27 @@ def calculate_peec_thermal(inputs: PEECThermalRequest):
         inputs.parallel_conductor_spacing_m,
     )
 
-@app.post("/api/v1/calculations/mesh-rolling-sphere")
+@api_v1_router.post("/api/v1/calculations/mesh-rolling-sphere")
 def calculate_mesh_rolling_sphere(inputs: MeshRollingSphereInput):
     return mesh_rs_engine.evaluate_mesh_protection(inputs)
 
-@app.post("/api/v1/calculations/comprehensive-risk-2024")
+@api_v1_router.post("/api/v1/calculations/comprehensive-risk-2024")
 def calculate_comprehensive_risk_2024(inputs: ComprehensiveRiskInput):
     return comp_risk_engine.evaluate_risk(inputs)
 
-@app.post("/api/v1/calculations/lemp-induced-voltage")
+@api_v1_router.post("/api/v1/calculations/lemp-induced-voltage")
 def calculate_lemp_induced_voltage(waveform: LEMPWaveformSpecification, shield: ShieldingGrid, loop: InternalCableLoop):
     return lemp_engine.calculate_lemp_induction(waveform, shield, loop)
 
-@app.post("/api/v1/calculations/uq-monte-carlo")
+@api_v1_router.post("/api/v1/calculations/uq-monte-carlo")
 def calculate_uq_monte_carlo(config: UQSimulationConfig):
     return uq_engine.run_monte_carlo(config)
 
-@app.post("/api/v1/optimization/optimize-rods")
+@api_v1_router.post("/api/v1/optimization/optimize-rods")
 def optimize_air_terminations(inputs: OptimizationInput):
     return optimization_engine.optimize_air_terminations(inputs)
 
-@app.post("/api/v1/exports/gltf")
+@api_v1_router.post("/api/v1/exports/gltf")
 def export_gltf_3d(project: Project):
     gltf_str = GLTF3DExporter.export_gltf_scene(
         project.building.length_m,
@@ -461,7 +490,7 @@ def export_gltf_3d(project: Project):
         "Content-Disposition": f"attachment; filename=AegisLPS_Scene_{project.project_id[:8]}.gltf"
     })
 
-@app.post("/api/v1/exports/dxf")
+@api_v1_router.post("/api/v1/exports/dxf")
 def export_dxf_plan(project: Project):
     dxf_bytes = DXFExporter.export_2d_plan(
         project.building.length_m,
@@ -473,17 +502,17 @@ def export_dxf_plan(project: Project):
         "Content-Disposition": f"attachment; filename=AegisLPS_2D_Plan_{project.project_id[:8]}.dxf"
     })
 
-@app.post("/api/v1/imports/ifc")
+@api_v1_router.post("/api/v1/imports/ifc")
 async def import_ifc_model(file: UploadFile = File(...)):
     content = await file.read()
     return IFCImporter.parse_ifc_building_elements(content)
 
-@app.post("/api/v1/projects/compute-checksum")
+@api_v1_router.post("/api/v1/projects/compute-checksum")
 def compute_checksum(project: Project):
     checksum = ProjectIntegrityEngine.compute_project_checksum(project.model_dump())
     return {"project_id": project.project_id, "checksum": checksum}
 
-@app.post("/api/v1/reports/docx")
+@api_v1_router.post("/api/v1/reports/docx")
 def generate_docx_report(project: Project):
     results = calc_engine.calculate_project(project)
     docx_bytes = DOCXReportRenderer.render_docx_report(project, results)
@@ -495,7 +524,7 @@ def generate_docx_report(project: Project):
         }
     )
 
-@app.post("/api/v1/reports/pdf")
+@api_v1_router.post("/api/v1/reports/pdf")
 def generate_pdf_report(project: Project):
     results = calc_engine.calculate_project(project)
     pdf_bytes = ReportRenderer.render_pdf_report(project, results)
@@ -503,3 +532,5 @@ def generate_pdf_report(project: Project):
     return Response(content=pdf_bytes, media_type="application/pdf", headers={
         "Content-Disposition": f"attachment; filename=AegisLPS_Report_{project.project_id[:8]}.pdf"
     })
+
+app.include_router(api_v1_router)

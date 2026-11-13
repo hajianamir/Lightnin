@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "AegisLPS",
+  "version": "1.0.0-draft",
+  "identifier": "org.aegislps.app",
+  "build": {
+    "beforeDevCommand": "npm run dev --workspace=apps/web",
+    "beforeBuildCommand": "npm run build --workspace=apps/web",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../../web/dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "AegisLPS Workbench",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "useHttpsScheme": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:* http://localhost:*",
+      "capabilities": [
+        "default"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "DeveloperTool",
+    "shortDescription": "Lightning Protection Systems Design & Calculation Workbench",
+    "longDescription": "AegisLPS Desktop Application",
+    "externalBin": [
+      "binaries/aegislps-backend"
+    ],
+    "icon": [],
+    "resources": [],
+    "copyright": "",
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
+  }
+}

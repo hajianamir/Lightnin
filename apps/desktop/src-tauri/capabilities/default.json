@@ -1,0 +1,22 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Least-privilege capability for main window: backend config IPC command and loopback HTTP scope only.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "allow-get-backend-config",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "http://127.0.0.1:*/*"
+        },
+        {
+          "url": "http://localhost:*/*"
+        }
+      ]
+    }
+  ]
+}

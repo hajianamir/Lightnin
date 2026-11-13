@@ -1,21 +1,25 @@
-"""Step 5.3 — M9 & linked desktop configuration / H11 key-forwarding checks."""
+"""Step 5.3 — Tauri 2 configuration, capabilities, version pins, and H11 key-forwarding checks."""
 
 from __future__ import annotations
 
 import io
 import json
 from pathlib import Path
+import re
+import secrets
 import sys
 from typing import Dict
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-TAURI_CONF_PATH = REPO_ROOT / "apps" / "desktop" / "tauri.conf.json"
-
-
-def _load_tauri_conf() -> Dict:
-    return json.loads(TAURI_CONF_PATH.read_text(encoding="utf-8"))
+SRC_TAURI_CONF_PATH = REPO_ROOT / "apps" / "desktop" / "src-tauri" / "tauri.conf.json"
+LEGACY_DESKTOP_CONF_PATH = REPO_ROOT / "apps" / "desktop" / "tauri.conf.json"
+CAPABILITY_PATH = (
+    REPO_ROOT / "apps" / "desktop" / "src-tauri" / "capabilities" / "default.json"
+)
+DESKTOP_PKG_JSON_PATH = REPO_ROOT / "apps" / "desktop" / "package.json"
+CARGO_TOML_PATH = REPO_ROOT / "apps" / "desktop" / "src-tauri" / "Cargo.toml"
 
 
 def _parse_csp_directives(csp: str) -> Dict[str, list[str]]:
@@ -29,46 +33,81 @@ def _parse_csp_directives(csp: str) -> Dict[str, list[str]]:
     return directives
 
 
-def test_tauri_conf_dev_vs_dist_and_narrowed_http_allowlist() -> None:
-    cfg = _load_tauri_conf()
+@pytest.mark.parametrize(
+    "conf_path,expected_dist",
+    [
+        (SRC_TAURI_CONF_PATH, "../../web/dist"),
+        (LEGACY_DESKTOP_CONF_PATH, "../web/dist"),
+    ],
+)
+def test_tauri_v2_conf_layout_csp_and_no_v1_allowlist(
+    conf_path: Path, expected_dist: str
+) -> None:
+    cfg = json.loads(conf_path.read_text(encoding="utf-8"))
 
-    assert cfg["build"]["devPath"] == "http://localhost:5173"
-    assert cfg["build"]["distDir"] == "../web/dist"
+    assert cfg["$schema"] == "https://schema.tauri.app/config/2"
+    assert "tauri" not in cfg
+    assert "package" not in cfg
+    assert "allowlist" not in cfg
+    assert "allowlist" not in cfg.get("app", {})
 
-    allowlist = cfg["tauri"]["allowlist"]
-    assert allowlist["all"] is False
-    http_cfg = allowlist["http"]
-    assert http_cfg["all"] is False
-    assert http_cfg["request"] is True
+    assert cfg["productName"] == "AegisLPS"
+    assert cfg["identifier"] == "org.aegislps.app"
+    assert cfg["build"]["devUrl"] == "http://localhost:5173"
+    assert cfg["build"]["frontendDist"] == expected_dist
+    assert cfg["bundle"]["externalBin"] == ["binaries/aegislps-backend"]
 
-    scopes = http_cfg["scope"]
-    assert len(scopes) > 0
-    for pattern in scopes:
-        assert ":*" not in pattern
-        assert pattern.startswith(
-            ("http://127.0.0.1:8000/", "http://localhost:8000/")
-        )
+    main_win = cfg["app"]["windows"][0]
+    assert main_win["label"] == "main"
+    assert main_win["useHttpsScheme"] is False
 
+    security = cfg["app"]["security"]
+    assert security["capabilities"] == ["default"]
 
-def test_tauri_conf_csp_has_no_unsafe_eval_and_no_inline_scripts() -> None:
-    cfg = _load_tauri_conf()
-    csp = cfg["tauri"]["security"]["csp"]
-
+    csp = security["csp"]
     assert "unsafe-eval" not in csp
-    assert ":*" not in csp
-
     directives = _parse_csp_directives(csp)
     assert directives["default-src"] == ["'self'"]
     assert directives["script-src"] == ["'self'"]
     assert "'unsafe-inline'" not in directives["default-src"]
     assert "'unsafe-inline'" not in directives["script-src"]
-    # Retained strictly on style-src because apps/web/index.html uses <body style="...">
-    assert "'unsafe-inline'" in directives["style-src"]
+    assert directives["style-src"] == ["'self'", "'unsafe-inline'"]
     assert set(directives["connect-src"]) == {
         "'self'",
-        "http://127.0.0.1:8000",
-        "http://localhost:8000",
+        "http://127.0.0.1:*",
+        "http://localhost:*",
     }
+
+
+def test_tauri_v2_capability_grants_only_get_backend_config_and_loopback_http() -> None:
+    cap = json.loads(CAPABILITY_PATH.read_text(encoding="utf-8"))
+    assert cap["identifier"] == "default"
+    assert cap["windows"] == ["main"]
+
+    perms = cap["permissions"]
+    assert perms == [
+        "allow-get-backend-config",
+        {
+            "identifier": "http:default",
+            "allow": [
+                {"url": "http://127.0.0.1:*/*"},
+                {"url": "http://localhost:*/*"},
+            ],
+        },
+    ]
+
+
+def test_tauri_cli_and_crate_versions_are_pinned_exactly() -> None:
+    pkg = json.loads(DESKTOP_PKG_JSON_PATH.read_text(encoding="utf-8"))
+    cli_ver = pkg["devDependencies"]["@tauri-apps/cli"]
+    assert re.fullmatch(r"2\.\d+\.\d+", cli_ver), f"Expected exact 2.x.y pin, got {cli_ver!r}"
+
+    cargo_toml = CARGO_TOML_PATH.read_text(encoding="utf-8")
+    assert re.search(r'^tauri\s*=\s*\{\s*version\s*=\s*"=2\.\d+\.\d+"', cargo_toml, re.M)
+    assert re.search(
+        r'^tauri-build\s*=\s*\{\s*version\s*=\s*"=2\.\d+\.\d+"', cargo_toml, re.M
+    )
+    assert re.search(r'^keyring\s*=\s*\{\s*version\s*=\s*"=3\.\d+\.\d+"', cargo_toml, re.M)
 
 
 def test_launcher_forwards_integrity_key_to_sidecar_env_without_logging_it(
@@ -78,8 +117,8 @@ def test_launcher_forwards_integrity_key_to_sidecar_env_without_logging_it(
         sys.path.append(str(REPO_ROOT))
     import run_aegislps
 
-    secret_value = "step53-super-secret-hmac-key-material-do-not-log-998877"
-    monkeypatch.setenv("AEGISLPS_INTEGRITY_KEY", secret_value)
+    runtime_key = secrets.token_hex(32)
+    monkeypatch.setenv("AEGISLPS_INTEGRITY_KEY", runtime_key)
 
     captured_envs: list[dict] = []
     captured_cmds: list[list[str]] = []
@@ -116,11 +155,9 @@ def test_launcher_forwards_integrity_key_to_sidecar_env_without_logging_it(
 
     assert rc == 1
     assert len(captured_envs) == 1
-    # ADR-002 Control 1: default bind host is loopback 127.0.0.1
     assert "--host" in captured_cmds[0]
     host_idx = captured_cmds[0].index("--host") + 1
     assert captured_cmds[0][host_idx] == "127.0.0.1"
-    # H11 / Step 5.3(e): key reaches child process via environment and is never logged
-    assert captured_envs[0]["AEGISLPS_INTEGRITY_KEY"] == secret_value
-    assert secret_value not in io_captured.out
-    assert secret_value not in io_captured.err
+    assert captured_envs[0]["AEGISLPS_INTEGRITY_KEY"] == runtime_key
+    assert runtime_key not in io_captured.out
+    assert runtime_key not in io_captured.err
