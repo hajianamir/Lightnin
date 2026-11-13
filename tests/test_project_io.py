@@ -15,7 +15,7 @@ def test_project_lps_json_serialization_and_deserialization():
             ConductorNode(id="n2", x=45, y=30, z=0, node_type="earth_point")
         ],
         separation_points=[
-            SeparationPoint(id="sp1", name="Control Room Rack", x=10, y=10, z=18.0, associated_node_id="n1", physical_distance_m=1.4)
+            SeparationPoint(id="sp1", name="Control Room Rack", x=10, y=10, z=18.0, associated_node_id="n1", insulation_medium="air", physical_distance_m=1.4)
         ]
     )
 

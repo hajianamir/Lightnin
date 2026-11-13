@@ -9,6 +9,8 @@ def test_mesh_method_dimensions_class_I():
     # Compliant 5x5m mesh on flat roof with perimeter conductor
     inp_ok = MeshMethodInput(
         lps_class="I",
+        roof_length_m=30.0,
+        roof_width_m=20.0,
         mesh_grid_dx_m=5.0,
         mesh_grid_dy_m=5.0,
         has_perimeter_conductor=True,
@@ -23,6 +25,8 @@ def test_mesh_method_dimensions_class_I():
     # Non-compliant 10x10m mesh for Class I (max 5x5m)
     inp_bad = MeshMethodInput(
         lps_class="I",
+        roof_length_m=30.0,
+        roof_width_m=20.0,
         mesh_grid_dx_m=10.0,
         mesh_grid_dy_m=10.0,
         has_perimeter_conductor=True,
@@ -42,7 +46,8 @@ def test_hvi_conductor_selection_and_clearance():
         lps_class="I",
         required_equivalent_separation_s_air_m=0.75,
         down_conductor_route_length_m=20.0,
-        hvi_conductor_model="HVI_standard_90"
+        hvi_conductor_model="HVI_standard_90",
+        ambient_installation_type="outdoor_façade",
     )
     res_good = hvi_assistant.evaluate_hvi_selection(inp_good)
     assert res_good.is_adequate_insulation is True
@@ -55,7 +60,8 @@ def test_hvi_conductor_selection_and_clearance():
         lps_class="I",
         required_equivalent_separation_s_air_m=0.90,
         down_conductor_route_length_m=20.0,
-        hvi_conductor_model="HVI_light_75"
+        hvi_conductor_model="HVI_light_75",
+        ambient_installation_type="outdoor_façade",
     )
     res_inad = hvi_assistant.evaluate_hvi_selection(inp_inadequate)
     assert res_inad.is_adequate_insulation is False
@@ -68,8 +74,11 @@ def test_bom_takeoff_and_lifecycle_schedule():
         lps_class="I",
         building_length_m=40.0,
         building_width_m=25.0,
-        building_height_m=12.0
+        building_height_m=12.0,
+        rod_count=4,
+        down_conductor_count=4,
     )
+    # Sanity check only (no standard defines BOM catalog line-item count; see M3):
     assert bom.total_components_count > 0
     assert any(i.category == "air_termination" for i in bom.items)
     assert any(i.category == "down_conductor" for i in bom.items)

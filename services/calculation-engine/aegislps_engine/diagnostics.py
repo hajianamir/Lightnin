@@ -7,7 +7,11 @@ from aegislps_standards.repository import StandardsRepository
 from aegislps_domain.models import Project, Building, ConductorNode, SeparationPoint
 from aegislps_engine.separation import SeparationDistanceEngine
 from aegislps_engine.nodal import NodalCurrentSolver
-from aegislps_engine.earthing import EarthingEngine, EarthingAssessmentInput
+from aegislps_engine.earthing import (
+    EarthingAssessmentInput,
+    EarthingEngine,
+    SoilLayerModel,
+)
 from aegislps_engine.touch_step import TouchStepEngine, TouchStepAssessmentInput
 from aegislps_engine.spd_coordination import SPDCoordinationEngine, SPDEntry
 from aegislps_geometry.rolling_sphere import RollingSphereEngine
@@ -35,9 +39,26 @@ class SystemDiagnostics:
         proj = Project(
             name="Diag Proj",
             lps_class="I",
-            building=Building(height_m=15.0),
-            nodes=[ConductorNode(id="n1", x=0, y=0, z=15.0)],
-            separation_points=[SeparationPoint(id="sp1", name="P1", x=0, y=0, z=15.0, associated_node_id="n1", physical_distance_m=1.5)]
+            building=Building(
+                length_m=20.0, width_m=10.0, height_m=15.0, roof_type="flat"
+            ),
+            nodes=[
+                ConductorNode(
+                    id="n1", x=0.0, y=0.0, z=15.0, node_type="air_termination"
+                )
+            ],
+            separation_points=[
+                SeparationPoint(
+                    id="sp1",
+                    name="P1",
+                    x=0.0,
+                    y=0.0,
+                    z=15.0,
+                    associated_node_id="n1",
+                    insulation_medium="air",
+                    physical_distance_m=1.5,
+                )
+            ],
         )
         sep_res = engine.calculate_project(proj)
         results["separation_engine"] = {
@@ -48,10 +69,29 @@ class SystemDiagnostics:
         # 3. Nodal Admittance Solver
         nodal = NodalCurrentSolver()
         nodal.build_network(
-            [{"id": "n1", "x": 0, "y": 0, "z": 10}, {"id": "n2", "x": 0, "y": 0, "z": 0}, {"id": "n3", "x": 10, "y": 0, "z": 0}],
-            [{"id": "s1", "start_node_id": "n1", "end_node_id": "n2"}, {"id": "s2", "start_node_id": "n1", "end_node_id": "n3"}]
+            [
+                {"id": "n1", "x": 0.0, "y": 0.0, "z": 10.0, "node_type": "conductor"},
+                {"id": "n2", "x": 0.0, "y": 0.0, "z": 0.0, "node_type": "conductor"},
+                {"id": "n3", "x": 10.0, "y": 0.0, "z": 0.0, "node_type": "conductor"},
+            ],
+            [
+                {
+                    "id": "s1",
+                    "start_node_id": "n1",
+                    "end_node_id": "n2",
+                    "cross_section_mm2": 50.0,
+                    "resistivity_ohm_m": 1.72e-8,
+                },
+                {
+                    "id": "s2",
+                    "start_node_id": "n1",
+                    "end_node_id": "n3",
+                    "cross_section_mm2": 50.0,
+                    "resistivity_ohm_m": 1.72e-8,
+                },
+            ],
         )
-        n_res = nodal.calculate_current_sharing("n1", ["n2", "n3"])
+        n_res = nodal.calculate_current_sharing("n1", ["n2", "n3"], 100000.0)
         results["nodal_solver"] = {
             "status": "PASS" if n_res["converged"] else "FAIL",
             "message": f"Current conservation relative residual: {n_res['relative_residual']*100:.2f}%"
@@ -59,7 +99,15 @@ class SystemDiagnostics:
 
         # 4. Earthing Dwight Formula
         earth = EarthingEngine()
-        e_res = earth.evaluate_earthing_system(EarthingAssessmentInput(lps_class="I", ring_radius_m=15.0))
+        e_res = earth.evaluate_earthing_system(
+            EarthingAssessmentInput(
+                lps_class="I",
+                soil=SoilLayerModel(rho_upper_ohm_m=100.0),
+                electrode_type="type_b_ring",
+                conductor_diameter_m=0.01,
+                ring_radius_m=15.0,
+            )
+        )
         results["earthing_engine"] = {
             "status": "PASS" if e_res.stationary_resistance_r_ohm > 0 else "FAIL",
             "message": f"Type B ring resistance: {e_res.stationary_resistance_r_ohm:.2f} ohm"

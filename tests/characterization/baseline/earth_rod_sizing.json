@@ -1,0 +1,42 @@
+{
+  "coating_thickness_um": 250.0,
+  "inter_rod_spacing_rule_m": 6.0,
+  "material_compliance_notes": [
+    "Electrode material: Copper Bonded Steel.",
+    "Conforms to IEC 62561-2 Table 1 minimum diameter: 16.0 mm.",
+    "Coating: Electroplated copper coating (250.0 um).",
+    "Single rod resistance: 40.19 ohm.",
+    "Total array: 5 rods x 3.0 m spaced at 6.0 m achieves R_tot = 9.65 ohm (Target <= 10.0 ohm).",
+    "Foundation setback clearance: 1.0 m verified."
+  ],
+  "nominal_diameter_mm": 16.0,
+  "recommended_rod_coordinates": [
+    [
+      -21.0,
+      -13.5
+    ],
+    [
+      21.0,
+      -13.5
+    ],
+    [
+      21.0,
+      13.5
+    ],
+    [
+      -21.0,
+      13.5
+    ],
+    [
+      -18.0,
+      -13.5
+    ]
+  ],
+  "required_number_of_rods": 5,
+  "selected_material": "copper_bonded_steel",
+  "single_rod_resistance_ohm": 40.19,
+  "status": "SIZED_AND_COMPLIANT",
+  "target_achieved": true,
+  "total_array_resistance_ohm": 9.65,
+  "unit_rod_length_m": 3.0
+}

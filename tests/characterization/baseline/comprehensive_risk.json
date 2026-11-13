@@ -1,0 +1,65 @@
+{
+  "default": {
+    "annual_strikes_nd_direct": 0.0330293128,
+    "annual_strikes_nl_services": 0.0,
+    "collection_area_ad_structure_m2": 13211.7,
+    "collection_area_al_services_m2": 0.0,
+    "mitigations_required": [],
+    "risk_components": {
+      "is_r1_acceptable": true,
+      "r_a_touch_step": 6.60586256e-07,
+      "r_b_physical_damage": 3.30293128e-07,
+      "r_c_internal_surges": 1.65146564e-07,
+      "r_m_magnetic_pulse": 1.65146564e-08,
+      "r_u_touch_voltage_service": 0.0,
+      "r_v_physical_damage_service": 0.0,
+      "r_w_internal_surges_service": 0.0,
+      "r_z_incoming_telecom": 0.0,
+      "tolerable_risk_rt": 1e-05,
+      "total_risk_r1": 1.1725406e-06
+    },
+    "status": "ACCEPTABLE (R1 <= RT)"
+  },
+  "incoming_line_no_transformer_shielded": {
+    "annual_strikes_nd_direct": 0.0330293128,
+    "annual_strikes_nl_services": 0.1,
+    "collection_area_ad_structure_m2": 13211.7,
+    "collection_area_al_services_m2": 40000.0,
+    "mitigations_required": [],
+    "risk_components": {
+      "is_r1_acceptable": true,
+      "r_a_touch_step": 6.60586256e-07,
+      "r_b_physical_damage": 3.30293128e-07,
+      "r_c_internal_surges": 1.65146564e-07,
+      "r_m_magnetic_pulse": 1.65146564e-08,
+      "r_u_touch_voltage_service": 1e-06,
+      "r_v_physical_damage_service": 5e-07,
+      "r_w_internal_surges_service": 2.5e-07,
+      "r_z_incoming_telecom": 5e-08,
+      "tolerable_risk_rt": 1e-05,
+      "total_risk_r1": 2.9725406e-06
+    },
+    "status": "ACCEPTABLE (R1 <= RT)"
+  },
+  "incoming_line_transformer_unshielded": {
+    "annual_strikes_nd_direct": 0.0330293128,
+    "annual_strikes_nl_services": 0.1,
+    "collection_area_ad_structure_m2": 13211.7,
+    "collection_area_al_services_m2": 40000.0,
+    "mitigations_required": [],
+    "risk_components": {
+      "is_r1_acceptable": true,
+      "r_a_touch_step": 6.60586256e-07,
+      "r_b_physical_damage": 3.30293128e-07,
+      "r_c_internal_surges": 1.65146564e-07,
+      "r_m_magnetic_pulse": 1.65146564e-08,
+      "r_u_touch_voltage_service": 1e-06,
+      "r_v_physical_damage_service": 5e-07,
+      "r_w_internal_surges_service": 2.5e-07,
+      "r_z_incoming_telecom": 5e-08,
+      "tolerable_risk_rt": 1e-05,
+      "total_risk_r1": 2.9725406e-06
+    },
+    "status": "ACCEPTABLE (R1 <= RT)"
+  }
+}

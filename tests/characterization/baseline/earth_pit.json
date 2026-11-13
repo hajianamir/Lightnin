@@ -1,0 +1,23 @@
+{
+  "backfill_mass_kg": 27.6,
+  "backfill_material": "carbon_gem",
+  "backfill_volume_m3": 0.023,
+  "conditioned_resistance_single_rod_ohm": 35.66,
+  "en124_load_class": "Class A15 (15 kN)",
+  "engineering_specifications": [
+    "Earth Inspection Pit: High-Density Polypropylene Inspection Pit with Anti-UV Lid (Class A15 (15 kN)) per IEC 62561-5.",
+    "Inner diameter: 250 mm, Depth: 260 mm with removable test disconnect clamp.",
+    "Backfill borehole: 100 mm diameter augered to depth 3.0 m.",
+    "Required backfill material: carbon_gem (permanent_non_leaching).",
+    "Required volume: 0.023 m3 (27.6 kg -> 2 x 25kg bags).",
+    "Electrode resistance improvement: 50.24 ohm -> 35.66 ohm (29.0% reduction)."
+  ],
+  "is_pit_required": true,
+  "number_of_25kg_bags": 2,
+  "pit_depth_mm": 260.0,
+  "pit_inner_diameter_mm": 250.0,
+  "pit_type": "High-Density Polypropylene Inspection Pit with Anti-UV Lid",
+  "resistance_reduction_percentage": 29.0,
+  "status": "SIZED_AND_VERIFIED",
+  "unconditioned_resistance_single_rod_ohm": 50.24
+}

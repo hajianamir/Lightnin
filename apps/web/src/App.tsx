@@ -42,6 +42,7 @@ export default function App() {
   const [nodalResult, setNodalResult] = useState<any>(null)
   const [earthingResult, setEarthingResult] = useState<any>(null)
   const [uqResult, setUqResult] = useState<any>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   // Rolling sphere radius per IEC 62305-3:2024 Table 2
   const sphereRadius = useMemo(() => {
@@ -103,7 +104,7 @@ export default function App() {
           physical_distance_m: physicalClearance
         }]
       }
-      const sepRes = await fetch('http://localhost:8000/api/v1/calculations/separation-distance', {
+      const sepRes = await fetch('/api/v1/calculations/separation-distance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sepPayload)
@@ -112,7 +113,7 @@ export default function App() {
       setCalcResult(sepData[0])
 
       // 2. Nodal Current Sharing
-      const nodalRes = await fetch('http://localhost:8000/api/v1/calculations/nodal-kc', {
+      const nodalRes = await fetch('/api/v1/calculations/nodal-kc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -134,7 +135,7 @@ export default function App() {
       setNodalResult(nData)
 
       // 3. Earthing Analysis (Dwight Ring)
-      const earthRes = await fetch('http://localhost:8000/api/v1/calculations/earthing', {
+      const earthRes = await fetch('/api/v1/calculations/earthing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,7 +149,7 @@ export default function App() {
       setEarthingResult(eData)
 
       // 4. Uncertainty Quantification (UQ Monte Carlo)
-      const uqRes = await fetch('http://localhost:8000/api/v1/calculations/uq-monte-carlo', {
+      const uqRes = await fetch('/api/v1/calculations/uq-monte-carlo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -186,7 +187,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/reports/docx', {
+      const res = await fetch('/api/v1/reports/docx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -222,7 +223,7 @@ export default function App() {
     }
 
     try {
-      const res = await fetch('http://localhost:8000/api/v1/reports/pdf', {
+      const res = await fetch('/api/v1/reports/pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -237,6 +238,112 @@ export default function App() {
       console.error("PDF download error:", e)
     }
   }
+
+  const buildCadExportPayload = (originMode: 'plan_corner' | 'centered') => {
+    const offsetX = originMode === 'plan_corner' ? buildingLength / 2 : 0
+    const offsetY = originMode === 'plan_corner' ? buildingWidth / 2 : 0
+    const airNodes = rods.map(rod => ({
+      id: rod.id,
+      x: rod.x + offsetX,
+      y: rod.z + offsetY,
+      z: buildingHeight,
+      node_type: 'air_termination'
+    }))
+    const downNodes = downConductors.map(dc => ({
+      id: dc.id,
+      x: dc.x + offsetX,
+      y: dc.z + offsetY,
+      z: buildingHeight,
+      node_type: 'down_conductor'
+    }))
+    const ringSegments = downConductors.map((dc, idx) => ({
+      id: `seg-ring-${idx + 1}`,
+      start_node_id: dc.id,
+      end_node_id: downConductors[(idx + 1) % downConductors.length].id,
+      material: 'copper',
+      cross_section_mm2: 50.0
+    }))
+
+    return {
+      name: projectName || `AegisLPS Engineering Project - Class ${lpsClass}`,
+      lps_class: lpsClass,
+      building: {
+        length_m: buildingLength,
+        width_m: buildingWidth,
+        height_m: buildingHeight,
+        roof_type: 'flat'
+      },
+      nodes: [...airNodes, ...downNodes],
+      segments: ringSegments,
+      separation_points: [{
+        id: 'sp-hvac',
+        name: 'Rooftop HVAC Unit',
+        x: targetEquipment.x + offsetX,
+        y: targetEquipment.z + offsetY,
+        z: buildingHeight,
+        associated_node_id: airNodes[airNodes.length - 1]?.id || 'rod-center',
+        insulation_medium: 'air',
+        physical_distance_m: physicalClearance
+      }]
+    }
+  }
+
+  const downloadCadAsset = async (
+    endpoint: '/api/v1/exports/dxf' | '/api/v1/exports/gltf',
+    filename: string,
+    originMode: 'plan_corner' | 'centered',
+    formatLabel: 'DXF' | 'glTF'
+  ) => {
+    setExportError(null)
+    const payload = buildCadExportPayload(originMode)
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`
+        try {
+          const errJson = await res.json()
+          if (errJson?.detail) {
+            detail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail)
+          }
+        } catch {
+          // Non-JSON error body; keep HTTP status summary
+        }
+        setExportError(`${formatLabel} export failed: ${detail}`)
+        return
+      }
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    } catch (err: any) {
+      setExportError(`${formatLabel} export network error: ${err?.message || 'Unable to reach export endpoint.'}`)
+    }
+  }
+
+  const downloadDxfPlan = () =>
+    downloadCadAsset(
+      '/api/v1/exports/dxf',
+      `AegisLPS_2D_Plan_Class_${lpsClass}.dxf`,
+      'plan_corner',
+      'DXF'
+    )
+
+  const downloadGltfScene = () =>
+    downloadCadAsset(
+      '/api/v1/exports/gltf',
+      `AegisLPS_3D_Scene_Class_${lpsClass}.gltf`,
+      'centered',
+      'glTF'
+    )
 
 
   return (
@@ -578,6 +685,23 @@ export default function App() {
                 </div>
               </div>
 
+              {exportError && (
+                <div
+                  role="alert"
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid #ef4444',
+                    color: '#fca5a5',
+                    padding: '12px 16px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    marginBottom: '16px'
+                  }}
+                >
+                  {exportError}
+                </div>
+              )}
+
               {/* Action Cards */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', margin: '24px 0' }}>
                 <div style={{ background: '#1e293b', padding: '20px', borderRadius: '8px', border: '1px solid #334155' }}>
@@ -605,7 +729,7 @@ export default function App() {
                   <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 16px 0' }}>
                     Layered AutoCAD compatible DXF plan with roof perimeter, conductor rings, and down conductors.
                   </p>
-                  <button onClick={() => alert('DXF download ready at /api/v1/exports/dxf')} style={{ width: '100%', padding: '10px', background: '#059669', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>
+                  <button onClick={downloadDxfPlan} style={{ width: '100%', padding: '10px', background: '#059669', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>
                     Export DXF Plan
                   </button>
                 </div>
@@ -615,7 +739,7 @@ export default function App() {
                   <p style={{ fontSize: '11px', color: '#94a3b8', margin: '0 0 16px 0' }}>
                     Standard glTF 2.0 3D scene containing building envelope, conductor paths, and air termination rods.
                   </p>
-                  <button onClick={() => alert('glTF download ready at /api/v1/exports/gltf')} style={{ width: '100%', padding: '10px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>
+                  <button onClick={downloadGltfScene} style={{ width: '100%', padding: '10px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}>
                     Export glTF 3D
                   </button>
                 </div>

@@ -1,0 +1,97 @@
+{
+  "default": {
+    "formula_trace": [
+      "C_s = 1.0 (guard: rho=100.000, rho_s=100.000, h_s=0.050) -> 1.000",
+      "k_t = 0.157 / sqrt(t_f) = 0.157 / sqrt(0.0500) -> 0.702125",
+      "U_touch,tol = (1000 + 1.5 * C_s * rho_s) * k_t = (1000 + 1.5 * 1.000 * 100.000) * 0.702125 -> 807.44 V",
+      "U_step,tol = (1000 + 6 * C_s * rho_s) * k_t = (1000 + 6 * 1.000 * 100.000) * 0.702125 -> 1123.40 V",
+      "V(1) = GPR * r_e / (r_e + 1) = 10000.00 * 2.0000 / (2.0000 + 1.0) -> 6666.67 V",
+      "V(2) = GPR * r_e / (r_e + 2) = 10000.00 * 2.0000 / (2.0000 + 2.0) -> 5000.00 V",
+      "U_touch,prosp = GPR - V(1) = 10000.00 - 6666.67 -> 3333.33 V",
+      "U_step,prosp = V(1) - V(2) = 6666.67 - 5000.00 -> 1666.67 V"
+    ],
+    "mitigation_credit_applied": false,
+    "mitigation_warning": "Mitigation flags are recommendations only. Any reduction credit requires engineer verification and is NOT applied in this calculation.",
+    "prospective_step_voltage_v": 1666.7,
+    "prospective_touch_voltage_v": 3333.3,
+    "recommended_mitigations": [
+      "Install high-voltage XLPE insulating conduit (100 kV, 1.2/50us) over lower 3m of down conductor",
+      "Apply a 5cm layer of asphalt (resistivity >= 10 kOhm.m) within 3m radius",
+      "Erect physical barrier/fence restricting public access within 3m",
+      "Lay 10cm crushed rock/gravel layer (resistivity >= 3 kOhm.m) over earth electrode zone",
+      "Install equipotential earth mesh ring buried at 0.5m depth around perimeter"
+    ],
+    "status": "HAZARD_DETECTED",
+    "step_hazard_controlled": false,
+    "step_safety_margin_v": -543.3,
+    "surface_derating_factor_cs": 1.0,
+    "tolerable_step_voltage_v": 1123.4,
+    "tolerable_touch_voltage_v": 807.4,
+    "touch_hazard_controlled": false,
+    "touch_safety_margin_v": -2525.9
+  },
+  "physical_insulation_barrier": {
+    "formula_trace": [
+      "C_s = 1.0 (guard: rho=100.000, rho_s=100.000, h_s=0.050) -> 1.000",
+      "k_t = 0.157 / sqrt(t_f) = 0.157 / sqrt(0.0500) -> 0.702125",
+      "U_touch,tol = (1000 + 1.5 * C_s * rho_s) * k_t = (1000 + 1.5 * 1.000 * 100.000) * 0.702125 -> 807.44 V",
+      "U_step,tol = (1000 + 6 * C_s * rho_s) * k_t = (1000 + 6 * 1.000 * 100.000) * 0.702125 -> 1123.40 V",
+      "V(1) = GPR * r_e / (r_e + 1) = 10000.00 * 2.0000 / (2.0000 + 1.0) -> 6666.67 V",
+      "V(2) = GPR * r_e / (r_e + 2) = 10000.00 * 2.0000 / (2.0000 + 2.0) -> 5000.00 V",
+      "U_touch,prosp = GPR - V(1) = 10000.00 - 6666.67 -> 3333.33 V",
+      "U_step,prosp = V(1) - V(2) = 6666.67 - 5000.00 -> 1666.67 V"
+    ],
+    "mitigation_credit_applied": false,
+    "mitigation_warning": "Mitigation flags are recommendations only. Any reduction credit requires engineer verification and is NOT applied in this calculation.",
+    "prospective_step_voltage_v": 1666.7,
+    "prospective_touch_voltage_v": 3333.3,
+    "recommended_mitigations": [
+      "Physical barrier flagged: credit requires engineer verification",
+      "Install high-voltage XLPE insulating conduit (100 kV, 1.2/50us) over lower 3m of down conductor",
+      "Apply a 5cm layer of asphalt (resistivity >= 10 kOhm.m) within 3m radius",
+      "Erect physical barrier/fence restricting public access within 3m",
+      "Lay 10cm crushed rock/gravel layer (resistivity >= 3 kOhm.m) over earth electrode zone",
+      "Install equipotential earth mesh ring buried at 0.5m depth around perimeter"
+    ],
+    "status": "HAZARD_DETECTED",
+    "step_hazard_controlled": false,
+    "step_safety_margin_v": -543.3,
+    "surface_derating_factor_cs": 1.0,
+    "tolerable_step_voltage_v": 1123.4,
+    "tolerable_touch_voltage_v": 807.4,
+    "touch_hazard_controlled": false,
+    "touch_safety_margin_v": -2525.9
+  },
+  "restricted_access_perimeter": {
+    "formula_trace": [
+      "C_s = 1.0 (guard: rho=100.000, rho_s=100.000, h_s=0.050) -> 1.000",
+      "k_t = 0.157 / sqrt(t_f) = 0.157 / sqrt(0.0500) -> 0.702125",
+      "U_touch,tol = (1000 + 1.5 * C_s * rho_s) * k_t = (1000 + 1.5 * 1.000 * 100.000) * 0.702125 -> 807.44 V",
+      "U_step,tol = (1000 + 6 * C_s * rho_s) * k_t = (1000 + 6 * 1.000 * 100.000) * 0.702125 -> 1123.40 V",
+      "V(1) = GPR * r_e / (r_e + 1) = 10000.00 * 2.0000 / (2.0000 + 1.0) -> 6666.67 V",
+      "V(2) = GPR * r_e / (r_e + 2) = 10000.00 * 2.0000 / (2.0000 + 2.0) -> 5000.00 V",
+      "U_touch,prosp = GPR - V(1) = 10000.00 - 6666.67 -> 3333.33 V",
+      "U_step,prosp = V(1) - V(2) = 6666.67 - 5000.00 -> 1666.67 V"
+    ],
+    "mitigation_credit_applied": false,
+    "mitigation_warning": "Mitigation flags are recommendations only. Any reduction credit requires engineer verification and is NOT applied in this calculation.",
+    "prospective_step_voltage_v": 1666.7,
+    "prospective_touch_voltage_v": 3333.3,
+    "recommended_mitigations": [
+      "Restricted access perimeter flagged: credit requires engineer verification",
+      "Install high-voltage XLPE insulating conduit (100 kV, 1.2/50us) over lower 3m of down conductor",
+      "Apply a 5cm layer of asphalt (resistivity >= 10 kOhm.m) within 3m radius",
+      "Erect physical barrier/fence restricting public access within 3m",
+      "Lay 10cm crushed rock/gravel layer (resistivity >= 3 kOhm.m) over earth electrode zone",
+      "Install equipotential earth mesh ring buried at 0.5m depth around perimeter"
+    ],
+    "status": "HAZARD_DETECTED",
+    "step_hazard_controlled": false,
+    "step_safety_margin_v": -543.3,
+    "surface_derating_factor_cs": 1.0,
+    "tolerable_step_voltage_v": 1123.4,
+    "tolerable_touch_voltage_v": 807.4,
+    "touch_hazard_controlled": false,
+    "touch_safety_margin_v": -2525.9
+  }
+}

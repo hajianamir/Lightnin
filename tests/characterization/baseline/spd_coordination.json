@@ -1,0 +1,50 @@
+{
+  "coordination_details": [
+    "Type 1 SPD installed at main service entrance boundary",
+    "Type 2 SPD installed at secondary power distribution board",
+    "IEC 62305-4:2024 C.2.3 (spd_2): U_w=2.500 kV, U_i=0.000 kV, k_r=2.000, U_p=1.500 kV, I_SPD=20.000 kA, lead_length=0.500 m, U_req=1.250 kV, L_max=0.000 m"
+  ],
+  "energy_coordination_verified": false,
+  "equipment": {
+    "category": "Cat II",
+    "induced_voltage_kv": 0.0,
+    "reflection_coefficient_kr": 2.0,
+    "uw_kv": 2.5
+  },
+  "max_connecting_lead_length_m": 0.0,
+  "spds": [
+    {
+      "cable_length_to_downstream_m": 5.0,
+      "i_imp_ka": 25.0,
+      "i_n_ka": 20.0,
+      "id": "spd_1",
+      "installed_lpz_boundary": "LPZ 0B / 1",
+      "lead_length_m": 0.5,
+      "spd_class": "Type 1",
+      "technology": "spark_gap",
+      "uc_volts": 275.0,
+      "up_kv": 1.5
+    },
+    {
+      "cable_length_to_downstream_m": 15.0,
+      "i_imp_ka": 25.0,
+      "i_n_ka": 20.0,
+      "id": "spd_2",
+      "installed_lpz_boundary": "LPZ 0B / 1",
+      "lead_length_m": 0.5,
+      "spd_class": "Type 2",
+      "technology": "spark_gap",
+      "uc_volts": 275.0,
+      "up_kv": 1.5
+    }
+  ],
+  "status": "ACTION_REQUIRED",
+  "voltage_protection_verified": false,
+  "warnings": [
+    "reflection_coefficient_kr not specified; using worst-case default k_r = 2.0 per IEC 62305-4:2024 Clause C.2.3.2.",
+    "Cable length between Type 1 spark gap and downstream SPD (5.0m) is less than 10m. Risk of premature MOV destruction before spark-gap fires without decoupling inductor.",
+    "Type 1 SPD 'spd_1' U_p (1.500 kV) exceeds Rule 1 limit 0.5 * U_w (1.250 kV) for Cat II (U_w=2.500 kV).",
+    "Equipment-side SPD 'spd_2' U_p (1.500 kV) exceeds Rule 1 limit 0.5 * U_w (1.250 kV).",
+    "IEC 62305-4:2024 Annex C.2.3 voltage coordination failed for SPD 'spd_2': U_w=2.500 kV, U_i=0.000 kV, k_r=2.000, U_req=1.250 kV, U_p=1.500 kV, I_SPD=20.000 kA, lead_length=0.500 m, ΔU=1.000 kV, U_p/f=1.500 kV, L_max=0.000 m."
+  ]
+}

@@ -16,6 +16,8 @@ Where:
 - $k_m$: Insulating material factor ($1.0$ for air, $0.5$ for solid concrete)
 - $l$: Spatial route length along conductor to nearest earth or equipotential bonding point [m]
 
+> **UNVERIFIED — known defect (H1):** `separation.py` sets `kc` from `len(project.segments)` (`1.0` for `<= 1` segment, `0.5` otherwise) rather than conductor topology or the nodal admittance matrix and uses `assoc_node.z` instead of route length `l`.
+
 ## 2. Nodal Current Admittance System
 $$\mathbf{Y} \cdot \mathbf{V} = \mathbf{I}$$
 

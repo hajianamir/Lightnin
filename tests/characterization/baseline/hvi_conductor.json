@@ -1,0 +1,16 @@
+{
+  "equivalent_separation_distance_se_m": 0.75,
+  "hvi_conductor_model": "HVI_light_75",
+  "is_adequate_insulation": true,
+  "length_limit_exceeded": false,
+  "max_permitted_route_length_m": 25.0,
+  "required_s_air_m": 0.75,
+  "requires_capacitive_sealing_ground": true,
+  "status": "COMPLIANT_APPROVED",
+  "technical_specifications": [
+    "Rated equivalent separation distance in air: s_e = 0.75 m.",
+    "Rated impulse withstand voltage: 150.0 kV (1.2/50 us waveform).",
+    "Maximum permissible continuous route length: 25.0 m.",
+    "Mandatory capacitive control: Outer semi-conductive sheath must be bonded to equipotential bar at sealing end."
+  ]
+}

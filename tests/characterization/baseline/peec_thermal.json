@@ -1,0 +1,21 @@
+{
+  "mutual_inductance_neumann_h": 2.09323539e-06,
+  "thermal_and_electrodynamic_stress": {
+    "action_integral_w_over_r_mj_per_ohm": 10.0,
+    "adiabatic_temp_rise_delta_theta_k": 21.6,
+    "cross_section_mm2": 50.0,
+    "engineering_insights": [
+      "Action integral W/R: 10.00 MJ/ohm for LPS Class I.",
+      "Adiabatic heating: Delta_theta = +21.6 K -> Final Temp = 41.6 °C (Permitted limit: 300 °C).",
+      "Peak electrodynamic repulsion force: 20000.0 N/m at spacing 10.0 cm.",
+      "Recommended mechanical support clip spacing: <= 0.20 m to withstand electrodynamic surge forces."
+    ],
+    "final_temperature_c": 41.6,
+    "material": "copper",
+    "max_permitted_temp_c": 300.0,
+    "peak_repulsive_force_n_per_m": 20000.0,
+    "recommended_fastener_spacing_m": 0.2,
+    "status": "COMPLIANT_SAFE",
+    "thermal_stress_safe": true
+  }
+}

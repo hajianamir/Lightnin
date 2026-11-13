@@ -1,122 +1,291 @@
+import math
 import networkx as nx
 import numpy as np
-from scipy.sparse import lil_matrix, csc_matrix
+from pydantic import BaseModel, ConfigDict, field_validator
+from scipy.sparse import lil_matrix
 from scipy.sparse.linalg import spsolve
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
+
+# Validated node_type set: domain-model roles plus nodal network "conductor".
+_VALID_NODAL_NODE_TYPES = (
+    "air_termination",
+    "down_conductor",
+    "earth_point",
+    "bonding",
+    "conductor",
+)
+
+
+def _check_finite_float(name: str, v: Any) -> float:
+    if isinstance(v, bool) or not isinstance(v, (int, float, np.number)):
+        raise ValueError(f"{name} must be a finite number, not bool; got {v!r}.")
+    val = float(v)
+    if not math.isfinite(val):
+        raise ValueError(f"{name} must be finite, got {v!r}.")
+    return val
+
+
+def _check_positive_finite_float(name: str, v: Any) -> float:
+    val = _check_finite_float(name, v)
+    if val <= 0.0:
+        raise ValueError(f"{name} must be > 0, got {v!r}.")
+    return val
+
+
+def _check_nonnegative_finite_float(name: str, v: Any) -> float:
+    val = _check_finite_float(name, v)
+    if val < 0.0:
+        raise ValueError(f"{name} must be >= 0, got {v!r}.")
+    return val
+
+
+def _check_nonempty_str(name: str, v: Any) -> str:
+    if not isinstance(v, str) or not v.strip():
+        raise ValueError(f"{name} must be a non-empty string, got {v!r}.")
+    return v
+
+
+class NodeIn(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    id: str
+    x: float
+    y: float
+    z: float
+    node_type: str
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def _validate_id(cls, v: Any) -> str:
+        return _check_nonempty_str("id", v)
+
+    @field_validator("x", "y", "z", mode="before")
+    @classmethod
+    def _validate_coords(cls, v: Any, info) -> float:
+        return _check_finite_float(info.field_name, v)
+
+    @field_validator("node_type", mode="before")
+    @classmethod
+    def _validate_node_type(cls, v: Any) -> str:
+        if not isinstance(v, str) or v not in _VALID_NODAL_NODE_TYPES:
+            raise ValueError(
+                f"Unknown node_type {v!r}; expected one of {_VALID_NODAL_NODE_TYPES}."
+            )
+        return v
+
+
+class SegmentIn(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
+
+    id: str
+    start_node_id: str
+    end_node_id: str
+    cross_section_mm2: float
+    resistivity_ohm_m: float
+    z_surge: Optional[float] = None
+    length: Optional[float] = None
+
+    @field_validator("id", "start_node_id", "end_node_id", mode="before")
+    @classmethod
+    def _validate_ids(cls, v: Any, info) -> str:
+        return _check_nonempty_str(info.field_name, v)
+
+    @field_validator("cross_section_mm2", "resistivity_ohm_m", mode="before")
+    @classmethod
+    def _validate_positive(cls, v: Any, info) -> float:
+        return _check_positive_finite_float(info.field_name, v)
+
+    @field_validator("z_surge", mode="before")
+    @classmethod
+    def _validate_z_surge(cls, v: Any) -> Optional[float]:
+        if v is None:
+            return None
+        return _check_nonnegative_finite_float("z_surge", v)
+
+    @field_validator("length", mode="before")
+    @classmethod
+    def _validate_length(cls, v: Any) -> Optional[float]:
+        if v is None:
+            return None
+        return _check_positive_finite_float("length", v)
+
 
 class NodalCurrentSolver:
     """
     Experimental Frequency-Domain Current-Sharing Solver.
-    
+
     ENGINEERING STATUS:
-    - Status: Experimental, unverified.
-    - Simplified frequency-domain approximation Z = R_dc + omega * L_eff.
+    - Experimental, unverified; not in IEC 62305-3:2024. Phasor AC circuit relation Z = R + jX (IEEE Std 142-2007, Clause 2.1.5).
+    - Simplified frequency-domain approximation Z = R_dc + j * omega * L_eff, y = 1 / Z.
     - Note: This is a simplified single-frequency approximation representing the high-frequency
       inductive behavior of lightning transients. It omits frequency-dependent skin effect,
       capacitive coupling to ground, and non-uniform ground-return impedances.
     - Not certified as a full transient time-domain electromagnetic solver.
     """
-    def __init__(self, equivalent_frequency_khz: float = 250.0):
-        self.freq_hz = equivalent_frequency_khz * 1e3
+
+    def __init__(
+        self,
+        # experimental single-frequency heuristic; not in IEC 62305-3:2024 Annex C
+        equivalent_frequency_khz: float = 250.0,
+    ):
+        freq_khz = _check_positive_finite_float(
+            "equivalent_frequency_khz", equivalent_frequency_khz
+        )
+        self.freq_hz = freq_khz * 1e3
         self.omega = 2.0 * np.pi * self.freq_hz
         self.graph = nx.Graph()
 
-    def build_network(self, nodes: List[Dict], segments: List[Dict]):
+    def build_network(
+        self,
+        nodes: Sequence[Union[NodeIn, Dict[str, Any]]],
+        segments: Sequence[Union[SegmentIn, Dict[str, Any]]],
+    ) -> None:
+        if not isinstance(nodes, (list, tuple)):
+            raise ValueError("nodes must be a list of NodeIn items.")
+        if not isinstance(segments, (list, tuple)):
+            raise ValueError("segments must be a list of SegmentIn items.")
+
+        parsed_nodes: List[NodeIn] = [
+            n if isinstance(n, NodeIn) else NodeIn.model_validate(n) for n in nodes
+        ]
+        parsed_segments: List[SegmentIn] = [
+            s if isinstance(s, SegmentIn) else SegmentIn.model_validate(s)
+            for s in segments
+        ]
+
         self.graph.clear()
-        for n in nodes:
+        seen_node_ids = set()
+        for n in parsed_nodes:
+            if n.id in seen_node_ids:
+                raise ValueError(f"Duplicate node id {n.id!r} in network.")
+            seen_node_ids.add(n.id)
             self.graph.add_node(
-                n["id"],
-                x=float(n["x"]),
-                y=float(n["y"]),
-                z=float(n["z"]),
-                node_type=n.get("node_type", "conductor")
+                n.id,
+                x=float(n.x),
+                y=float(n.y),
+                z=float(n.z),
+                node_type=n.node_type,
             )
 
-        for s in segments:
-            u, v = s["start_node_id"], s["end_node_id"]
-            if u not in self.graph or v not in self.graph:
-                continue
+        seen_seg_ids = set()
+        for s in parsed_segments:
+            if s.id in seen_seg_ids:
+                raise ValueError(f"Duplicate segment id {s.id!r} in network.")
+            seen_seg_ids.add(s.id)
 
-            dx = self.graph.nodes[u]['x'] - self.graph.nodes[v]['x']
-            dy = self.graph.nodes[u]['y'] - self.graph.nodes[v]['y']
-            dz = self.graph.nodes[u]['z'] - self.graph.nodes[v]['z']
-            length = float(np.sqrt(dx**2 + dy**2 + dz**2))
+            u, v = s.start_node_id, s.end_node_id
+            if u not in self.graph:
+                raise ValueError(
+                    f"Segment {s.id!r} references unknown start_node_id {u!r}."
+                )
+            if v not in self.graph:
+                raise ValueError(
+                    f"Segment {s.id!r} references unknown end_node_id {v!r}."
+                )
+            if u == v:
+                raise ValueError(
+                    f"Segment {s.id!r} has zero length (start_node_id == end_node_id == {u!r})."
+                )
 
-            if length < 1e-4:
-                continue
+            if s.length is not None:
+                length = float(s.length)
+            else:
+                dx = self.graph.nodes[u]["x"] - self.graph.nodes[v]["x"]
+                dy = self.graph.nodes[u]["y"] - self.graph.nodes[v]["y"]
+                dz = self.graph.nodes[u]["z"] - self.graph.nodes[v]["z"]
+                length = float(np.sqrt(dx**2 + dy**2 + dz**2))
 
-            cross_section_mm2 = float(s.get("cross_section_mm2", 50.0))
-            cross_section_m2 = max(1e-12, cross_section_mm2 * 1e-6)
-            rho = float(s.get("resistivity_ohm_m", 1.72e-8))
+            if not math.isfinite(length) or length <= 0.0:
+                raise ValueError(
+                    f"Segment {s.id!r} has zero or non-positive length ({length})."
+                )
+
+            cross_section_m2 = float(s.cross_section_mm2) * 1e-6
+            rho = float(s.resistivity_ohm_m)
 
             r_dc = (rho * length) / cross_section_m2
             radius_m = max(1e-4, np.sqrt(cross_section_m2 / np.pi))
-            l_inductance = max(1e-9, (2e-7) * length * max(1.0, (np.log(max(1.0, 2.0 * length / radius_m)) - 0.75)))
-            
-            z_surge = float(np.sqrt(r_dc**2 + (self.omega * l_inductance)**2))
-            admittance = 1.0 / max(1e-4, z_surge)
+            l_inductance = max(
+                1e-9,
+                (2e-7)
+                * length
+                * max(1.0, (np.log(max(1.0, 2.0 * length / radius_m)) - 0.75)),
+            )
+
+            # Experimental, unverified; not in IEC 62305-3:2024. Phasor AC circuit relation Z = R + jX (IEEE Std 142-2007, Clause 2.1.5).
+            if s.z_surge is not None:
+                z_surge = float(s.z_surge)
+                if not math.isfinite(z_surge) or z_surge <= 0.0:
+                    raise ValueError(
+                        f"Segment {s.id!r} surge impedance z_surge must be > 0, got {z_surge!r}."
+                    )
+                z_complex = complex(z_surge, 0.0)
+            else:
+                x_inductive = self.omega * l_inductance
+                z_complex = complex(r_dc, x_inductive)
+                z_surge = float(abs(z_complex))
+                if not (
+                    math.isfinite(z_complex.real)
+                    and math.isfinite(z_complex.imag)
+                    and math.isfinite(z_surge)
+                    and z_surge > 0.0
+                ):
+                    raise ValueError(
+                        f"Segment {s.id!r} surge impedance z_surge must be > 0, got {z_surge!r}."
+                    )
+
+            admittance = complex(1.0) / z_complex
 
             self.graph.add_edge(
-                u, v,
-                id=s["id"],
+                u,
+                v,
+                id=s.id,
                 length_m=length,
                 resistance_ohm=r_dc,
                 inductance_h=l_inductance,
-                impedance_ohm=z_surge,
-                admittance_siemens=admittance
+                impedance_ohm=z_complex,
+                impedance_magnitude_ohm=z_surge,
+                admittance_siemens=admittance,
             )
 
     def calculate_current_sharing(
         self,
         injection_node: str,
         earth_nodes: List[str],
-        total_injection_current_a: float = 100000.0
+        total_injection_current_a: float,
     ) -> Dict[str, Any]:
+        i_total = _check_positive_finite_float(
+            "total_injection_current_a", total_injection_current_a
+        )
+        _check_nonempty_str("injection_node", injection_node)
+        if not isinstance(earth_nodes, list) or len(earth_nodes) == 0:
+            raise ValueError("earth_nodes must be a non-empty list of node IDs.")
+        for en in earth_nodes:
+            _check_nonempty_str("earth_nodes item", en)
+
         node_list = list(self.graph.nodes())
         if not node_list:
-            return {
-                "kc_factors": {},
-                "segment_currents": {},
-                "node_potentials": {},
-                "kcl_residuals": {},
-                "max_kcl_residual_a": 0.0,
-                "relative_residual": 1.0,
-                "converged": False,
-                "condition_number_estimate": 0.0,
-                "warnings": ["Empty network graph"]
-            }
+            raise ValueError("Network graph is empty; add nodes before solving.")
 
-        if injection_node not in node_list:
-            return {
-                "kc_factors": {d["id"]: 0.0 for _, _, d in self.graph.edges(data=True)},
-                "segment_currents": {},
-                "node_potentials": {},
-                "kcl_residuals": {},
-                "max_kcl_residual_a": 0.0,
-                "relative_residual": 1.0,
-                "converged": False,
-                "condition_number_estimate": 0.0,
-                "warnings": [f"Injection node '{injection_node}' does not exist in network"]
-            }
+        if injection_node not in self.graph:
+            raise ValueError(
+                f"Injection node {injection_node!r} does not exist in network."
+            )
 
-        valid_earth = [en for en in earth_nodes if en in self.graph]
-        if not valid_earth:
-            return {
-                "kc_factors": {d["id"]: 0.0 for _, _, d in self.graph.edges(data=True)},
-                "segment_currents": {},
-                "node_potentials": {},
-                "kcl_residuals": {},
-                "max_kcl_residual_a": 0.0,
-                "relative_residual": 1.0,
-                "converged": False,
-                "condition_number_estimate": 0.0,
-                "warnings": ["No valid earth grounding nodes specified"]
-            }
+        for en in earth_nodes:
+            if en not in self.graph:
+                raise ValueError(
+                    f"Earth node {en!r} does not exist in network."
+                )
 
-        connected_earth = [en for en in valid_earth if nx.has_path(self.graph, injection_node, en)]
+        connected_earth = [
+            en for en in earth_nodes if nx.has_path(self.graph, injection_node, en)
+        ]
         if not connected_earth:
             return {
-                "kc_factors": {d["id"]: 0.0 for _, _, d in self.graph.edges(data=True)},
+                "kc_factors": {
+                    d["id"]: 0.0 for _, _, d in self.graph.edges(data=True)
+                },
                 "segment_currents": {},
                 "node_potentials": {},
                 "kcl_residuals": {},
@@ -124,15 +293,17 @@ class NodalCurrentSolver:
                 "relative_residual": 1.0,
                 "converged": False,
                 "condition_number_estimate": 0.0,
-                "warnings": [f"Injection node '{injection_node}' is galvanically isolated from earth terminations"]
+                "warnings": [
+                    f"Injection node '{injection_node}' is galvanically isolated from earth terminations"
+                ],
             }
 
         N = len(node_list)
         idx = {node: i for i, node in enumerate(node_list)}
-        Y = lil_matrix((N, N), dtype=np.float64)
-        I = np.zeros(N, dtype=np.float64)
+        Y = lil_matrix((N, N), dtype=np.complex128)
+        I = np.zeros(N, dtype=np.complex128)
 
-        I[idx[injection_node]] = total_injection_current_a
+        I[idx[injection_node]] = complex(i_total, 0.0)
 
         for u, v, data in self.graph.edges(data=True):
             i_u, i_v = idx[u], idx[v]
@@ -145,17 +316,21 @@ class NodalCurrentSolver:
         for en in connected_earth:
             e_i = idx[en]
             Y[e_i, :] = 0.0
-            Y[e_i, e_i] = 1.0
-            I[e_i] = 0.0
+            Y[e_i, e_i] = 1.0 + 0.0j
+            I[e_i] = 0.0 + 0.0j
 
         Y_csc = Y.tocsc()
         diag_elements = np.abs(Y_csc.diagonal())
         diag_max = float(np.max(diag_elements)) if len(diag_elements) > 0 else 1.0
-        diag_min = float(np.min(diag_elements[diag_elements > 0])) if np.any(diag_elements > 0) else 1e-6
+        diag_min = (
+            float(np.min(diag_elements[diag_elements > 0]))
+            if np.any(diag_elements > 0)
+            else 1e-6
+        )
         cond_estimate = diag_max / max(1e-12, diag_min)
 
         try:
-            V = spsolve(Y_csc, I)
+            V = np.atleast_1d(spsolve(Y_csc, I))
         except Exception as err:
             return {
                 "kc_factors": {},
@@ -166,19 +341,19 @@ class NodalCurrentSolver:
                 "relative_residual": 1.0,
                 "converged": False,
                 "condition_number_estimate": float(cond_estimate),
-                "warnings": [f"Sparse linear solver failed: {str(err)}"]
+                "warnings": [f"Sparse linear solver failed: {str(err)}"],
             }
 
-        node_potentials = {node: float(V[idx[node]]) for node in node_list}
+        node_potentials = {node: float(abs(V[idx[node]])) for node in node_list}
 
         kc_factors = {}
         segment_currents = {}
         for u, v, data in self.graph.edges(data=True):
             i_u, i_v = idx[u], idx[v]
-            v_drop = abs(V[i_u] - V[i_v])
-            i_branch = float(v_drop * data["admittance_siemens"])
+            i_branch_phasor = (V[i_u] - V[i_v]) * data["admittance_siemens"]
+            i_branch = float(abs(i_branch_phasor))
             segment_currents[data["id"]] = i_branch
-            kc_factors[data["id"]] = float(min(1.0, max(0.0, i_branch / max(1.0, total_injection_current_a))))
+            kc_factors[data["id"]] = float(min(1.0, max(0.0, i_branch / i_total)))
 
         kcl_residuals = {}
         max_kcl_res = 0.0
@@ -186,34 +361,43 @@ class NodalCurrentSolver:
             if node in connected_earth:
                 continue
             n_i = idx[node]
-            sum_current = 0.0
+            sum_current = 0.0 + 0.0j
             for neighbor in self.graph.neighbors(node):
                 nb_i = idx[neighbor]
-                g = self.graph[node][neighbor]["admittance_siemens"]
-                sum_current += (V[n_i] - V[nb_i]) * g
-            injected = total_injection_current_a if node == injection_node else 0.0
-            res = abs(sum_current - injected)
-            kcl_residuals[node] = float(res)
+                y_branch = self.graph[node][neighbor]["admittance_siemens"]
+                sum_current += (V[n_i] - V[nb_i]) * y_branch
+            injected = (
+                complex(i_total, 0.0) if node == injection_node else 0.0 + 0.0j
+            )
+            res = float(abs(sum_current - injected))
+            kcl_residuals[node] = res
             if res > max_kcl_res:
-                max_kcl_res = float(res)
+                max_kcl_res = res
 
-        total_earth_current = 0.0
+        i_earth = 0.0 + 0.0j
         for en in connected_earth:
             e_i = idx[en]
             for neighbor in self.graph.neighbors(en):
                 nb_i = idx[neighbor]
-                g = self.graph[en][neighbor]["admittance_siemens"]
-                total_earth_current += abs(V[nb_i] - V[e_i]) * g
+                y_branch = self.graph[en][neighbor]["admittance_siemens"]
+                i_earth += (V[nb_i] - V[e_i]) * y_branch
 
-        conservation_residual = abs(total_injection_current_a - total_earth_current)
-        rel_residual = float(conservation_residual / max(1.0, total_injection_current_a))
+        total_earth_current = float(abs(i_earth))
+        conservation_residual = float(abs(complex(i_total, 0.0) - i_earth))
+        rel_residual = float(conservation_residual / i_total)
         converged = bool(rel_residual < 0.02)
 
-        warnings = ["Approximation: Single-frequency equivalent impedance model; unverified transient response."]
+        warnings = [
+            "Approximation: Single-frequency equivalent impedance model; unverified transient response."
+        ]
         if not converged:
-            warnings.append(f"Global current conservation residual ({rel_residual*100:.2f}%) exceeded 2% tolerance")
-        if max_kcl_res > (0.05 * total_injection_current_a):
-            warnings.append(f"Local KCL residual at node ({max_kcl_res:.1f} A) indicates ill-conditioned branch")
+            warnings.append(
+                f"Global current conservation residual ({rel_residual*100:.2f}%) exceeded 2% tolerance"
+            )
+        if max_kcl_res > (0.05 * i_total):
+            warnings.append(
+                f"Local KCL residual at node ({max_kcl_res:.1f} A) indicates ill-conditioned branch"
+            )
 
         return {
             "kc_factors": kc_factors,
@@ -226,5 +410,5 @@ class NodalCurrentSolver:
             "relative_residual": float(rel_residual),
             "condition_number_estimate": float(cond_estimate),
             "converged": converged,
-            "warnings": warnings
+            "warnings": warnings,
         }

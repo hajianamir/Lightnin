@@ -1,0 +1,27 @@
+{
+  "condition_number_estimate": 14.5563153,
+  "conservation_residual_a": 2.66453526e-15,
+  "converged": true,
+  "kc_factors": {
+    "s1": 0.596333827,
+    "s2": 0.403666173
+  },
+  "kcl_residuals": {
+    "n1": 2.66453526e-15
+  },
+  "max_kcl_residual_a": 2.66453526e-15,
+  "node_potentials": {
+    "n1": 1455631.53,
+    "n2": 0.0,
+    "n3": 0.0
+  },
+  "relative_residual": 2.66453526e-20,
+  "segment_currents": {
+    "s1": 59633.3827,
+    "s2": 40366.6173
+  },
+  "total_earth_current_a": 100000.0,
+  "warnings": [
+    "Approximation: Single-frequency equivalent impedance model; unverified transient response."
+  ]
+}
