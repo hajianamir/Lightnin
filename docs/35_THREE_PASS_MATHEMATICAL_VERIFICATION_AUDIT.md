@@ -92,7 +92,7 @@ Each pass evaluated:
 ### 2.3 Multi-Material Earth Rod Sizing (`aegislps_engine/earth_rod_sizing.py`)
 - **Standards**: IEC 62561-2 Table 1.
 - **Allowed Materials & Dimensions**:
-  - Copper-bonded steel: Minimum $14.0\text{ mm}$ diameter with $\ge 250\ \mu\text{m}$ radial copper coating, per IEC 62305-3:2024 Clause 5.6.2 Table 8.
+  - Copper-bonded steel: Minimum $14.0\text{ mm}$ diameter per IEC 62305-3:2024 Clause 5.6.2 Table 8; the implemented $250\ \mu\text{m}$ radial copper coating is unsourced in the available standard text and requires confirmation.
   - Solid copper: Minimum $15.0\text{ mm}$ diameter.
   - Hot-dip galvanized steel: Minimum $20.0\text{ mm}$ diameter with $\ge 50\ \mu\text{m}$ zinc coating.
   - Stainless steel (V4A 1.4571): Minimum $16.0\text{ mm}$ diameter.
