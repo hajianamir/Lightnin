@@ -454,7 +454,8 @@ def export_gltf_3d(project: Project):
         project.building.length_m,
         project.building.width_m,
         project.building.height_m,
-        [n.model_dump() for n in project.nodes]
+        [n.model_dump() for n in project.nodes],
+        [s.model_dump() for s in project.segments] if project.segments else None,
     )
     return Response(content=gltf_str, media_type="model/gltf+json", headers={
         "Content-Disposition": f"attachment; filename=AegisLPS_Scene_{project.project_id[:8]}.gltf"
@@ -465,7 +466,8 @@ def export_dxf_plan(project: Project):
     dxf_bytes = DXFExporter.export_2d_plan(
         project.building.length_m,
         project.building.width_m,
-        [n.model_dump() for n in project.nodes]
+        [n.model_dump() for n in project.nodes],
+        [s.model_dump() for s in project.segments] if project.segments else None,
     )
     return Response(content=dxf_bytes, media_type="application/dxf", headers={
         "Content-Disposition": f"attachment; filename=AegisLPS_2D_Plan_{project.project_id[:8]}.dxf"

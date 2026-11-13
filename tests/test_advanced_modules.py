@@ -75,7 +75,11 @@ def test_dxf_exporter():
 
 def test_ifc_importer_interface_stub():
     res = IFCImporter.parse_ifc_building_elements(
-        b"ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nEND-ISO-10303-21;\n"
+        b"ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4'));\nENDSEC;\n"
+        b"DATA;\n#1=IFCCARTESIANPOINT((0.,0.,0.));\n#2=IFCCARTESIANPOINT((32.,14.,11.));\nENDSEC;\n"
+        b"END-ISO-10303-21;\n"
     )
     assert res["parsed"] is True
-    assert res["detected_building"]["length_m"] == 25.0
+    assert res["detected_building"]["length_m"] == 32.0
+    assert res["detected_building"]["width_m"] == 14.0
+    assert res["detected_building"]["height_m"] == 11.0

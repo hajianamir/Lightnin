@@ -33,7 +33,9 @@ import aegislps_geometry.protective_angle as protective_angle_mod
 client = TestClient(app)
 
 VALID_IFC_BYTES = (
-    b"ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4'));\nENDSEC;\nDATA;\nENDSEC;\nEND-ISO-10303-21;\n"
+    b"ISO-10303-21;\nHEADER;\nFILE_SCHEMA(('IFC4'));\nENDSEC;\n"
+    b"DATA;\n#10=IFCCARTESIANPOINT((0.,0.,0.));\n#11=IFCCARTESIANPOINT((28.,16.,12.));\nENDSEC;\n"
+    b"END-ISO-10303-21;\n"
 )
 
 
@@ -718,10 +720,10 @@ def test_g1_ifc_importer_rejects_empty_and_non_step_headers():
     res = IFCImporter.parse_ifc_building_elements(VALID_IFC_BYTES)
     assert res["parsed"] is True
     assert res["detected_building"] == {
-        "length_m": 25.0,
-        "width_m": 15.0,
-        "height_m": 18.0,
-        "roof_type": "flat",
+        "length_m": 28.0,
+        "width_m": 16.0,
+        "height_m": 12.0,
+        "roof_type": None,
     }
 
 
