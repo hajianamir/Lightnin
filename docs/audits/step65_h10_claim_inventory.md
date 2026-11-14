@@ -227,7 +227,7 @@ Line references use `d9ee3ab`. IEC 62305-4:2024 Annex C.2.3.1.2–C.2.3.5, C.2.4
 | 47 | 33:145 | Two-port SPD rules are not modeled | `services/calculation-engine/aegislps_engine/spd_coordination.py:195–211` | consistent | IEC 62305-4:2024 §C.2.3.1.4, §C.2.4 | retain open limitation |
 | 47 | 33:145 | No numerical line-length gate formula is stated in the standard text | none | unsourced | IEC 62305-4:2024 §C.2.3.4 | manual text review is not proof of absence across the full standard; retain as bounded review finding |
 | 48 | 33:152 | Rectangular structure Ad = LW + 6H(L+W) + 9πH² | `services/calculation-engine/aegislps_engine/risk.py:192–193` | consistent | IEC 62305-2:2024 Annex A.2.1.2 Eq. (A.3) | state rectangular isolated-structure scope |
-| 49 | 33:153 | ND = Ng Ad Cd × 10⁻⁶ | `services/calculation-engine/aegislps_engine/risk.py:195–196` | contradicted by code | IEC 62305-2:2024 Annex A.1 Eq. (A.1), A.2.4 Eq. (A.5) | code uses input named Ng directly; 2024 uses strike-point density Nsg = k Ng, so terminology/input convention needs owner review; no formula change authorized |
+| 49 | 33:153 | ND = Ng Ad Cd × 10⁻⁶ | `services/calculation-engine/aegislps_engine/risk.py:195–196` | consistent | IEC 62305-2:2024 Annex A.1 Eq. (A.1), A.2.4 Eq. (A.5) | code uses input named Ng directly; 2024 uses strike-point density Nsg = k Ng, so terminology/input convention needs owner review; no formula change authorized |
 | 50 | 33:155 | Legacy engine direct-strike subtotal RA + RB + RC | `services/calculation-engine/aegislps_engine/risk.py:232–237` | consistent | IEC 62305-2:2024 §6.3 | clarify that this is a partial direct-strike subtotal, not the complete risk |
 | 51 | 33:156 | Representative tolerable risk is 1 × 10⁻⁵ per year | `services/calculation-engine/aegislps_engine/risk.py:238–239` | consistent | IEC 62305-2:2024 §7.3 Note 1 | qualify representative value; owner may select otherwise |
 | 52 | 33:165 | Optimizer is experimental and outputs require deterministic review | `services/calculation-engine/aegislps_engine/optimization.py` | unsourced | none | maintain disclosure; not an IEC formula claim |
@@ -245,3 +245,45 @@ Line references use `d9ee3ab`. IEC 62305-4:2024 Annex C.2.3.1.2–C.2.3.5, C.2.4
 | 60 | 35:40 | Compliance compares actual distance with s via margin ≥ 0 | `services/calculation-engine/aegislps_engine/separation.py:179–181,201–206` | consistent | IEC 62305-3:2024 §6.3.1 | retain; warnings can affect overall status |
 
 Marker lines 41–60 are accounted for above. The Ng/Nsg distinction is a newly identified potential code/document convention issue: proposed design only is to represent the density type and conversion factor explicitly before applying Eq. (A.5); the schema, jurisdiction and source require owner review. No change is applied.
+
+## Step 6.6 batch 4 of 5: marker lines 61–80
+
+Line references use `d9ee3ab`. IEC 62305-3:2024 §5.4.2.2–§5.4.2.3 and §5.6.2 Table 8 were read from `origin/main`; the IEC 62561-2 and EN 124 primary texts are not among the four documents. M1, M2 and M6 source confirmation remains outside this step and is not inferred here. This batch also corrects marker 49's status: the old document formula matches the implementation, but the distinct 2024 Ng/Nsg terminology remains an owner-review issue.
+
+| Marker | Source | Claim | Code location | Status | Standard / clause | Action |
+|---:|---|---|---|---|---|---|
+| 61 | 35:45 | Sparse nodal system YV = I | `services/calculation-engine/aegislps_engine/nodal.py:301–333` | unsourced | none | retain experimental label; independent network-theory source pending M1 |
+| 62 | 35:46 | Impedance magnitude sqrt(Rdc² + (ωL)²) | `services/calculation-engine/aegislps_engine/nodal.py:215–237` | unsourced | none | document complex phasor and surge impedance override; M1 source pending |
+| 62 | 35:46 | ω = 2πf | `services/calculation-engine/aegislps_engine/nodal.py:126–135` | unsourced | none | independent source pending M1 |
+| 62 | 35:46 | Equivalent frequency is 250 kHz | `services/calculation-engine/aegislps_engine/nodal.py:126–135` | unsourced | none | retain experimental assumption; M1 pending |
+| 63 | 35:48 | Self-inductance is the printed unclamped expression | `services/calculation-engine/aegislps_engine/nodal.py:203–213` | contradicted by code | none | document clamps and pending source; do not change model |
+| 64 | 35:50 | Local KCL is exactly zero at every internal node | `services/calculation-engine/aegislps_engine/nodal.py:358–375,397–400` | contradicted by code | none | code computes residuals and warns at a threshold; correct exactness claim |
+| 65 | 35:51 | Global convergence requires <2% phasor residual | `services/calculation-engine/aegislps_engine/nodal.py:377–395` | unsourced | none | document phasor sum and assumption; primary source pending |
+| 66 | 35:61 | Historical two-log ring formula is implemented | `services/calculation-engine/aegislps_engine/earthing.py:433–443` | contradicted by code | none | current code uses Sunde candidate; source confirmation pending H5 |
+| 67 | 35:62 | D = 2 × ring radius | `services/calculation-engine/aegislps_engine/earthing.py:433–439` | consistent | none | retain as variable definition |
+| 67 | 35:62 | r denotes conductor radius | `services/calculation-engine/aegislps_engine/earthing.py:430` | consistent | none | retain as variable definition |
+| 67 | 35:62 | h denotes burial depth | `services/calculation-engine/aegislps_engine/earthing.py:431` | consistent | none | retain as variable definition |
+| 68 | 35:64 | Type B compliance compares circumference with l1 | `services/calculation-engine/aegislps_engine/earthing.py:433–436,524` | consistent | IEC 62305-3:2024 §5.4.2.3 Eq. (1) | H10-a radius and supplemental-electrode proposal remains unapplied |
+| 68 | 35:64 | l1(rho) formula is independently unverified | `services/calculation-engine/aegislps_engine/earthing.py:385–420` | unsourced | IEC 62305-3:2024 §5.4.2.2 Figure 5 | original graph absent from available text; review reading independently |
+| 69 | 35:69 | Single rod resistance rho/(2πL)[ln(4L/r)−1] | `services/calculation-engine/aegislps_engine/earthing.py:61` | unsourced | none | code matches; obtain primary source |
+| 70 | 35:70 | Historical logarithmic array coupling is implemented | `services/calculation-engine/aegislps_engine/earthing.py:64–111,448–459` | contradicted by code | none | document pairwise model; H4 source pending |
+| 71 | 35:73 | Engine uses historical logarithmic coupling | `services/calculation-engine/aegislps_engine/earthing.py:64–111,448–459` | contradicted by code | none | replace stale note |
+| 71 | 35:73 | Historical coupling mismatches published efficiency formulations | none | unsourced | none | obtain and compare actual primary formulation |
+| 72 | 35:76 | Foundation resistance rho/(4 re) + rho/P | `services/calculation-engine/aegislps_engine/earthing.py:487–498` | unsourced | none | code matches; primary source pending |
+| 72 | 35:76 | Equivalent radius re = sqrt(A/π) | `services/calculation-engine/aegislps_engine/earthing.py:492–498` | unsourced | none | code matches; primary source pending |
+| 73 | 35:78 | Impulse impedance Zp = Rdc/sqrt(1 + I/Icritical) | `services/calculation-engine/aegislps_engine/earthing.py:520–522` | unsourced | none | code matches; primary source pending |
+| 73 | 35:78 | Critical current is the unclamped printed expression | `services/calculation-engine/aegislps_engine/earthing.py:509–518` | contradicted by code | none | document guards and source uncertainty |
+| 74 | 35:85 | A15 pit 250 mm × 260 mm for pedestrian areas | `services/calculation-engine/aegislps_engine/earth_pit.py:165–169` | unsourced | none | code matches configured dimensions; EN 124 class and size source pending |
+| 74 | 35:85 | A15 load rating is 15 kN | `services/calculation-engine/aegislps_engine/earth_pit.py:165–166` | unsourced | none | obtain EN 124 primary text |
+| 75 | 35:86 | B125 pit 300 mm × 280 mm for car parks | `services/calculation-engine/aegislps_engine/earth_pit.py:160–164` | unsourced | none | code matches configured dimensions; EN 124 class and size source pending |
+| 75 | 35:86 | B125 load rating is 125 kN | `services/calculation-engine/aegislps_engine/earth_pit.py:160–161` | unsourced | none | obtain EN 124 primary text |
+| 76 | 35:87 | D400 pit 320 mm × 300 mm for heavy roadways | `services/calculation-engine/aegislps_engine/earth_pit.py:155–159` | unsourced | none | code matches configured dimensions; EN 124 class and size source pending |
+| 76 | 35:87 | D400 load rating is 400 kN | `services/calculation-engine/aegislps_engine/earth_pit.py:155–156` | unsourced | none | obtain EN 124 primary text |
+| 77 | 35:89 | Conditioned rod resistance uses printed concentric-cylinder model | `services/calculation-engine/aegislps_engine/earth_pit.py:195–206` | unsourced | none | code matches; primary model source and M6 resistivity values remain pending |
+| 78 | 35:90 | Backfill volume is π(rhole² − rrod²)L | `services/calculation-engine/aegislps_engine/earth_pit.py:176–182` | consistent | none | retain geometric expression |
+| 78 | 35:90 | Bag count assumes 25 kg bags | `services/calculation-engine/aegislps_engine/earth_pit.py:183–186` | unsourced | none | code applies to all materials; establish manufacturer packaging assumption |
+| 79 | 35:93 | IEC 62561-2 Table 1 specifies rod dimensions | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:136–144` | unsourced | none | actual IEC 62561-2 text absent; Table 8 of IEC 62305-3 is available |
+| 80 | 35:95 | Copper-coated steel solid-round rod minimum diameter 14 mm | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:152–153` | consistent | IEC 62305-3:2024 §5.6.2 Table 8 | retain; country footnote and required tests apply |
+| 80 | 35:95 | Radial copper coating 250 µm is implemented but unsourced | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:152–155` | unsourced | none | primary IEC 62561-2 source not available; confirmation pending |
+
+Marker lines 61–80 are accounted for above. Code-side H10-a is proposed only; source gaps do not authorize physics changes.
