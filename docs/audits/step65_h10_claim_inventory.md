@@ -131,3 +131,37 @@ The seven consistent rows include a composite duplicate row (29:14,16), so **the
 - **H10-b / H2:** IEC 62305-3:2024 §6.3.1 Eq. (5) gives the weighted segment sum; §6.3.2 Eq. (6) is the simplified single-kc case used in code. The design sketch in `step62_h10_claim_audit.md` is unapplied; path representation and fallback require owner decisions.
 
 No physics code changes are authorized by this inventory.
+
+## Step 6.6 batch 1 of 5: marker lines 1–20
+
+This batch supersedes the overlapping Step 6.5 rows above; it does not establish completeness beyond these markers. Citations `none` mean no applicable primary-source clause was established for that particular claim, not that a physical equation is necessarily wrong. Line numbers refer to `d9ee3ab`. Sections 6.3.1–6.3.2, including Tables 11–13, of `origin/main:docs/62305-3-2024.md` were inspected. For the 250 kHz and inductance assumptions, the source remains unresolved under M1/M2; no IEC citation is inferred.
+
+| Marker | Source | Claim | Code location | Status | Standard / clause | Action |
+|---:|---|---|---|---|---|---|
+| 1 | 28:10 | Table column headings only; no value asserted | none | non-claim | none | no action |
+| 2 | 28:12 | Class I ki = 0.08 | `packages/standards-data/aegislps_standards/repository.py:34–40` | consistent | IEC 62305-3:2024 §6.3.1 Table 11 | retain |
+| 3 | 28:13 | Class II ki = 0.06 | `packages/standards-data/aegislps_standards/repository.py:42–48` | consistent | IEC 62305-3:2024 §6.3.1 Table 11 | retain |
+| 4 | 28:14 | Classes III and IV ki = 0.04 | `packages/standards-data/aegislps_standards/repository.py:50–56` | consistent | IEC 62305-3:2024 §6.3.1 Table 11 | retain |
+| 5 | 28:15 | Air km = 1.0 | `packages/standards-data/aegislps_standards/repository.py:58–64` | consistent | IEC 62305-3:2024 §6.3.1 Table 12 | retain |
+| 6 | 28:16 | Concrete and brick km = 0.5 | `packages/standards-data/aegislps_standards/repository.py:66–72` | consistent | IEC 62305-3:2024 §6.3.1 Table 12 | retain |
+| 7 | 29:10 | Single-kc separation s = ki × kc × l / km | `services/calculation-engine/aegislps_engine/separation.py:173–177` | consistent | IEC 62305-3:2024 §6.3.2 Eq. (6) | state simplified scope |
+| 8 | 29:14 | Class I ki = 0.08 | `packages/standards-data/aegislps_standards/repository.py:34–40` | consistent | IEC 62305-3:2024 §6.3.1 Table 11 | retain |
+| 8 | 29:14 | Class II ki = 0.06 | `packages/standards-data/aegislps_standards/repository.py:42–48` | consistent | IEC 62305-3:2024 §6.3.1 Table 11 | retain |
+| 8 | 29:14 | Classes III/IV ki = 0.04 | `packages/standards-data/aegislps_standards/repository.py:50–56` | consistent | IEC 62305-3:2024 §6.3.1 Table 11 | retain |
+| 9 | 29:15 | Separation engine derives kc from topology or nodal matrix | `services/calculation-engine/aegislps_engine/separation.py:69–106` | contradicted by code | IEC 62305-3:2024 §6.3.2 Table 13 | correct stale description: conductor count and resistance fallback |
+| 10 | 29:16 | Air km = 1.0 | `packages/standards-data/aegislps_standards/repository.py:58–64` | consistent | IEC 62305-3:2024 §6.3.1 Table 12 | retain |
+| 10 | 29:16 | Solid concrete km = 0.5 | `packages/standards-data/aegislps_standards/repository.py:66–72` | consistent | IEC 62305-3:2024 §6.3.1 Table 12 | retain |
+| 11 | 29:19 | Separation selects kc from segment count | `services/calculation-engine/aegislps_engine/separation.py:69–106` | contradicted by code | IEC 62305-3:2024 §6.3.2 Table 13 | replace stale defect label |
+| 11 | 29:19 | Node z is used instead of supplied route length | `services/calculation-engine/aegislps_engine/separation.py:108–151` | contradicted by code | IEC 62305-3:2024 §6.3.2 Eq. (6) | describe explicit route and warned vertical fallback |
+| 12 | 29:22 | Sparse nodal system YV = I | `services/calculation-engine/aegislps_engine/nodal.py:301–333` | unsourced | none | retain as experimental; establish independent network-theory source |
+| 13 | 33:10 | Section heading only | none | non-claim | none | no action |
+| 14 | 33:31 | Single-kc separation equation | `services/calculation-engine/aegislps_engine/separation.py:173–177` | consistent | IEC 62305-3:2024 §6.3.2 Eq. (6) | state simplified scope |
+| 15 | 33:33 | Engine implements weighted segment sum | `services/calculation-engine/aegislps_engine/separation.py:158–177` | contradicted by code | IEC 62305-3:2024 §6.3.1 Eq. (5) | H10-b proposal below; not applied |
+| 16 | 33:40 | Separation selects kc from segment count | `services/calculation-engine/aegislps_engine/separation.py:69–106` | contradicted by code | IEC 62305-3:2024 §6.3.2 Table 13 | correct stale defect label |
+| 16 | 33:40 | Engine uses node z instead of summing path segments | `services/calculation-engine/aegislps_engine/separation.py:108–151,173–177` | contradicted by code | IEC 62305-3:2024 §6.3.1 Eq. (5) | explicit length takes precedence; warned z fallback remains; H10-b tracks missing sum |
+| 17 | 33:47 | Sparse nodal system YV = I | `services/calculation-engine/aegislps_engine/nodal.py:301–333` | unsourced | none | establish source; model is experimental |
+| 18 | 33:48 | Branch impedance magnitude sqrt(Rdc² + (ωL)²) | `services/calculation-engine/aegislps_engine/nodal.py:215–237` | unsourced | none | document complex phasor and explicit surge-impedance override; M1 source review remains pending |
+| 19 | 33:50 | Segment self-inductance is unclamped printed expression | `services/calculation-engine/aegislps_engine/nodal.py:203–213` | contradicted by code | none | document lower clamps; primary-source review remains pending |
+| 20 | 33:52 | kc equals unclamped branch-current/total-current ratio | `services/calculation-engine/aegislps_engine/nodal.py:349–356` | contradicted by code | none | document magnitude ratio clamped to [0, 1]; primary-source review pending |
+
+Marker lines 1–20 are accounted for by these rows or explicit non-claim reasons. A contradiction identifies a mismatch, not automatically a code defect. In particular, changing the nodal clamps or phasor model is not authorized without an owner decision and a source.
