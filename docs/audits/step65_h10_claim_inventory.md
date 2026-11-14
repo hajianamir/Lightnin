@@ -165,3 +165,36 @@ This batch supersedes the overlapping Step 6.5 rows above; it does not establish
 | 20 | 33:52 | kc equals unclamped branch-current/total-current ratio | `services/calculation-engine/aegislps_engine/nodal.py:349–356` | contradicted by code | none | document magnitude ratio clamped to [0, 1]; primary-source review pending |
 
 Marker lines 1–20 are accounted for by these rows or explicit non-claim reasons. A contradiction identifies a mismatch, not automatically a code defect. In particular, changing the nodal clamps or phasor model is not authorized without an owner decision and a source.
+
+## Step 6.6 batch 2 of 5: marker lines 21–40
+
+Baseline source references use `d9ee3ab`. IEC 62305-3:2024 §5.2.2.1, Table 2, Figure 1 notes, §5.2.2.2 and §5.4.2.2–§5.4.2.3 were read from `origin/main:docs/62305-3-2024.md`. The available text contains the Figure 1 and Figure 5 captions and notes but not their curves; numerical graphical readings are therefore not independently confirmed here. No IEEE 80, Dwight, Sunde, Laurent, Nieman or Bellaschi primary text was found in the four IEC documents for the formulas below.
+
+| Marker | Source | Claim | Code location | Status | Standard / clause | Action |
+|---:|---|---|---|---|---|---|
+| 21 | 33:55 | Local KCL residuals are checked | `services/calculation-engine/aegislps_engine/nodal.py:358–375,397–400` | unsourced | none | document warning threshold and experimental status; source pending |
+| 21 | 33:55 | Global convergence requires residual below 2% | `services/calculation-engine/aegislps_engine/nodal.py:377–395` | unsourced | none | threshold is model-specific; source pending |
+| 22 | 33:56 | Diagonal-ratio condition estimate alerts users | `services/calculation-engine/aegislps_engine/nodal.py:322–330,390–400` | contradicted by code | none | estimate is returned; no direct condition-number warning; correct description |
+| 23 | 33:62 | Rolling sphere governed by IEC 62305-3 §5.2.2 and Table 2 | `packages/geometry/aegislps_geometry/rolling_sphere.py:5–22` | consistent | IEC 62305-3:2024 §5.2.2.1–5.2.2.2, Table 2 | retain, without implying certification |
+| 24 | 33:64 | Class I radius 20 m | `packages/geometry/aegislps_geometry/rolling_sphere.py:18` | consistent | IEC 62305-3:2024 §5.2.2.1 Table 2 | retain |
+| 25 | 33:65 | Class II radius 30 m | `packages/geometry/aegislps_geometry/rolling_sphere.py:19` | consistent | IEC 62305-3:2024 §5.2.2.1 Table 2 | retain |
+| 26 | 33:66 | Class III radius 45 m | `packages/geometry/aegislps_geometry/rolling_sphere.py:20` | consistent | IEC 62305-3:2024 §5.2.2.1 Table 2 | retain |
+| 27 | 33:67 | Class IV radius 60 m | `packages/geometry/aegislps_geometry/rolling_sphere.py:21` | consistent | IEC 62305-3:2024 §5.2.2.1 Table 2 | retain |
+| 28 | 33:70 | Inverted cap is current protection formula | `packages/geometry/aegislps_geometry/rolling_sphere.py:53–116,170–210` | contradicted by code | IEC 62305-3:2024 §5.2.2.2 | replace stale historical formula with current ground-referenced model and disclose limitations |
+| 29 | 33:81 | Protective-angle source is Table 2 and Figure 1 | `packages/geometry/aegislps_geometry/protective_angle.py:4–17` | consistent | IEC 62305-3:2024 §5.2.2.1 Table 2 and Figure 1 | retain; graphical values need independent review |
+| 30 | 33:84 | Interpolation is between Table 2 anchor points | `packages/geometry/aegislps_geometry/protective_angle.py:13–29,110–132` | contradicted by code | IEC 62305-3:2024 §5.2.2.1 Figure 1 | anchors are digitized from Figure 1 rather than tabled angle values; correct description |
+| 31 | 33:87 | Angle anchors and interpolation remain unverified | `packages/geometry/aegislps_geometry/protective_angle.py:13–18,110–132` | unsourced | IEC 62305-3:2024 §5.2.2.1 Figure 1 | independent graphical source check pending |
+| 32 | 33:89 | Angle lookup is not independently verified | `packages/geometry/aegislps_geometry/protective_angle.py:13–18` | unsourced | IEC 62305-3:2024 §5.2.2.1 Figure 1 | retain pending graphical review |
+| 33 | 33:91 | Coarse anchor list [2, 10, 20, 30, 45, 60] m is used | `packages/geometry/aegislps_geometry/protective_angle.py:18–106` | contradicted by code | IEC 62305-3:2024 §5.2.2.1 Figure 1 | replace stale description; actual anchors are denser |
+| 34 | 33:99 | Printed two-log ring resistance is implemented | `services/calculation-engine/aegislps_engine/earthing.py:433–443` | contradicted by code | none | correct to current Sunde candidate; primary source pending H5 |
+| 35 | 33:101 | Printed vertical-rod self resistance | `services/calculation-engine/aegislps_engine/earthing.py:61` | unsourced | none | code matches expression; obtain primary-source confirmation |
+| 36 | 33:102 | Printed array mutual-coupling formula is implemented | `services/calculation-engine/aegislps_engine/earthing.py:64–111,448–459` | contradicted by code | none | describe pairwise coupling; independent primary source pending H4 |
+| 37 | 33:104 | Foundation resistance rho/(4 re) + rho/P | `services/calculation-engine/aegislps_engine/earthing.py:487–498` | unsourced | none | code matches expression; establish primary source |
+| 38 | 33:106 | Two-layer apparent resistivity exponential form | `services/calculation-engine/aegislps_engine/earthing.py:354–383` | unsourced | none | code matches expression; establish primary source and applicability |
+| 38 | 33:106 | Two-layer reflection coefficient (rho2 − rho1)/(rho2 + rho1) | `services/calculation-engine/aegislps_engine/earthing.py:377–378` | unsourced | none | code matches expression; establish primary source |
+| 39 | 33:108 | Impulse impedance Zp = Rdc/sqrt(1 + I/Icritical) | `services/calculation-engine/aegislps_engine/earthing.py:520–522` | unsourced | none | code matches expression; establish primary source |
+| 39 | 33:108 | Icritical equals unclamped Ec rho/(2π Rdc²) | `services/calculation-engine/aegislps_engine/earthing.py:509–518` | contradicted by code | none | document lower guards and source uncertainty |
+| 40 | 33:111 | Type B compliance compares circumference with l1 | `services/calculation-engine/aegislps_engine/earthing.py:433–436,524` | consistent | IEC 62305-3:2024 §5.4.2.3 Eq. (1) | H10-a proposal: compare effective radius, account for supplemental electrodes; not applied |
+| 40 | 33:111 | l1(rho) slope is unverified | `services/calculation-engine/aegislps_engine/earthing.py:385–420` | unsourced | IEC 62305-3:2024 §5.4.2.2 Figure 5 | numerical curves unavailable in text; independent graphical verification pending |
+
+Marker lines 21–40 are accounted for above. Both H10-a and H10-b remain unapplied; code-side proposal sketches appear in `step62_h10_claim_audit.md`. No nodal or earthing model change is authorized by the documentary mismatches.
