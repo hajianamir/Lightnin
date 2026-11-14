@@ -1,6 +1,8 @@
-# Step 6.5 H10 claim inventory — INCOMPLETE
+# H10 claim inventory — Step 6.6 marker coverage
 
-**99 source marker lines; total distinct claims unknown.** Ten reviewed rows below: 7 consistent, 3 contradicted by code, 0 unsourced. These counts cover only the table below and are not counts for the 99 lines. The marker tracking table explicitly distinguishes reviewed coverage from lines not yet audited. A marker can contain multiple claims; full contextual splitting, source checking, and a total claim count remain unfinished. H10 stays open.
+**Step 6.6 completeness: 99 source marker lines; 143 claim rows** (61 consistent, 38 contradicted by code, 44 unsourced) and 3 explicit non-claim rows. All 99 marker line numbers occur in batches 1–5; repeated assertions in different source lines count separately. The batch tables supersede the older Step 6.5 rows and tracking snapshot. Status compares documentary claims with code and source review; it is not engineering certification. H10 remains open pending owner decisions and code-side resolutions.
+
+**Step 6.5 historical state: 99 source marker lines; total distinct claims unknown.** Ten historical Step 6.5 rows below: 7 consistent, 3 contradicted by code, 0 unsourced. These counts cover only the table below and are not counts for the 99 lines. The marker tracking table explicitly distinguishes reviewed coverage from lines not yet audited. A marker can contain multiple claims; full contextual splitting, source checking, and a total claim count remain unfinished. H10 stays open.
 
 Reference source is the marker file at baseline `ea77582`; code references below are from that baseline. Standards text is `origin/main:docs/62305-3-2024.md`; standard references are not inferred for other rows. `consistent` here means the stated code behavior matches the claim; it is not a certification.
 
@@ -19,9 +21,9 @@ Reference source is the marker file at baseline `ea77582`; code references below
 
 The seven consistent rows include a composite duplicate row (29:14,16), so **the actual number of distinct individual claims is not known** and the 10 rows must not be treated as an exhaustive claim count. The previous partial audit `step62_h10_claim_audit.md` contains 17 additional reviewed *rows*, some overlapping or aggregate, not included in the counts above.
 
-## Marker tracking
+## Step 6.5 historical marker tracking (superseded by batches below)
 
-`reviewed partially` means at least one claim on that line appears above; it does not mean all claims on that line were split. `not audited` includes both unreviewed claims and potential non-claim lines: neither may be labeled unsourced without review.
+This is the historical Step 6.5 snapshot, not the current completeness check. `reviewed partially` means at least one claim on that line appears above; it does not mean all claims on that line were split. `not audited` includes both unreviewed claims and potential non-claim lines: neither may be labeled unsourced without review.
 
 | Source line | Coverage |
 |---|---|
@@ -287,3 +289,41 @@ Line references use `d9ee3ab`. IEC 62305-3:2024 §5.4.2.2–§5.4.2.3 and §5.6.
 | 80 | 35:95 | Radial copper coating 250 µm is implemented but unsourced | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:152–155` | unsourced | none | primary IEC 62561-2 source not available; confirmation pending |
 
 Marker lines 61–80 are accounted for above. Code-side H10-a is proposed only; source gaps do not authorize physics changes.
+
+## Step 6.6 batch 5 of 5: marker lines 81–99
+
+Line references use `d9ee3ab`. Inspected IEC 62305-3:2024 §5.6.2 Table 8; IEC 62305-1:2024 Annex B Eq. (B.1)/Table B.1, Table 3, Annex D Eq. (D.7) and Eq. (D.10); IEC 62305-4:2024 Annex A.4.1.3 Table A.4 and Eqs. (A.6), (A.10); IEC 62305-2:2024 §7.3, Annex A.2.1.2 Eq. (A.3), A.4 Eq. (A.10) and Table A.2. External primary sources for Neumann mutual inductance and plating thickness are not present.
+
+| Marker | Source | Claim | Code location | Status | Standard / clause | Action |
+|---:|---|---|---|---|---|---|
+| 81 | 35:96 | Solid copper minimum diameter 15 mm | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:159–162` | consistent | IEC 62305-3:2024 §5.6.2 Table 8 | retain for solid-round configuration |
+| 82 | 35:97 | Galvanized steel configured minimum is 20 mm | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:166–169` | consistent | IEC 62305-3:2024 §5.6.2 Table 8 | distinguish code's conservative configured 20 mm from Table 8's 14 mm solid-round / 25 mm tubular values |
+| 82 | 35:97 | Zinc coating minimum is 50 µm | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:166–169` | unsourced | none | obtain independent coating source |
+| 83 | 35:98 | Stainless steel V4A 1.4571 configured minimum 16 mm | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:173–175` | consistent | IEC 62305-3:2024 §5.6.2 Table 8 | distinguish code's 16 mm configured minimum from Table 8's 15 mm solid-round value |
+| 84 | 35:103 | Rod-sizing engine uses historical logarithmic coupling | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:199–210` | contradicted by code | none | correct stale defect note; pairwise method is current |
+| 84 | 35:103 | Spacing 2L guarantees efficiency above 80% | `services/calculation-engine/aegislps_engine/earth_rod_sizing.py:199–210` | unsourced | none | no guarantee calculated; independent efficiency source pending H4 |
+| 85 | 35:111 | Heidler current waveform formula | `services/calculation-engine/aegislps_engine/lemp_engine.py:353–376` | consistent | IEC 62305-1:2024 Annex B Eq. (B.1), Table B.1 | retain with n = 10 and positive-time domain |
+| 86 | 35:114 | First stroke uses tau1 = 10 µs | `services/calculation-engine/aegislps_engine/lemp_engine.py:8–11,353–356` | contradicted by code | IEC 62305-1:2024 Annex B Table B.1 | correct stale defect note: tau1 = 19 µs |
+| 86 | 35:114 | First stroke uses tau2 = 350 µs | `services/calculation-engine/aegislps_engine/lemp_engine.py:8–11,353–356` | contradicted by code | IEC 62305-1:2024 Annex B Table B.1 | correct stale defect note: tau2 = 485 µs |
+| 86 | 35:114 | Code computes derivative with numerical gradient | `services/calculation-engine/aegislps_engine/lemp_engine.py:369–376` | contradicted by code | IEC 62305-1:2024 Annex B Eq. (B.1) | correct stale defect note; analytic derivative used |
+| 87 | 35:117 | H = i/(2πr) for nearby strike | `services/calculation-engine/aegislps_engine/lemp_engine.py:440–453` | consistent | IEC 62305-4:2024 Annex A.4.1.3 Eq. (A.6) | describe field assumptions and distance |
+| 88 | 35:119 | Grid attenuation factor is 0.01 × mesh width | `services/calculation-engine/aegislps_engine/lemp_engine.py:476–500` | contradicted by code | IEC 62305-4:2024 Annex A.4.1.3 Table A.4, Eq. (A.10) | correct historical formula; material, bonding and domain matter |
+| 89 | 35:121 | Current code uses 0.01 × mesh width | `services/calculation-engine/aegislps_engine/lemp_engine.py:476–500` | contradicted by code | IEC 62305-4:2024 Annex A.4.1.3 Table A.4, Eq. (A.10) | correct stale label |
+| 89 | 35:121 | Universal factor 0.12 × width follows IEC Annex A | `services/calculation-engine/aegislps_engine/lemp_engine.py:131–185,488–500` | contradicted by code | IEC 62305-4:2024 Annex A.4.1.3 Table A.4, Eq. (A.10) | 1/8.5 is an approximation only for appropriate copper/aluminium cases before other adjustments; do not generalize |
+| 90 | 35:124 | Induced voltage magnitude uses μ0 K A/(2πr) di/dt | `services/calculation-engine/aegislps_engine/lemp_engine.py:502–507` | unsourced | none | code uses magnitude and a uniform-field approximation; establish primary source and scope |
+| 91 | 35:128 | Neumann double integral for mutual inductance | `services/calculation-engine/aegislps_engine/peec_thermal.py:297–381` | unsourced | none | finite-segment numerical implementation; primary source remains pending M2 |
+| 92 | 35:131 | Adiabatic temperature-rise exponential formula | `services/calculation-engine/aegislps_engine/peec_thermal.py:420–425` | consistent | IEC 62305-1:2024 Annex D.4.1 Eq. (D.7) | corrected surrounding citation from D.1 to D.7 |
+| 93 | 35:132 | LPL I specific energy W/R = 10 MJ/Ω | `services/calculation-engine/aegislps_engine/peec_thermal.py:157–158,415–424` | consistent | IEC 62305-1:2024 Table 3; Annex D Table D.1 | retain as class-I model input |
+| 94 | 35:134 | Parallel-conductor force per length μ0 i1 i2/(2πd) | `services/calculation-engine/aegislps_engine/peec_thermal.py:428–431` | consistent | IEC 62305-1:2024 Annex D.4.2.2 Eq. (D.10) | code assumes equal branch currents; standard example uses a single loop current |
+| 94 | 35:134 | Clip spacing is always no more than holder force divided by force per length | `services/calculation-engine/aegislps_engine/peec_thermal.py:433–436` | contradicted by code | none | minimum 0.2 m clamp can exceed claimed bound; proposal below, do not apply |
+| 95 | 35:138 | Comprehensive engine sums eight displayed risk components | `services/calculation-engine/aegislps_engine/comprehensive_risk.py:312–323` | consistent | IEC 62305-2:2024 §6.3 | component formulas remain approximate and separately open |
+| 96 | 35:139 | Rectangular structure Ad = LW + 6H(L+W) + 9πH² | `services/calculation-engine/aegislps_engine/comprehensive_risk.py:242–245` | consistent | IEC 62305-2:2024 Annex A.2.1.2 Eq. (A.3) | clarify isolated rectangular-structure scope |
+| 97 | 35:140 | Aerial line collection width is 40 × length | `services/calculation-engine/aegislps_engine/comprehensive_risk.py:248–252` | consistent | IEC 62305-2:2024 Annex A.4 Eq. (A.10) | retain while reviewing separate installation/environment/type factors |
+| 97 | 35:140 | Buried line collection width is 8 × length | `services/calculation-engine/aegislps_engine/comprehensive_risk.py:248–252` | consistent | IEC 62305-2:2024 Annex A.4 Eq. (A.10), Table A.2 | code matches document but standard uses 40L with separate installation factor 0.3 (subject to conditions); proposal below |
+| 98 | 35:141 | Representative tolerable risk is 10⁻⁵ per year | `services/calculation-engine/aegislps_engine/comprehensive_risk.py:323–325` | consistent | IEC 62305-2:2024 §7.3 Note 1 | clarify representative rather than universal value |
+| 99 | 35:145 | Inverted-cap formula is current rolling-sphere protection | `packages/geometry/aegislps_geometry/rolling_sphere.py:53–116,148–153` | contradicted by code | IEC 62305-3:2024 §5.2.2.2 | replace stale formula and defect label with actual geometry and limitations |
+
+Marker lines 81–99 are accounted for above. No proposed change below has been applied or approved:
+
+- **Risk density / line exposure:** replace a single ambiguously named `ng` with an explicit density basis and owner-supplied conversion where needed; evaluate line collection area and the installation, environment and type factors separately per IEC 62305-2:2024 Annex A.1 and A.4. This requires schema, compatibility and source decisions; it is not a drop-in diff.
+- **Fastener-spacing bound:** proposal sketch only: replace the minimum-spacing clamp with a result that reports infeasibility whenever `holder_force / force_per_length` is below any practical minimum; otherwise return a spacing no greater than the mechanical upper bound. Holder strength, safety factors and minimum practical spacing need owner approval. Do not apply without a sourced mechanical model and tests.

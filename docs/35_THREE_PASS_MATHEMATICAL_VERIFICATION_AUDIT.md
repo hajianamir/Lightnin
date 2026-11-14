@@ -127,7 +127,7 @@ Each pass evaluated:
 - **Neumann's Double Integral for 3D Skew Segments**:
   $$M_{ij} = \frac{\mu_0}{4\pi} \oint \oint \frac{d\vec{l}_i \cdot d\vec{l}_j}{|\vec{r}_i - \vec{r}_j|}$$
   Discretized using 10-point Gauss-Legendre quadrature integration.
-- **Adiabatic Temperature Rise (IEC 62305-1 Equation D.1)**:
+- **Adiabatic Temperature Rise (IEC 62305-1:2024 Equation D.7)**:
   $$\Delta\theta = \frac{1}{\alpha} \left[ \exp\left( \frac{(W/R) \cdot \alpha \cdot \rho_0}{q^2 \cdot \gamma \cdot c_w} \right) - 1 \right]$$
   Evaluated under specific energy action integral $W/R = 10.0\text{ MJ}/\Omega$ for Class I.
 - **Electrodynamic Force & Fastener Spacing**:
