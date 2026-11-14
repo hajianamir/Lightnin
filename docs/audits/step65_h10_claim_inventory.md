@@ -198,3 +198,50 @@ Baseline source references use `d9ee3ab`. IEC 62305-3:2024 §5.2.2.1, Table 2, F
 | 40 | 33:111 | l1(rho) slope is unverified | `services/calculation-engine/aegislps_engine/earthing.py:385–420` | unsourced | IEC 62305-3:2024 §5.4.2.2 Figure 5 | numerical curves unavailable in text; independent graphical verification pending |
 
 Marker lines 21–40 are accounted for above. Both H10-a and H10-b remain unapplied; code-side proposal sketches appear in `step62_h10_claim_audit.md`. No nodal or earthing model change is authorized by the documentary mismatches.
+
+## Step 6.6 batch 3 of 5: marker lines 41–60
+
+Line references use `d9ee3ab`. IEC 62305-4:2024 Annex C.2.3.1.2–C.2.3.5, C.2.4 and C.2.5; IEC 62305-2:2024 §7.3, Annex A.2.1.2 and A.2.4; and IEC 62305-3:2024 §6.3.1–6.3.2 were read from `origin/main`. The IEEE 80 primary text is not among the four IEC documents and was not independently obtained.
+
+| Marker | Source | Claim | Code location | Status | Standard / clause | Action |
+|---:|---|---|---|---|---|---|
+| 41 | 33:113 | Engine uses historical logarithmic mutual-coupling expression | `services/calculation-engine/aegislps_engine/earthing.py:64–111,448–459` | contradicted by code | none | replace stale label; pairwise model and its primary source remain under H4 |
+| 41 | 33:113 | Historical expression disagrees with IEEE 80/Dwight datasets | none | unsourced | none | obtain actual primary dataset and comparison |
+| 42 | 33:122 | Surface derating uses IEEE 80 Eq. 27 | `services/calculation-engine/aegislps_engine/touch_step.py:195–213` | unsourced | none | closed-form implementation includes guards; obtain IEEE 80 source |
+| 43 | 33:124 | 70 kg tolerable touch formula with 0.157 coefficient | `services/calculation-engine/aegislps_engine/touch_step.py:287–302` | unsourced | none | code matches; verify IEEE 80 source and limits |
+| 44 | 33:125 | 70 kg tolerable step formula with 0.157 coefficient | `services/calculation-engine/aegislps_engine/touch_step.py:287–302` | unsourced | none | code matches; verify IEEE 80 source and limits |
+| 45 | 33:128 | Surface layer series summation is discarded | `services/calculation-engine/aegislps_engine/touch_step.py:195–213` | contradicted by code | none | describe current closed-form model rather than obsolete series claim |
+| 45 | 33:128 | Prospective voltage is divided by ten | `services/calculation-engine/aegislps_engine/touch_step.py:304–310` | contradicted by code | none | remove stale historical claim |
+| 45 | 33:128 | Fence and barrier flags zero or halve prospective voltages | `services/calculation-engine/aegislps_engine/touch_step.py:304–313` | contradicted by code | none | remove stale historical claim; mitigation remains advisory |
+| 46 | 33:142 | Historical protective distance equals (Uw − Up) × 10 m | `services/calculation-engine/aegislps_engine/spd_coordination.py:288–310` | contradicted by code | IEC 62305-4:2024 §C.2.3.2–C.2.3.3 Eqs. (C.1)–(C.4) | remove stale heuristic; lead length differs from propagation distance |
+| 47 | 33:145 | Heuristic replaced by connecting-lead calculation | `services/calculation-engine/aegislps_engine/spd_coordination.py:288–310` | consistent | IEC 62305-4:2024 §C.2.3.2–C.2.3.3 Eqs. (C.1)–(C.4) | retain with scope disclosure |
+| 47 | 33:145 | Conservative screen Up ≤ 0.5 Uw applies in code for all cases | `services/calculation-engine/aegislps_engine/spd_coordination.py:195–211` | consistent | IEC 62305-4:2024 §C.2.3.1.4 | clarify conditional standard rule and conservative software simplification |
+| 47 | 33:145 | Code implements required effective protection level Eq. (C.1) | `services/calculation-engine/aegislps_engine/spd_coordination.py:213–239` | consistent | IEC 62305-4:2024 §C.2.3.2 Eq. (C.1) | retain |
+| 47 | 33:145 | Code implements limiting and switching SPD equations (C.2) and (C.3) | `services/calculation-engine/aegislps_engine/spd_coordination.py:250–265` | consistent | IEC 62305-4:2024 §C.2.3.3 Eqs. (C.2)–(C.3) | retain |
+| 47 | 33:145 | Code implements connecting-lead voltage drop Eq. (C.4) | `services/calculation-engine/aegislps_engine/spd_coordination.py:241–248` | consistent | IEC 62305-4:2024 §C.2.3.3 Eq. (C.4) | retain |
+| 47 | 33:145 | Code implements oscillation bound Eq. (C.5) | `services/calculation-engine/aegislps_engine/spd_coordination.py:267–270` | consistent | IEC 62305-4:2024 §C.2.3.4 Eq. (C.5) | retain; propagation analysis remains incomplete |
+| 47 | 33:145 | Induced voltage Ui is required rather than automatically calculated | `services/calculation-engine/aegislps_engine/spd_coordination.py:213–239` | consistent | IEC 62305-4:2024 §C.2.3.5 | retain open limitation |
+| 47 | 33:145 | Propagation-length criterion is qualitative and distance-dependent rule is not modeled | `services/calculation-engine/aegislps_engine/spd_coordination.py:195–211,267–270` | consistent | IEC 62305-4:2024 §C.2.3.1.2, §C.2.3.1.4, §C.2.3.4 | retain open limitation |
+| 47 | 33:145 | Below 10 m, protection level should not exceed 80% of rated impulse voltage | `services/calculation-engine/aegislps_engine/spd_coordination.py:195–211` | consistent | IEC 62305-4:2024 §C.2.3.1.2 | qualify standard exceptions and category conditions; code uses 50% for all cases |
+| 47 | 33:145 | Above 10 m, 50% bound is an option for a one-port SPD at origin | `services/calculation-engine/aegislps_engine/spd_coordination.py:195–211` | consistent | IEC 62305-4:2024 §C.2.3.1.4 | mention the accompanying shielding condition |
+| 47 | 33:145 | Two-port SPD rules are not modeled | `services/calculation-engine/aegislps_engine/spd_coordination.py:195–211` | consistent | IEC 62305-4:2024 §C.2.3.1.4, §C.2.4 | retain open limitation |
+| 47 | 33:145 | No numerical line-length gate formula is stated in the standard text | none | unsourced | IEC 62305-4:2024 §C.2.3.4 | manual text review is not proof of absence across the full standard; retain as bounded review finding |
+| 48 | 33:152 | Rectangular structure Ad = LW + 6H(L+W) + 9πH² | `services/calculation-engine/aegislps_engine/risk.py:192–193` | consistent | IEC 62305-2:2024 Annex A.2.1.2 Eq. (A.3) | state rectangular isolated-structure scope |
+| 49 | 33:153 | ND = Ng Ad Cd × 10⁻⁶ | `services/calculation-engine/aegislps_engine/risk.py:195–196` | contradicted by code | IEC 62305-2:2024 Annex A.1 Eq. (A.1), A.2.4 Eq. (A.5) | code uses input named Ng directly; 2024 uses strike-point density Nsg = k Ng, so terminology/input convention needs owner review; no formula change authorized |
+| 50 | 33:155 | Legacy engine direct-strike subtotal RA + RB + RC | `services/calculation-engine/aegislps_engine/risk.py:232–237` | consistent | IEC 62305-2:2024 §6.3 | clarify that this is a partial direct-strike subtotal, not the complete risk |
+| 51 | 33:156 | Representative tolerable risk is 1 × 10⁻⁵ per year | `services/calculation-engine/aegislps_engine/risk.py:238–239` | consistent | IEC 62305-2:2024 §7.3 Note 1 | qualify representative value; owner may select otherwise |
+| 52 | 33:165 | Optimizer is experimental and outputs require deterministic review | `services/calculation-engine/aegislps_engine/optimization.py` | unsourced | none | maintain disclosure; not an IEC formula claim |
+| 53 | 33:189 | Section heading only | none | non-claim | none | no action |
+| 54 | 35:26 | Single-kc separation s = ki kc l / km | `services/calculation-engine/aegislps_engine/separation.py:173–177` | consistent | IEC 62305-3:2024 §6.3.2 Eq. (6) | specify simplified case |
+| 55 | 35:28 | Class I ki = 0.08 | `packages/standards-data/aegislps_standards/repository.py:34–40` | consistent | IEC 62305-3:2024 §6.3.1 Table 11 | retain |
+| 55 | 35:28 | Class II ki = 0.06 | `packages/standards-data/aegislps_standards/repository.py:42–48` | consistent | IEC 62305-3:2024 §6.3.1 Table 11 | retain |
+| 55 | 35:28 | Classes III/IV ki = 0.04 | `packages/standards-data/aegislps_standards/repository.py:50–56` | consistent | IEC 62305-3:2024 §6.3.1 Table 11 | retain |
+| 56 | 35:29 | Air km = 1.0 | `packages/standards-data/aegislps_standards/repository.py:58–64` | consistent | IEC 62305-3:2024 §6.3.1 Table 12 | retain |
+| 56 | 35:29 | Solid concrete/masonry km = 0.5 | `packages/standards-data/aegislps_standards/repository.py:66–72` | consistent | IEC 62305-3:2024 §6.3.1 Table 12 | retain |
+| 57 | 35:30 | Separation kc derives from network topology or nodal solver | `services/calculation-engine/aegislps_engine/separation.py:69–106` | contradicted by code | IEC 62305-3:2024 §6.3.2 Table 13 | correct to conductor-count lookup and fallback |
+| 58 | 35:33 | Separation kc comes from segment count | `services/calculation-engine/aegislps_engine/separation.py:69–106` | contradicted by code | IEC 62305-3:2024 §6.3.2 Table 13 | replace obsolete defect note |
+| 58 | 35:33 | Separation does not evaluate weighted segment sum | `services/calculation-engine/aegislps_engine/separation.py:158–177` | consistent | IEC 62305-3:2024 §6.3.1 Eq. (5) | H10-b proposal, not applied |
+| 59 | 35:36 | Segment-by-segment varying-km sum is implemented | `services/calculation-engine/aegislps_engine/separation.py:158–177` | contradicted by code | IEC 62305-3:2024 §6.3.1 Eq. (5) | no implementation; standard Eq. (5) has one km outside the sum; do not attribute varying-km form to it |
+| 60 | 35:40 | Compliance compares actual distance with s via margin ≥ 0 | `services/calculation-engine/aegislps_engine/separation.py:179–181,201–206` | consistent | IEC 62305-3:2024 §6.3.1 | retain; warnings can affect overall status |
+
+Marker lines 41–60 are accounted for above. The Ng/Nsg distinction is a newly identified potential code/document convention issue: proposed design only is to represent the density type and conversion factor explicitly before applying Eq. (A.5); the schema, jurisdiction and source require owner review. No change is applied.
