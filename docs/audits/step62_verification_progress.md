@@ -145,3 +145,7 @@ The failures are raw test outcomes, not a verification label. Whole historical f
 - B3: `rg --hidden -l SECRET_SALT -g '!docs/**' -g '!.git/**'` returned no matches, excluding ignored dependency/build directories.
 - B4: `pgrep -af '[u]vicorn'` returned no processes.
 - B5: See final `git diff --stat ea77582` in the report. No physics, tests, snapshots, CI, H7, optimizer or H14 changes were made.
+
+## Step 6.6 — independent-oracle semantic mutations (partial)
+
+See `step66_verification.md` for all 12 item/sub-item rows, exact scratch before/after expressions, source assessments, counts and first three failing tests. C2, C3 first-stroke, C3-b shielding, C4 radii (sub-item), and H15 connecting-lead formula satisfy the new criterion for the named behavior. C1, C4-b, H3, H4, H5, H8 and H9 remain open or pending for the reasons in that report. C4 remains pending in the register because its Type A/B compliance sub-item is open. H15 and C3 labels do not resolve separately listed limitations. No production physics or tests were changed. H10 batches 1–5 cover all 99 marker lines: 143 claim rows (61 consistent, 38 contradicted by code, 44 unsourced) plus 3 non-claim rows. H10 remains open pending code-side resolution or owner deferral.

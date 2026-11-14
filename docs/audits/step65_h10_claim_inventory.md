@@ -327,3 +327,31 @@ Marker lines 81–99 are accounted for above. No proposed change below has been 
 
 - **Risk density / line exposure:** replace a single ambiguously named `ng` with an explicit density basis and owner-supplied conversion where needed; evaluate line collection area and the installation, environment and type factors separately per IEC 62305-2:2024 Annex A.1 and A.4. This requires schema, compatibility and source decisions; it is not a drop-in diff.
 - **Fastener-spacing bound:** proposal sketch only: replace the minimum-spacing clamp with a result that reports infeasibility whenever `holder_force / force_per_length` is below any practical minimum; otherwise return a spacing no greater than the mechanical upper bound. Holder strength, safety factors and minimum practical spacing need owner approval. Do not apply without a sourced mechanical model and tests.
+
+### Additional proposed diffs — design sketches, not applied
+
+The placeholders below require input/schema, owner and domain decisions; these are not executable patches or authorization for physics changes.
+
+**Density and buried-line conventions** (`comprehensive_risk.py:245–254` and `risk.py:195–196`):
+
+```diff
+- nd = ng_flashes_per_km2_year * ad * environmental_cd * 1e-6
++ nd = resolved_strike_point_density_nsg * ad * location_cd * 1e-6
+- width_factor = 40.0 if line.service_type == "aerial_power" else 8.0
+- al_total += width_factor * line.line_length_m
++ al = 40.0 * line.line_length_m  # subject to the standard's section assumptions
++ nl += resolved_nsg * al * line_installation_ci * line_environment_ce * line_type_ct * 1e-6
+```
+
+`resolved_strike_point_density_nsg` and the separate factors are deliberately undefined. IEC 62305-2:2024 Annex A.1 and A.4 must be reconciled with input data, buried-soil conditions and backwards compatibility before implementation. The same density issue is recorded at marker 49.
+
+**Fastener upper bound** (`peec_thermal.py:433–436`):
+
+```diff
+- fastener_pitch_m = min(1.0, max(0.2, max_holder_force_n / max(1.0, f_per_m)))
++ # Owner must approve holder ratings, safety factor and practical spacing.
++ fastener_pitch_m, feasibility = approved_spacing_policy(max_holder_force_n, f_per_m)
++ # The policy must report infeasible instead of exceeding the allowable upper bound.
+```
+
+For illustration, if the force per metre is 5000 N/m and the assumed holder force is 500 N, the stated upper bound is 0.1 m while the current minimum clamp returns 0.2 m. This is not a validated real installation or a proposed change to the mechanics model. H10-a and H10-b full design sketches remain in `step62_h10_claim_audit.md`; they likewise remain unapplied.
